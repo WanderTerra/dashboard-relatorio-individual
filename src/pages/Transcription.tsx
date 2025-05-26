@@ -36,6 +36,12 @@ export default function Transcription() {
     queryFn: () => getTranscription(avaliacaoId!),
   });
 
+  const handleDownloadClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    console.log('Iniciando download do áudio...');
+    console.log('Call ID:', callInfo?.call_id);
+    console.log('URL do áudio:', `/api/call/${callInfo?.call_id}/audio`);
+  };
+
   return (
     <div className="mx-auto max-w-3xl p-6">
       <Link to={-1 as any} className="inline-block mb-4 rounded bg-blue-600 px-4 py-2 text-white font-semibold shadow hover:bg-blue-700 transition-colors">&larr; Voltar</Link>
@@ -45,9 +51,10 @@ export default function Transcription() {
       ) : data ? (
         <>          {callInfo?.call_id && (
             <a
-              href={`http://127.0.0.1:8000/call/${callInfo.call_id}/audio`}
+              href={`/api/call/${callInfo.call_id}/audio`}
               className="inline-block mb-4 rounded bg-green-600 px-4 py-2 text-white font-semibold shadow hover:bg-green-700 transition-colors"
               download={`audio-${callInfo.call_id}.mp3`}
+              onClick={handleDownloadClick}
             >
               &#128190; Baixar Áudio
             </a>
