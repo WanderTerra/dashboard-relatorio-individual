@@ -26,6 +26,7 @@ const AgentsTable: React.FC<Props> = ({ agents, filters }) => {
             <th className="p-3">ID</th>
             <th className="p-3">Pontuação</th>
             <th className="p-3">Ligações</th>
+            <th className="p-3">Item com maior NC</th>
             <th className="p-3"></th>
           </tr>
         </thead>
@@ -36,6 +37,7 @@ const AgentsTable: React.FC<Props> = ({ agents, filters }) => {
               <td className="p-3">{a.agent_id}</td>
               <td className={`p-3 font-semibold ${cor(a.media)}`}>{a.media}</td>
               <td className="p-3">{a.ligacoes}</td>
+            
               <td className="p-3">
                 <button
                   className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"

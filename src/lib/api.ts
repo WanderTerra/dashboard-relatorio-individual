@@ -1,6 +1,7 @@
 // src/lib/api.ts
 import axios from 'axios';
 
+
 // Em desenvolvimento, usa o proxy do Vite
 export const baseURL = '/api';
 
@@ -63,3 +64,18 @@ export const getCallItems = (avaliacaoId: string) =>
 
 export const getTranscription = (avaliacaoId: string) =>
   api.get(`/call/${avaliacaoId}/transcription`).then(r => r.data);
+
+
+/** Busca o pior item de conformidade de um agente no período */
+export interface WorstItem {
+  categoria: string;
+  qtd_nao_conforme: number;
+  total_avaliacoes_item: number;
+  taxa_nao_conforme: number;
+}
+
+export const getAgentWorstItem = (id: string, f: Filters) =>
+  api
+    .get< WorstItem >(`/agent/${id}/worst_item`, { params: f })
+    .then(r => r.data);
+
