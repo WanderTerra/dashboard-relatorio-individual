@@ -1,12 +1,16 @@
-import React from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getTranscription, getAgentCalls } from '../lib/api';
+import { getTranscription, getAgentCalls, downloadAudio } from '../lib/api';
+import axios from 'axios';
 
 export default function Transcription() {
   const { avaliacaoId } = useParams();
   const location = useLocation();
   const agentId = location.state?.agentId;
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   
   console.log('Estado recebido:', location.state); 
   console.log('Agent ID:', agentId);
@@ -35,11 +39,43 @@ export default function Transcription() {
     queryKey: ['transcription', avaliacaoId],
     queryFn: () => getTranscription(avaliacaoId!),
   });
-
-  const handleDownloadClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    console.log('Iniciando download do áudio...');
-    console.log('Call ID:', callInfo?.call_id);
-    console.log('URL do áudio:', `/api/call/${callInfo?.call_id}/audio`);
+  const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    
+    if (!callInfo?.call_id) {
+      setDownloadError('ID da ligação não encontrado');
+      return;
+    }
+    
+    setIsDownloading(true);
+    setDownloadError(null);
+    
+    try {
+      console.log('Iniciando download do áudio...');
+      console.log('Call ID:', callInfo.call_id);
+      
+      const response = await axios.get(`/api/call/${callInfo.call_id}/audio`, {
+        responseType: 'blob'
+      });
+      
+      // Criar URL do blob e link de download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `audio-${callInfo.call_id}.mp3`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpar recursos
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      console.log('Download concluído com sucesso');
+    } catch (error) {
+      console.error('Erro ao baixar áudio:', error);
+      setDownloadError('Falha ao baixar o áudio. Tente novamente mais tarde.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -48,17 +84,22 @@ export default function Transcription() {
       {isLoading ? (
         <p>Carregando transcrição…</p>
       ) : data ? (
-        <>          
-          {callInfo?.call_id && (
+        <>            {callInfo?.call_id && (
             <div className="mb-4">
-              <a
-                href={`/api/call/${callInfo.call_id}/audio`}
-                className="inline-block rounded bg-green-600 px-4 py-2 text-white font-semibold shadow hover:bg-green-700 transition-colors"
-                download={`audio-${callInfo.call_id}.mp3`}
+              <button
+                className={`inline-block rounded px-4 py-2 text-white font-semibold shadow transition-colors ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                 onClick={handleDownloadClick}
+                disabled={isDownloading}
               >
-                &#128190; Baixar Áudio da Ligação
-              </a>
+                {isDownloading ? (
+                  <>⏳ Baixando...</>
+                ) : (
+                  <>&#128190; Baixar Áudio da Ligação</>
+                )}
+              </button>
+              {downloadError && (
+                <p className="mt-2 text-sm text-red-600">{downloadError}</p>
+              )}
               <p className="mt-2 text-sm text-gray-600">ID da Ligação: {callInfo.call_id}</p>
             </div>
           )}

@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { formatISO } from 'date-fns';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
+import { Combobox } from '../components/ui/select-simple';
 import { getKpis, getTrend, getAgents, getAgentWorstItem, Filters } from '../lib/api';
 
 // Usar os últimos 6 meses em vez de apenas o mês atual
 const today = new Date();
 const sixMonthsAgo = new Date(today);
 sixMonthsAgo.setMonth(today.getMonth() - 6);
+
+// Lista de carteiras disponíveis - pode ser expandida no futuro
+const carteiras = [
+  { value: 'AGUAS', label: 'AGUAS' },
+  { value: 'VUON', label: 'VUON' },
+];
 
 const Dashboard: React.FC = () => {
   const [start, setStart]   = useState(formatISO(sixMonthsAgo, { representation: 'date' }));
@@ -39,8 +47,7 @@ const Dashboard: React.FC = () => {
       <h1 className="text-2xl font-bold">Avaliação de Ligações</h1>
 
       {/* filtros */}
-      <div className="flex flex-wrap gap-4">
-        <div>
+      <div className="flex flex-wrap gap-4">        <div>
           <label className="block text-xs">Início</label>
           <input
             type="date"
@@ -57,14 +64,17 @@ const Dashboard: React.FC = () => {
             onChange={e => setEnd(e.target.value)}
             className="border rounded p-1"
           />
-        </div>
-        <div>
-          <label className="block text-xs">Carteira</label>
-          <input
-            type="text"
+        </div>        <div className="min-w-[200px]">
+          <label className="block text-xs mb-1">Carteira</label>
+          <Combobox
+            options={carteiras}
             value={carteira}
-            onChange={e => setCart(e.target.value)}
-            className="border rounded p-1"
+            onChange={(value) => {
+              console.log('Carteira selecionada:', value);
+              setCart(value);
+            }}
+            placeholder="Selecionar carteira"
+            emptyMessage="Nenhuma carteira encontrada"
           />
         </div>
       </div>
@@ -92,13 +102,14 @@ const Dashboard: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {agents?.map((agent, idx) => {
-              const wi = worstItemQueries[idx];
+            {agents?.map((agent, idx) => {              const wi = worstItemQueries[idx];
               let piorLabel = '—';
               if (wi.isLoading) piorLabel = '…';
               else if (wi.isError) piorLabel = 'Erro';
-              else if (wi.data)
-                piorLabel = `${wi.data.categoria} (${(wi.data.taxa_nao_conforme * 100).toFixed(0)}%)`;
+              else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
+                const data = wi.data as { categoria: string; taxa_nao_conforme: number };
+                piorLabel = `${data.categoria} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
+              }
 
               return (
                 <tr key={agent.agent_id} className="even:bg-gray-50">
