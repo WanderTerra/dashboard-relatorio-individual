@@ -104,12 +104,11 @@ const Dashboard: React.FC = () => {
                 <tr key={agent.agent_id} className="even:bg-gray-50">
                   <td className="border px-4 py-2">{agent.nome}</td>
                   <td className="border px-4 py-2">{agent.ligacoes}</td>
-                  <td className="border px-4 py-2">{agent.media.toFixed(1)}</td>
-                  <td className="border px-4 py-2">{piorLabel}</td>
+                  <td className="border px-4 py-2">{agent.media.toFixed(1)}</td>                  <td className="border px-4 py-2">{piorLabel}</td>
                   <td className="border px-4 py-2">
                     <Link
                       to={`/agent/${agent.agent_id}`}
-                      className="text-blue-600 hover:underline"
+                      className="bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-sm"
                     >
                       DETALHAR
                     </Link>

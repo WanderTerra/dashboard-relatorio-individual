@@ -31,26 +31,38 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
       </thead>
       <tbody>
         {calls.map(c => (
-          <tr key={c.call_id} className="border-b last:border-0">
-            <td className="px-2 py-1">{new Date(c.data_ligacao).toLocaleDateString()}</td>
-            <td className="px-2 py-1">{c.pontuacao.toFixed(1)}</td>
-            <td className="px-2 py-1">{c.status_avaliacao}</td>
+          <tr key={c.call_id} className="border-b last:border-0">            <td className="px-2 py-1">{new Date(c.data_ligacao).toLocaleDateString()}</td>
             <td className="px-2 py-1">
+              <span className={
+                c.pontuacao >= 80 ? 'text-green-600 font-medium' :
+                c.pontuacao >= 60 ? 'text-yellow-600 font-medium' :
+                'text-red-600 font-medium'
+              }>
+                {c.pontuacao.toFixed(1)}
+              </span>
+            </td>            
+            <td className="px-2 py-1">
+              <span className={c.status_avaliacao === 'APROVADA' ? 'text-green-600 font-medium' : 
+                             c.status_avaliacao === 'REPROVADA' ? 'text-red-600 font-medium' : 
+                             'text-gray-600'}>
+                {c.status_avaliacao}
+              </span>
+            </td>            <td className="px-2 py-1">
               <Link
                 to={`/call/${c.avaliacao_id}/items`}
                 state={{ agentId }}
-                className="text-blue-600 hover:underline"
+                className="bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs"
               >
-                Itens
+                &#128203; Itens
               </Link>
             </td>
             <td className="px-2 py-1">
               <Link
                 to={`/call/${c.avaliacao_id}/transcription`}
                 state={{ agentId }}
-                className="text-blue-600 hover:underline"
+                className="bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs"
               >
-                Transcrição
+                &#128172; Transcrição
               </Link>
             </td>
           </tr>
