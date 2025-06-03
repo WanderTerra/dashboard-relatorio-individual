@@ -7,11 +7,13 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import { getKpis, getTrend, getAgents, getAgentWorstItem, Filters } from '../lib/api';
 
-const today  = new Date();
-const first  = new Date(today.getFullYear(), today.getMonth(), 1);
+// Usar os últimos 6 meses em vez de apenas o mês atual
+const today = new Date();
+const sixMonthsAgo = new Date(today);
+sixMonthsAgo.setMonth(today.getMonth() - 6);
 
 const Dashboard: React.FC = () => {
-  const [start, setStart]   = useState(formatISO(first, { representation: 'date' }));
+  const [start, setStart]   = useState(formatISO(sixMonthsAgo, { representation: 'date' }));
   const [end,   setEnd]     = useState(formatISO(today, { representation: 'date' }));
   const [carteira, setCart] = useState('');
 
