@@ -1,5 +1,6 @@
 import React from 'react';
 import KpiCard from './KpiCard';
+import { formatItemName } from '../lib/format';
 
 interface PiorItem {
   categoria: string;
@@ -21,7 +22,7 @@ const KpiCards: React.FC<Props> = ({ media, total, pior }) => (
     <KpiCard label="Ligações avaliadas" value={total} />
     <KpiCard
       label="Item com maior NC"
-      value={pior ? `${pior.categoria} (${pior.pct_nao_conforme}%)` : '-'}
+      value={pior ? `${formatItemName(pior.categoria)} (${pior.pct_nao_conforme}%)` : '-'}
       color="text-red-600"
     />
   </div>

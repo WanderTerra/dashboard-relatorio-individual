@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip
 } from 'recharts';
+import { formatItemName } from '../lib/format';
 
 const AgentReport = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -152,19 +153,19 @@ const AgentReport = () => {
       case 'conforme':
         return (
           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-            Conforme
+            {formatItemName(status)}
           </span>
         );
       case 'nao_conforme':
         return (
           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-            Não Conforme
+            {formatItemName(status)}
           </span>
         );
       case 'nao_aplicavel':
         return (
           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-            Não Aplicável
+            {formatItemName(status)}
           </span>
         );
       default:
@@ -352,7 +353,7 @@ const AgentReport = () => {
                   <h3 className="font-medium text-red-800">{criterion.name}</h3>
                   <p className="text-gray-700 mt-1">{criterion.description}</p>
                   <div className="mt-2 text-sm text-gray-600">
-                    <span className="font-medium">Sugestão de melhoria:</span> Revisar procedimentos de {criterion.name.split('.')[1].trim().toLowerCase()} e praticar com exemplos.
+                    <span className="font-medium">Sugestão de melhoria:</span> Revisar procedimentos de {formatItemName(criterion.id)} e praticar com exemplos.
                   </div>
                 </div>
               ))}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCallItems } from '../lib/api';
+import { formatItemName } from '../lib/format';
 
 interface Item {
   categoria:  string;
@@ -44,10 +45,10 @@ export default function CallItems() {
         <ul className="space-y-3">
           {data.map((it, idx) => (
             <li key={idx} className="rounded-xl bg-white p-4 shadow flex flex-col gap-1">
-              <span className="text-sm font-semibold">{it.categoria}</span>
+              <span className="text-sm font-semibold">{formatItemName(it.categoria)}</span>
               <span className="text-xs text-gray-500">{it.descricao}</span>
               <span className={`text-xs font-medium ${cor(it.resultado)}`}>
-                {it.resultado}
+                {formatItemName(it.resultado)}
               </span>
             </li>
           ))}

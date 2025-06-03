@@ -8,6 +8,7 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import { Combobox } from '../components/ui/select-simple';
 import { getKpis, getTrend, getAgents, getAgentWorstItem, Filters } from '../lib/api';
+import { formatItemName } from '../lib/format';
 
 // Usar os últimos 6 meses em vez de apenas o mês atual
 const today = new Date();
@@ -105,10 +106,9 @@ const Dashboard: React.FC = () => {
             {agents?.map((agent, idx) => {              const wi = worstItemQueries[idx];
               let piorLabel = '—';
               if (wi.isLoading) piorLabel = '…';
-              else if (wi.isError) piorLabel = 'Erro';
-              else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
+              else if (wi.isError) piorLabel = 'Erro';              else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
                 const data = wi.data as { categoria: string; taxa_nao_conforme: number };
-                piorLabel = `${data.categoria} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
+                piorLabel = `${formatItemName(data.categoria)} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
               }
 
               return (

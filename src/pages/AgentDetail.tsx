@@ -11,6 +11,7 @@ import {
 } from '../lib/api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
+import { formatItemName } from '../lib/format';
 
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -98,9 +99,8 @@ const AgentDetail: React.FC = () => {
         {wiLoading
           ? <p>Carregando…</p>
           : worstItem
-            ? (
-              <p>
-                <strong>{worstItem.categoria}</strong> — taxa de não conformidade de{' '}
+            ? (              <p>
+                <strong>{formatItemName(worstItem.categoria)}</strong> — taxa de não conformidade de{' '}
                 {(worstItem.taxa_nao_conforme * 100).toFixed(1)}%
               </p>
             )

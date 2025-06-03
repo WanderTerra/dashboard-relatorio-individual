@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { formatItemName } from '../lib/format';
 
 export interface CallRow {
   call_id: string;
@@ -41,11 +42,10 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
                 {c.pontuacao.toFixed(1)}
               </span>
             </td>            
-            <td className="px-2 py-1">
-              <span className={c.status_avaliacao === 'APROVADA' ? 'text-green-600 font-medium' : 
+            <td className="px-2 py-1">              <span className={c.status_avaliacao === 'APROVADA' ? 'text-green-600 font-medium' : 
                              c.status_avaliacao === 'REPROVADA' ? 'text-red-600 font-medium' : 
                              'text-gray-600'}>
-                {c.status_avaliacao}
+                {formatItemName(c.status_avaliacao)}
               </span>
             </td>            <td className="px-2 py-1">
               <Link
