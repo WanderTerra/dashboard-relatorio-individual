@@ -5,7 +5,8 @@ import axios from 'axios';
 //
 export const baseURL = '/api';
 
-const api = axios.create({
+// Exporting the api instance to be used consistently across all files
+export const api = axios.create({
   baseURL,
   headers: {
     'Accept': 'application/json',
@@ -52,3 +53,12 @@ export const getCallItems      = (avaliacaoId: string)   => api.get(`/call/${ava
 export const getTranscription  = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/transcription`).then(r => r.data);
 export const getAgentWorstItem = (id: string, f: Filters) => api.get(`/agent/${id}/worst_item`, { params: f }).then(r => r.data);
 export const downloadAudio     = (callId: string)     => api.get(`/call/${callId}/audio`, { responseType: 'blob' }).then(r => r.data);
+
+// Função para atualizar um item de avaliação
+export const updateItem = (avaliacaoId: string, categoria: string, resultado: string, descricao: string) => {
+  return api.put(`/call/${avaliacaoId}/item/${encodeURIComponent(categoria)}`, {
+    categoria,
+    resultado,
+    descricao
+  }).then(r => r.data);
+};
