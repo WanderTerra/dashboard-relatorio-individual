@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip
 } from 'recharts';
-import { formatItemName } from '../lib/format';
+import { formatItemName, formatAgentName } from '../lib/format';
 
 const AgentReport = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -210,7 +210,7 @@ const AgentReport = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Agente</h3>
-                <p className="text-lg font-semibold">{agentData.name}</p>
+                <p className="text-lg font-semibold">{formatAgentName(agentData)}</p>
               </div>
             </div>
             
@@ -305,7 +305,7 @@ const AgentReport = () => {
                 }`}
               >
                 <div className="flex justify-between items-start">
-                  <h3 className="text-lg font-medium">{criterion.name}</h3>
+                  <h3 className="text-lg font-medium">{formatItemName(criterion.id)}</h3>
                   {getStatusBadge(criterion.status)}
                 </div>
                 <p className="text-gray-600 mt-2">{criterion.description}</p>
@@ -350,10 +350,10 @@ const AgentReport = () => {
               .filter(criterion => criterion.status === 'nao_conforme')
               .map((criterion) => (
                 <div key={`improvement-${criterion.id}`} className="p-4 bg-red-50 rounded-lg border border-red-200">
-                  <h3 className="font-medium text-red-800">{criterion.name}</h3>
+                  <h3 className="font-medium text-red-800">{formatItemName(criterion.id)}</h3>
                   <p className="text-gray-700 mt-1">{criterion.description}</p>
                   <div className="mt-2 text-sm text-gray-600">
-                    <span className="font-medium">Sugestão de melhoria:</span> Revisar procedimentos de {formatItemName(criterion.id)} e praticar com exemplos.
+                    <span className="font-medium">Sugestão de melhoria:</span> Revisar procedimentos de {formatItemName(criterion.id).toLowerCase()} e praticar com exemplos.
                   </div>
                 </div>
               ))}

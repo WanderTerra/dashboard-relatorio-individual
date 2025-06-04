@@ -48,3 +48,67 @@ export function formatItemName(technicalName: string): string {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
+
+// Função para formatar o nome do agente
+export function formatAgentName(agent: any): string {
+  if (!agent) return "Agente sem nome";
+  
+  // Verificar se o ID do agente está no mapeamento de correção
+  const agentId = agent.agent_id?.toString();
+  if (agentId && agentIdNameMap[agentId]) {
+    return agentIdNameMap[agentId];
+  }
+  
+  // Verificar se existe nome no formato esperado (pode estar em 'nome' ou 'name')
+  if (agent.nome) return agent.nome;
+  if (agent.name) return agent.name;
+  
+  // Se o nome não existe em nenhum formato conhecido, retorna um valor padrão com o ID
+  return agentId ? `Agente ${agentId}` : "Agente sem nome";
+}
+
+// Mapeamento de IDs de agentes para nomes corretos
+export const agentIdNameMap: Record<string, string> = {
+  "1011": "Adryan Araujo",
+  "1112": "Anny Danielli",
+  "1099": "Arthur Marques",
+  "1103": "Cayo Eduardo",
+  "1146": "Davy de Lucena",
+  "1006": "Eduarda Nogueira",
+  "1143": "Elias Balcazar",
+  "1016": "Elizabeth Souza",
+  "1029": "Ewerton Lino",
+  "1148": "Gabriel Arguelho",
+  "1155": "Gabriela Poquiviqui",
+  "1151": "Gabriele Vitoria",
+  "1113": "Gabrielly Silva",
+  "1034": "Hilda Fraide",
+  "1129": "Iasmin Oshiro",
+  "1104": "Isabely Sena",
+  "1144": "Jennifer Dayane",
+  "1094": "Juliany Vargas",
+  "1063": "Julliany Tenorio",
+  "1116": "Kali Vitória",
+  "1134": "Karla Teixeira",
+  "1132": "Kezia Fernandes",
+  "1149": "Leticia Cardoso",
+  "1105": "Lucas Rodrigues",
+  "1070": "Marcos Dos Santos",
+  "1073": "Maria Costa",
+  "1152": "Mateus Machado",
+  "1119": "Mileida Gomes",
+  "1069": "Milene Luchese",
+  "1064": "Murilo Freitas",
+  "1009": "Nathaly Cruz",
+  "1156": "Nathaly Cruz",
+  "1118": "Octávio de Almeida",
+  "1115": "Pablo Henrique",
+  "1111": "Patrick Espindola",
+  "1153": "Pedro Henrique",
+  "1145": "Pedro Sales",
+  "1150": "Sara Esselin",
+  "1106": "Victor Antunes",
+  "1126": "Wesley Gomes",
+  "1030": "Yasmim Souza",
+  "1088": "Yasmim Souza (pequenas Carteiras)"
+};

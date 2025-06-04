@@ -11,7 +11,7 @@ import {
 } from '../lib/api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
-import { formatItemName } from '../lib/format';
+import { formatItemName, formatAgentName } from '../lib/format';
 
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -20,12 +20,17 @@ const AgentDetail: React.FC = () => {
   const [end, setEnd]     = useState("2025-12-31");
   const filters: Filters  = { start, end };
   
-  console.log("Usando filtros fixos:", filters);// summary
+  console.log("Usando filtros fixos:", filters);
+  
+  // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ['agentSummary', agentId, filters],
     queryFn: () => {
       console.log(`Buscando resumo para agente ${agentId} com filtros:`, filters);
-      return getAgentSummary(agentId, filters);
+      return getAgentSummary(agentId, filters).then(data => {
+        console.log('Dados recebidos do agente:', data);
+        return data;
+      });
     },
   });
 
@@ -58,13 +63,12 @@ const AgentDetail: React.FC = () => {
     <div className="p-6 space-y-6">
       <Link to="/" className="px-4 py-2 bg-blue-600 text-white rounded">
         ← Voltar
-      </Link>      {/* Cabeçalho */}
-      {summaryLoading
+      </Link>      {/* Cabeçalho */}      {summaryLoading
         ? <p>Carregando informações do agente…</p>
-        : (
-          <SummaryCard
-            title={summary?.nome ?? `Agente ${agentId}`}
-            subtitle={`ID ${agentId}`}
+        : (          <SummaryCard
+            name={formatAgentName(summary)}
+            title={`Agente ${agentId}`}
+            subtitle=""
             media={summary?.media ?? 0}
             total={summary?.ligacoes ?? 0}
           />

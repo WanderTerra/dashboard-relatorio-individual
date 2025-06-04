@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatAgentName } from '../lib/format';
 
 interface Agent {
   agent_id: string;
@@ -30,10 +31,9 @@ const AgentsTable: React.FC<Props> = ({ agents, filters }) => {
             <th className="p-3"></th>
           </tr>
         </thead>
-        <tbody>
-          {agents.map((a) => (
+        <tbody>          {agents.map((a) => (
             <tr key={a.agent_id} className="border-b last:border-none">
-              <td className="p-3">{a.nome}</td>
+              <td className="p-3">{formatAgentName(a)}</td>
               <td className="p-3">{a.agent_id}</td>
               <td className={`p-3 font-semibold ${cor(a.media)}`}>{a.media}</td>
               <td className="p-3">{a.ligacoes}</td>

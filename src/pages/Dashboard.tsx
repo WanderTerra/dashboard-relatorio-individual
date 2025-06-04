@@ -8,7 +8,7 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import { Combobox } from '../components/ui/select-simple';
 import { getKpis, getTrend, getAgents, getAgentWorstItem, Filters } from '../lib/api';
-import { formatItemName } from '../lib/format';
+import { formatItemName, formatAgentName } from '../lib/format';
 
 // Usar os últimos 6 meses em vez de apenas o mês atual
 const today = new Date();
@@ -109,13 +109,11 @@ const Dashboard: React.FC = () => {
               else if (wi.isError) piorLabel = 'Erro';              else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
                 const data = wi.data as { categoria: string; taxa_nao_conforme: number };
                 piorLabel = `${formatItemName(data.categoria)} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
-              }
-
-              return (
+              }              return (
                 <tr key={agent.agent_id} className="even:bg-gray-50">
-                  <td className="border px-4 py-2">{agent.nome}</td>
+                  <td className="border px-4 py-2">{formatAgentName(agent)}</td>
                   <td className="border px-4 py-2">{agent.ligacoes}</td>
-                  <td className="border px-4 py-2">{agent.media.toFixed(1)}</td>                  <td className="border px-4 py-2">{piorLabel}</td>
+                  <td className="border px-4 py-2">{agent.media.toFixed(1)}</td><td className="border px-4 py-2">{piorLabel}</td>
                   <td className="border px-4 py-2">
                     <Link
                       to={`/agent/${agent.agent_id}`}

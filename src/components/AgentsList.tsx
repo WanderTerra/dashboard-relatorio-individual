@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatAgentName } from '../lib/format';
 
 interface Agent {
   id: number;
@@ -64,7 +65,7 @@ const AgentsList: React.FC<AgentsListProps> = ({ agents }) => {
                     <span className="text-indigo-700 font-medium">{agent.name.split(' ').map(n => n[0]).join('')}</span>
                   </div>
                   <div className="ml-4">
-                    <div className="text-sm font-medium text-gray-900">{agent.name}</div>
+                    <div className="text-sm font-medium text-gray-900">{formatAgentName(agent)}</div>
                   </div>
                 </div>
               </td>

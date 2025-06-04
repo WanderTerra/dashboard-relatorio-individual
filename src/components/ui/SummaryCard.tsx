@@ -5,11 +5,13 @@ interface SummaryCardProps {
   subtitle: string;
   media: number;
   total: number;
+  name?: string; // Nome do agente
 }
 
-const SummaryCard: React.FC<SummaryCardProps> = ({ title, subtitle, media, total }) => (
+const SummaryCard: React.FC<SummaryCardProps> = ({ title, subtitle, media, total, name }) => (
   <div className="bg-white p-4 rounded shadow">
-    <h1 className="text-xl font-bold">{title}</h1>
+    {name && <h1 className="text-xl font-bold mb-1">{name}</h1>}
+    <h2 className={`${name ? 'text-lg' : 'text-xl font-bold'}`}>{title}</h2>
     <p className="text-sm text-gray-600">{subtitle}</p>
     <div className="mt-4 flex space-x-6">
       <div>
