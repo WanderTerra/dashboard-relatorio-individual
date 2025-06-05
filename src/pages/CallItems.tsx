@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems, getAgentCalls } from '../lib/api';
-import { formatItemName } from '../lib/format';
+import { getCallItems, getAgentCalls, getAgentSummary } from '../lib/api';
+import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
 
@@ -31,7 +31,7 @@ export default function CallItems() {
     queryKey: ['callItems', avaliacaoId],
     queryFn : () => getCallItems(avaliacaoId!),
   });
-    // Buscar informações da ligação para obter o call_id
+  // Buscar informações da ligação para obter o call_id
   const { data: calls } = useQuery({
     queryKey: ['calls', agentId, avaliacaoId],
     queryFn: () => getAgentCalls(agentId!, {
@@ -39,7 +39,17 @@ export default function CallItems() {
       end: '2025-12-31'
     }),
     enabled: !!agentId
-  });  // Effect para definir o callId quando os dados estiverem disponíveis
+  });
+
+  // Buscar informações do agente para obter o nome
+  const { data: agentInfo } = useQuery({
+    queryKey: ['agentSummary', agentId],
+    queryFn: () => getAgentSummary(agentId!, {
+      start: '2024-01-01',
+      end: '2025-12-31'
+    }),
+    enabled: !!agentId
+  });// Effect para definir o callId quando os dados estiverem disponíveis
   useEffect(() => {
     if (calls) {
       const callInfo = calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId));
@@ -88,10 +98,28 @@ export default function CallItems() {
               <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
             </svg>
             Voltar
-          </Link>
+          </Link>          {/* Cabeçalho com informações do agente e ligação */}
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <div className="flex flex-col space-y-3">
+              {agentInfo && (
+                <div className="flex items-center text-gray-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Agente: <span className="font-medium text-gray-800">{formatAgentName(agentInfo)}</span></span>
+                </div>
+              )}
+              <div className="flex items-center text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm">Avaliação ID: <span className="font-medium text-gray-800">{avaliacaoId}</span></span>
+              </div>
+            </div>
+          </div>
 
           <h2 className="text-xl font-bold text-gray-800 mt-4 flex items-center">
-        Itens da ligação {avaliacaoId}
+        Itens da Avaliação
         {isTranscriptionModalOpen && (
           <span className="ml-3 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium animate-pulse">
             Comparando com transcrição...
