@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getTranscription, getAgentCalls, downloadAudio } from '../lib/api';
-import axios from 'axios';
 
 export default function Transcription() {
   const { avaliacaoId } = useParams();
@@ -38,8 +37,7 @@ export default function Transcription() {
   const { data, isLoading } = useQuery({
     queryKey: ['transcription', avaliacaoId],
     queryFn: () => getTranscription(avaliacaoId!),
-  });
-  const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  });  const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     
     if (!callInfo?.call_id) {
@@ -54,12 +52,11 @@ export default function Transcription() {
       console.log('Iniciando download do áudio...');
       console.log('Call ID:', callInfo.call_id);
       
-      const response = await axios.get(`/api/call/${callInfo.call_id}/audio`, {
-        responseType: 'blob'
-      });
+      // Usar a função de API para download do áudio
+      const audioBlob = await downloadAudio(callInfo.call_id);
       
       // Criar URL do blob e link de download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([audioBlob]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `audio-${callInfo.call_id}.mp3`);
@@ -76,40 +73,88 @@ export default function Transcription() {
     } finally {
       setIsDownloading(false);
     }
-  };
-  return (
-    <div className="mx-auto max-w-3xl p-6">
-      <Link to={-1 as any} className="inline-block mb-4 rounded bg-blue-600 px-4 py-2 text-white font-semibold shadow hover:bg-blue-700 transition-colors">&larr; Voltar</Link>
-      <h2 className="text-2xl font-bold mb-4">Transcrição da Ligação</h2>
-      {isLoading ? (
-        <p>Carregando transcrição…</p>
-      ) : data ? (
-        <>            {callInfo?.call_id && (
-            <div className="mb-4">
-              <button
-                className={`inline-block rounded px-4 py-2 text-white font-semibold shadow transition-colors ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                onClick={handleDownloadClick}
-                disabled={isDownloading}
-              >
-                {isDownloading ? (
-                  <>⏳ Baixando...</>
-                ) : (
-                  <>&#128190; Baixar Áudio da Ligação</>
-                )}
-              </button>
-              {downloadError && (
-                <p className="mt-2 text-sm text-red-600">{downloadError}</p>
-              )}
-              <p className="mt-2 text-sm text-gray-600">ID da Ligação: {callInfo.call_id}</p>
+  };return (
+    <div className="mx-auto max-w-3xl p-6 space-y-6">
+      <Link 
+        to={-1 as any} 
+        className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 transition-all duration-200 group"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:-translate-x-0.5 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+        </svg>
+        Voltar
+      </Link>
+      
+      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">Transcrição da Ligação</h2>
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-300 border-t-transparent absolute top-0 left-0" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
             </div>
-          )}
-          <pre className="bg-gray-100 rounded-xl p-4 text-gray-800 whitespace-pre-wrap">
-            {data.conteudo || 'Sem transcrição disponível.'}
-          </pre>
-        </>
-      ) : (
-        <p>Transcrição não encontrada.</p>
-      )}
+            <span className="ml-4 text-sm font-medium text-gray-600">Carregando transcrição...</span>
+          </div>
+        ) : data ? (
+          <>
+            {callInfo?.call_id && (
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">ID da Ligação: <span className="font-medium">{callInfo.call_id}</span></p>
+                  <p className="text-sm text-gray-600">ID da Avaliação: <span className="font-medium">{avaliacaoId}</span></p>
+                </div>
+                
+                <button
+                  className={`inline-flex items-center rounded-lg px-4 py-2 text-white font-medium shadow transition-all ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                  onClick={handleDownloadClick}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Baixando...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      Baixar Áudio
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {downloadError && (
+              <div className="mb-4 p-3.5 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200 shadow-sm animate-in fade-in slide-in-from-top-3 duration-300">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {downloadError}
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-gray-50 rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-inner border border-gray-200 leading-relaxed">
+              {data.conteudo || 'Sem transcrição disponível.'}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-lg font-medium">Transcrição não encontrada.</p>
+            <p className="text-sm mt-2">Não foi possível localizar a transcrição desta ligação.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
