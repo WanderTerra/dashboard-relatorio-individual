@@ -39,8 +39,7 @@ export default function CallItems() {
       end: '2025-12-31'
     }),
     enabled: !!agentId
-  });
-  // Effect para definir o callId quando os dados estiverem disponíveis
+  });  // Effect para definir o callId quando os dados estiverem disponíveis
   useEffect(() => {
     if (calls) {
       const callInfo = calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId));

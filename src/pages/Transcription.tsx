@@ -7,14 +7,10 @@ import { getTranscription, getAgentCalls, downloadAudio } from '../lib/api';
 export default function Transcription() {
   const { avaliacaoId } = useParams();
   const location = useLocation();
-  const agentId = location.state?.agentId;
-  const [isDownloading, setIsDownloading] = useState(false);
+  const agentId = location.state?.agentId;  const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   
-  console.log('Estado recebido:', location.state); 
-  console.log('Agent ID:', agentId);
-  console.log('Avaliacao ID:', avaliacaoId);
-    const { data: calls, error: callsError } = useQuery({
+  const { data: calls, error: callsError } = useQuery({
     queryKey: ['calls', agentId],
     queryFn: () => getAgentCalls(agentId, {
       start: '2024-01-01',
@@ -22,16 +18,10 @@ export default function Transcription() {
     }),
     enabled: !!agentId
   });
-
-  console.log('Calls error:', callsError);
-  console.log('Calls data:', calls);
-  
   // Encontrar o call_id correspondente ao avaliacaoId
-  const callInfo = calls?.find(c => {
-    console.log('Comparando:', typeof c.avaliacao_id, c.avaliacao_id, typeof avaliacaoId, avaliacaoId);
+  const callInfo = calls?.find((c: any) => {
     return String(c.avaliacao_id) === String(avaliacaoId);
   });
-  console.log('Call Info encontrado:', callInfo);
   
   // Depois buscar a transcrição
   const { data, isLoading } = useQuery({
@@ -47,11 +37,7 @@ export default function Transcription() {
     
     setIsDownloading(true);
     setDownloadError(null);
-    
-    try {
-      console.log('Iniciando download do áudio...');
-      console.log('Call ID:', callInfo.call_id);
-      
+      try {
       // Usar a função de API para download do áudio
       const audioBlob = await downloadAudio(callInfo.call_id);
       
@@ -66,7 +52,6 @@ export default function Transcription() {
       // Limpar recursos
       window.URL.revokeObjectURL(url);
       document.body.removeChild(link);
-      console.log('Download concluído com sucesso');
     } catch (error) {
       console.error('Erro ao baixar áudio:', error);
       setDownloadError('Falha ao baixar o áudio. Tente novamente mais tarde.');

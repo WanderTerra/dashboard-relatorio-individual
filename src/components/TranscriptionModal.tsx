@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getTranscription, downloadAudio } from '../lib/api';
+import { getTranscription, downloadAudio, getAgentCalls } from '../lib/api';
+import { useLocation } from 'react-router-dom';
 
 interface TranscriptionModalProps {
   isOpen: boolean;
@@ -18,7 +19,20 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   isInline = false
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);  const location = useLocation();
+  const agentId = location.state?.agentId;
+  
+  // Buscar informações da ligação para obter o call_id se não foi fornecido
+  const { data: calls } = useQuery({
+    queryKey: ['calls', agentId],
+    queryFn: () => getAgentCalls(agentId, {
+      start: '2024-01-01',
+      end: '2025-12-31'
+    }),
+    enabled: !!agentId && isOpen && !callId // Só buscar se não temos callId e o modal está aberto
+  });  // Encontrar o call_id correspondente ao avaliacaoId
+  const callInfo = calls?.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId));
+  const resolvedCallId = callId || callInfo?.call_id;
   
   // Buscar a transcrição
   const { data, isLoading, error } = useQuery({
@@ -26,11 +40,10 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
     queryFn: () => getTranscription(avaliacaoId),
     enabled: isOpen // Só buscar quando o modal estiver aberto
   });
-
   const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     
-    if (!callId) {
+    if (!resolvedCallId) {
       setDownloadError('ID da ligação não encontrado');
       return;
     }
@@ -40,13 +53,13 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
     
     try {
       // Usar a função de API para download do áudio
-      const audioBlob = await downloadAudio(callId);
+      const audioBlob = await downloadAudio(resolvedCallId);
       
       // Criar URL do blob e link de download
       const url = window.URL.createObjectURL(new Blob([audioBlob]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `audio-${callId}.mp3`);
+      link.setAttribute('download', `audio-${resolvedCallId}.mp3`);
       document.body.appendChild(link);
       link.click();
       
@@ -85,15 +98,13 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
           <p className="text-sm mt-2">Não foi possível carregar a transcrição desta ligação.</p>
         </div>
       );
-    }
-
-    if (data) {
+    }    if (data) {
       return (
         <>
-          {callId && (
+          {resolvedCallId && (
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
               <div>
-                <p className="text-sm text-gray-600 mb-1">ID da Ligação: <span className="font-medium">{callId}</span></p>
+                <p className="text-sm text-gray-600 mb-1">ID da Ligação: <span className="font-medium">{resolvedCallId}</span></p>
                 <p className="text-sm text-gray-600">ID da Avaliação: <span className="font-medium">{avaliacaoId}</span></p>
               </div>
               
