@@ -110,5 +110,6 @@ export const agentIdNameMap: Record<string, string> = {
   "1106": "Victor Antunes",
   "1126": "Wesley Gomes",
   "1030": "Yasmim Souza",
-  "1088": "Yasmim Souza (pequenas Carteiras)"
+  "1088": "Yasmim Souza (pequenas Carteiras)",
+  "1024": "Maria Eduarda Polak"
 };
