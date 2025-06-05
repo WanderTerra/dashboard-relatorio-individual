@@ -42,6 +42,7 @@ export interface CallRow {
   data_ligacao:    string;
   pontuacao:       number;
   status_avaliacao:string;
+  callerid?:       string;  // número do cliente (telefone)
 }
 
 export const getKpis           = (f: Filters)        => api.get('/kpis',    { params: f }).then(r => r.data);

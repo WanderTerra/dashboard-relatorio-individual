@@ -100,12 +100,17 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
       );
     }    if (data) {
       return (
-        <>
-          {resolvedCallId && (
+        <>          {resolvedCallId && (
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
               <div>
                 <p className="text-sm text-gray-600 mb-1">ID da Ligação: <span className="font-medium">{resolvedCallId}</span></p>
-                <p className="text-sm text-gray-600">ID da Avaliação: <span className="font-medium">{avaliacaoId}</span></p>
+                <p className="text-sm text-gray-600 mb-1">ID da Avaliação: <span className="font-medium">{avaliacaoId}</span></p>
+                {callInfo?.callerid && (
+                  <p className="text-sm text-gray-600">Cliente: <span className="font-medium">{callInfo.callerid}</span></p>
+                )}
+                {data?.callerid && !callInfo?.callerid && (
+                  <p className="text-sm text-gray-600">Cliente: <span className="font-medium">{data.callerid}</span></p>
+                )}
               </div>
               
               <button

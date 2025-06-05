@@ -95,7 +95,7 @@ const Dashboard: React.FC = () => {
           <thead>
             <tr className="bg-gray-100">
               <th className="px-4 py-2">Agente</th>
-              <th className="px-4 py-2"># Ligações</th>
+              <th className="px-4 py-2">Ligações</th>
               <th className="px-4 py-2">Média</th>
               <th className="px-4 py-2">Pior Item</th>
               <th className="px-4 py-2">Detalhar</th>
