@@ -32,10 +32,9 @@ const Dashboard: React.FC = () => {
   const { data: kpis }   = useQuery({ queryKey: ['kpis',   filters], queryFn: () => getKpis(filters) });
   const { data: trend }  = useQuery({ queryKey: ['trend',  filters], queryFn: () => getTrend(filters) });
   const { data: agents } = useQuery({ queryKey: ['agents', filters], queryFn: () => getAgents(filters) });
-
   // Para cada agente, dispara uma query para obter o pior item
   const worstItemQueries = useQueries({
-    queries: agents?.map(agent => ({
+    queries: agents?.map((agent: any) => ({
       queryKey: ['agentWorstItem', agent.agent_id, filters],
       queryFn: () => getAgentWorstItem(agent.agent_id, filters),
       enabled: !!agents,
@@ -101,9 +100,8 @@ const Dashboard: React.FC = () => {
               <th className="px-4 py-2">Pior Item</th>
               <th className="px-4 py-2">Detalhar</th>
             </tr>
-          </thead>
-          <tbody>
-            {agents?.map((agent, idx) => {              const wi = worstItemQueries[idx];
+          </thead>          <tbody>
+            {agents?.map((agent: any, idx: number) => {const wi = worstItemQueries[idx];
               let piorLabel = '—';
               if (wi.isLoading) piorLabel = '…';
               else if (wi.isError) piorLabel = 'Erro';              else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {

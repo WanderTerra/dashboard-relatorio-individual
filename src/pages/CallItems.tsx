@@ -40,11 +40,10 @@ export default function CallItems() {
     }),
     enabled: !!agentId
   });
-
   // Effect para definir o callId quando os dados estiverem disponíveis
   useEffect(() => {
     if (calls) {
-      const callInfo = calls.find(c => String(c.avaliacao_id) === String(avaliacaoId));
+      const callInfo = calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId));
       if (callInfo) {
         setCallId(callInfo.call_id);
       }
@@ -78,16 +77,21 @@ export default function CallItems() {
   const handleCloseTranscriptionModal = () => {
     setIsTranscriptionModalOpen(false);
   };  return (
-    <div className={`mx-auto transition-all duration-300 ${isTranscriptionModalOpen ? 'max-w-md mr-xl pl-4' : 'max-w-4xl'} space-y-6 p-4 md:p-6`}>
-      <Link 
-        to={-1 as any} 
-        className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 transition-colors duration-200"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-        </svg>
-        Voltar
-      </Link>      <h2 className="text-xl font-bold text-gray-800 mt-4 flex items-center">
+    <div className={`min-h-screen bg-gray-50 transition-all duration-300 ${isTranscriptionModalOpen ? 'flex' : ''}`}>
+      {/* Área principal dos itens */}
+      <div className={`transition-all duration-300 ${isTranscriptionModalOpen ? 'w-1/2 border-r border-gray-200' : 'w-full'}`}>
+        <div className={`mx-auto transition-all duration-300 ${isTranscriptionModalOpen ? 'max-w-none px-4' : 'max-w-4xl'} space-y-6 p-4 md:p-6`}>
+          <Link 
+            to={-1 as any} 
+            className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 transition-colors duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Voltar
+          </Link>
+
+          <h2 className="text-xl font-bold text-gray-800 mt-4 flex items-center">
         Itens da ligação {avaliacaoId}
         {isTranscriptionModalOpen && (
           <span className="ml-3 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium animate-pulse">
@@ -169,24 +173,30 @@ export default function CallItems() {
             </li>
           ))}
         </ul>
+      )}          {/* Modal de edição */}
+          {selectedItem && (
+            <ItemEditModal
+              isOpen={isModalOpen}
+              onClose={handleCloseModal}
+              item={selectedItem}
+              avaliacaoId={avaliacaoId!}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Modal de transcrição como painel lateral */}
+      {isTranscriptionModalOpen && (
+        <div className="w-1/2 bg-white">
+          <TranscriptionModal
+            isOpen={isTranscriptionModalOpen}
+            onClose={handleCloseTranscriptionModal}
+            avaliacaoId={avaliacaoId!}
+            callId={callId}
+            isInline={true}
+          />
+        </div>
       )}
-        {/* Modal de edição */}
-      {selectedItem && (
-        <ItemEditModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          item={selectedItem}
-          avaliacaoId={avaliacaoId!}
-        />
-      )}
-      
-      {/* Modal de transcrição */}
-      <TranscriptionModal
-        isOpen={isTranscriptionModalOpen}
-        onClose={handleCloseTranscriptionModal}
-        avaliacaoId={avaliacaoId!}
-        callId={callId}
-      />
     </div>
   );
 }
