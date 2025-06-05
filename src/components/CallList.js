@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var jsx_runtime_1 = require("react/jsx-runtime");
+var react_router_dom_1 = require("react-router-dom");
+var format_1 = require("../lib/format");
+var CallList = function (_a) {
+    var calls = _a.calls;
+    var agentId = (0, react_router_dom_1.useParams)().agentId;
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "bg-white p-4 rounded shadow overflow-auto", children: [(0, jsx_runtime_1.jsx)("h2", { className: "text-lg font-semibold mb-2", children: "Lista de Chamadas" }), (0, jsx_runtime_1.jsxs)("table", { className: "min-w-full text-left", children: [(0, jsx_runtime_1.jsx)("thead", { children: (0, jsx_runtime_1.jsxs)("tr", { className: "border-b", children: [(0, jsx_runtime_1.jsx)("th", { className: "px-2 py-1", children: "Data" }), (0, jsx_runtime_1.jsx)("th", { className: "px-2 py-1", children: "Pontua\u00E7\u00E3o" }), (0, jsx_runtime_1.jsx)("th", { className: "px-2 py-1", children: "Status" }), (0, jsx_runtime_1.jsx)("th", { className: "px-2 py-1", children: "Itens" }), (0, jsx_runtime_1.jsx)("th", { className: "px-2 py-1", children: "Transcri\u00E7\u00E3o" })] }) }), (0, jsx_runtime_1.jsx)("tbody", { children: calls.map(function (c) { return ((0, jsx_runtime_1.jsxs)("tr", { className: "border-b last:border-0", children: ["            ", (0, jsx_runtime_1.jsx)("td", { className: "px-2 py-1", children: new Date(c.data_ligacao).toLocaleDateString() }), (0, jsx_runtime_1.jsx)("td", { className: "px-2 py-1", children: (0, jsx_runtime_1.jsx)("span", { className: c.pontuacao >= 80 ? 'text-green-600 font-medium' :
+                                            c.pontuacao >= 60 ? 'text-yellow-600 font-medium' :
+                                                'text-red-600 font-medium', children: c.pontuacao.toFixed(1) }) }), (0, jsx_runtime_1.jsxs)("td", { className: "px-2 py-1", children: ["              ", (0, jsx_runtime_1.jsx)("span", { className: c.status_avaliacao === 'APROVADA' ? 'text-green-600 font-medium' :
+                                                c.status_avaliacao === 'REPROVADA' ? 'text-red-600 font-medium' :
+                                                    'text-gray-600', children: (0, format_1.formatItemName)(c.status_avaliacao) })] }), "            ", (0, jsx_runtime_1.jsx)("td", { className: "px-2 py-1", children: (0, jsx_runtime_1.jsx)(react_router_dom_1.Link, { to: "/call/".concat(c.avaliacao_id, "/items"), state: { agentId: agentId }, className: "bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs", children: "\uD83D\uDCCB Itens" }) }), (0, jsx_runtime_1.jsx)("td", { className: "px-2 py-1", children: (0, jsx_runtime_1.jsx)(react_router_dom_1.Link, { to: "/call/".concat(c.avaliacao_id, "/transcription"), state: { agentId: agentId }, className: "bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs", children: "\uD83D\uDCAC Transcri\u00E7\u00E3o" }) })] }, c.call_id)); }) })] })] }));
+};
+exports.default = CallList;

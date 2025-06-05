@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems } from '../lib/api';
+import { getCallItems, getAgentCalls } from '../lib/api';
 import { formatItemName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
+import TranscriptionModal from '../components/TranscriptionModal';
 
 interface Item {
   categoria:  string;
@@ -20,16 +21,35 @@ export default function CallItems() {
   const { avaliacaoId } = useParams();
   const location = useLocation();
   const agentId = location.state?.agentId;
-    // Estado para controlar o modal de edição
+  // Estado para controlar o modal de edição
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editedItems, setEditedItems] = useState<Set<string>>(new Set());
-  const [isTranscriptionLoading, setIsTranscriptionLoading] = useState(false);
-
+  const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+  const [callId, setCallId] = useState<string | undefined>(undefined);
   const { data = [], isLoading } = useQuery<Item[]>({
     queryKey: ['callItems', avaliacaoId],
     queryFn : () => getCallItems(avaliacaoId!),
   });
+    // Buscar informações da ligação para obter o call_id
+  const { data: calls } = useQuery({
+    queryKey: ['calls', agentId, avaliacaoId],
+    queryFn: () => getAgentCalls(agentId!, {
+      start: '2024-01-01',
+      end: '2025-12-31'
+    }),
+    enabled: !!agentId
+  });
+
+  // Effect para definir o callId quando os dados estiverem disponíveis
+  useEffect(() => {
+    if (calls) {
+      const callInfo = calls.find(c => String(c.avaliacao_id) === String(avaliacaoId));
+      if (callInfo) {
+        setCallId(callInfo.call_id);
+      }
+    }
+  }, [calls, avaliacaoId]);
   
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
@@ -49,14 +69,16 @@ export default function CallItems() {
     setIsModalOpen(false);
     setSelectedItem(null);
   };
-
   // Gerenciar o clique no botão de transcrição
   const handleTranscriptionClick = () => {
-    setIsTranscriptionLoading(true);
-    // O estado será resetado quando o componente for montado novamente após a navegação
+    setIsTranscriptionModalOpen(true);
   };
-  return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+  
+  // Fechar o modal de transcrição
+  const handleCloseTranscriptionModal = () => {
+    setIsTranscriptionModalOpen(false);
+  };  return (
+    <div className={`mx-auto transition-all duration-300 ${isTranscriptionModalOpen ? 'max-w-md mr-xl pl-4' : 'max-w-4xl'} space-y-6 p-4 md:p-6`}>
       <Link 
         to={-1 as any} 
         className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 shadow-sm hover:bg-blue-700 transition-colors duration-200"
@@ -65,32 +87,23 @@ export default function CallItems() {
           <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
         </svg>
         Voltar
-      </Link>      <h2 className="text-xl font-bold text-gray-800 mt-4">
+      </Link>      <h2 className="text-xl font-bold text-gray-800 mt-4 flex items-center">
         Itens da ligação {avaliacaoId}
-      </h2>
-      <Link
-        to={`/call/${avaliacaoId}/transcription`}
-        state={{ agentId }}
-        className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 mb-6 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow group"
-        onClick={handleTranscriptionClick}
-      >
-        {isTranscriptionLoading ? (
-          <>
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Carregando...
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-            </svg>
-            <span className="group-hover:translate-x-0.5 transition-transform">Ver Transcrição</span>
-          </>
+        {isTranscriptionModalOpen && (
+          <span className="ml-3 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium animate-pulse">
+            Comparando com transcrição...
+          </span>
         )}
-      </Link>
+      </h2>
+      <button
+        onClick={handleTranscriptionClick}
+        className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 mb-6 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow group"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+        </svg>
+        <span className="group-hover:translate-x-0.5 transition-transform">Ver Transcrição</span>
+      </button>
 
       {/* Status legend bar */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm mb-4 border border-gray-100 hover:shadow-md transition-all duration-200">
@@ -157,8 +170,7 @@ export default function CallItems() {
           ))}
         </ul>
       )}
-      
-      {/* Modal de edição */}
+        {/* Modal de edição */}
       {selectedItem && (
         <ItemEditModal
           isOpen={isModalOpen}
@@ -167,6 +179,14 @@ export default function CallItems() {
           avaliacaoId={avaliacaoId!}
         />
       )}
+      
+      {/* Modal de transcrição */}
+      <TranscriptionModal
+        isOpen={isTranscriptionModalOpen}
+        onClose={handleCloseTranscriptionModal}
+        avaliacaoId={avaliacaoId!}
+        callId={callId}
+      />
     </div>
   );
 }

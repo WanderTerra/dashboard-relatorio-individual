@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var jsx_runtime_1 = require("react/jsx-runtime");
+var react_router_dom_1 = require("react-router-dom");
+var Dashboard_1 = require("./pages/Dashboard");
+var AgentDetail_1 = require("./pages/AgentDetail");
+var CallItems_1 = require("./pages/CallItems");
+var Transcription_1 = require("./pages/Transcription");
+var AppRouter = function () { return ((0, jsx_runtime_1.jsx)(react_router_dom_1.BrowserRouter, { children: (0, jsx_runtime_1.jsxs)(react_router_dom_1.Routes, { children: [(0, jsx_runtime_1.jsx)(react_router_dom_1.Route, { path: "/", element: (0, jsx_runtime_1.jsx)(Dashboard_1.default, {}) }), (0, jsx_runtime_1.jsx)(react_router_dom_1.Route, { path: "/agent/:agentId", element: (0, jsx_runtime_1.jsx)(AgentDetail_1.default, {}) }), (0, jsx_runtime_1.jsx)(react_router_dom_1.Route, { path: "/call/:avaliacaoId/items", element: (0, jsx_runtime_1.jsx)(CallItems_1.default, {}) }), (0, jsx_runtime_1.jsx)(react_router_dom_1.Route, { path: "/call/:avaliacaoId/transcription", element: (0, jsx_runtime_1.jsx)(Transcription_1.default, {}) })] }) })); };
+exports.default = AppRouter;
