@@ -5,6 +5,7 @@ import { getCallItems, getAgentCalls, getAgentSummary } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
+import { useFilters } from '../hooks/use-filters';
 
 interface Item {
   categoria:  string;
@@ -21,6 +22,15 @@ export default function CallItems() {
   const { avaliacaoId } = useParams();
   const location = useLocation();
   const agentId = location.state?.agentId;
+  const { filters } = useFilters();
+  
+  // Construir objeto de filtros para a API
+  const apiFilters = { 
+    start: filters.start, 
+    end: filters.end, 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+  };
+  
   // Estado para controlar o modal de edição
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,21 +43,15 @@ export default function CallItems() {
   });
   // Buscar informações da ligação para obter o call_id
   const { data: calls } = useQuery({
-    queryKey: ['calls', agentId, avaliacaoId],
-    queryFn: () => getAgentCalls(agentId!, {
-      start: '2024-01-01',
-      end: '2025-12-31'
-    }),
+    queryKey: ['calls', agentId, avaliacaoId, apiFilters],
+    queryFn: () => getAgentCalls(agentId!, apiFilters),
     enabled: !!agentId
   });
 
   // Buscar informações do agente para obter o nome
   const { data: agentInfo } = useQuery({
-    queryKey: ['agentSummary', agentId],
-    queryFn: () => getAgentSummary(agentId!, {
-      start: '2024-01-01',
-      end: '2025-12-31'
-    }),
+    queryKey: ['agentSummary', agentId, apiFilters],
+    queryFn: () => getAgentSummary(agentId!, apiFilters),
     enabled: !!agentId
   });// Effect para definir o callId quando os dados estiverem disponíveis
   useEffect(() => {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Filters } from '../hooks/use-filters';
 
 //
 // baseURL vazio: tudo já vai no proxy do Vite em /api/…
@@ -29,12 +30,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export interface Filters {
-  start: string;    // ISO YYYY-MM-DD
-  end:   string;    // ISO YYYY-MM-DD
-  carteira?: string;
-}
 
 export interface CallRow {
   call_id:         string;

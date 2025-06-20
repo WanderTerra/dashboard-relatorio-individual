@@ -1,19 +1,13 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { formatISO } from 'date-fns';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import { Combobox } from '../components/ui/select-simple';
-import { getKpis, getTrend, getAgents, getAgentWorstItem, Filters } from '../lib/api';
+import { getKpis, getTrend, getAgents, getAgentWorstItem } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
-
-// Usar os últimos 6 meses em vez de apenas o mês atual
-const today = new Date();
-const sixMonthsAgo = new Date(today);
-sixMonthsAgo.setMonth(today.getMonth() - 6);
+import { useFilters } from '../hooks/use-filters';
 
 // Lista de carteiras disponíveis - pode ser expandida no futuro
 const carteiras = [
@@ -22,21 +16,23 @@ const carteiras = [
 ];
 
 const Dashboard: React.FC = () => {
-  const [start, setStart]   = useState(formatISO(sixMonthsAgo, { representation: 'date' }));
-  const [end,   setEnd]     = useState(formatISO(today, { representation: 'date' }));
-  const [carteira, setCart] = useState('');
+  const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
 
-  const filters: Filters = { start, end, ...(carteira ? { carteira } : {}) };
-
+  // Construir objeto de filtros para a API (incluindo carteira apenas se tiver valor)
+  const apiFilters = { 
+    start: filters.start, 
+    end: filters.end, 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+  };
   // KPIs e tendência
-  const { data: kpis }   = useQuery({ queryKey: ['kpis',   filters], queryFn: () => getKpis(filters) });
-  const { data: trend }  = useQuery({ queryKey: ['trend',  filters], queryFn: () => getTrend(filters) });
-  const { data: agents } = useQuery({ queryKey: ['agents', filters], queryFn: () => getAgents(filters) });
+  const { data: kpis }   = useQuery({ queryKey: ['kpis',   apiFilters], queryFn: () => getKpis(apiFilters) });
+  const { data: trend }  = useQuery({ queryKey: ['trend',  apiFilters], queryFn: () => getTrend(apiFilters) });
+  const { data: agents } = useQuery({ queryKey: ['agents', apiFilters], queryFn: () => getAgents(apiFilters) });
   // Para cada agente, dispara uma query para obter o pior item
   const worstItemQueries = useQueries({
     queries: agents?.map((agent: any) => ({
-      queryKey: ['agentWorstItem', agent.agent_id, filters],
-      queryFn: () => getAgentWorstItem(agent.agent_id, filters),
+      queryKey: ['agentWorstItem', agent.agent_id, apiFilters],
+      queryFn: () => getAgentWorstItem(agent.agent_id, apiFilters),
       enabled: !!agents,
       staleTime: 5 * 60_000,
     })) ?? [],
@@ -44,15 +40,13 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Avaliação de Ligações</h1>
-
-      {/* filtros */}
+      <h1 className="text-2xl font-bold">Avaliação de Ligações</h1>      {/* filtros */}
       <div className="flex flex-wrap gap-4">        <div>
           <label className="block text-xs">Início</label>
           <input
             type="date"
-            value={start}
-            onChange={e => setStart(e.target.value)}
+            value={filters.start}
+            onChange={e => setStartDate(e.target.value)}
             className="border rounded p-1"
           />
         </div>
@@ -60,18 +54,18 @@ const Dashboard: React.FC = () => {
           <label className="block text-xs">Fim</label>
           <input
             type="date"
-            value={end}
-            onChange={e => setEnd(e.target.value)}
+            value={filters.end}
+            onChange={e => setEndDate(e.target.value)}
             className="border rounded p-1"
           />
         </div>        <div className="min-w-[200px]">
           <label className="block text-xs mb-1">Carteira</label>
           <Combobox
             options={carteiras}
-            value={carteira}
+            value={filters.carteira || ''}
             onChange={(value) => {
               console.log('Carteira selecionada:', value);
-              setCart(value);
+              setCarteira(value);
             }}
             placeholder="Selecionar carteira"
             emptyMessage="Nenhuma carteira encontrada"
