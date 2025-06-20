@@ -4,6 +4,9 @@
 - ❌ `test_caller_info.html` - Página de teste HTML
 - ❌ `test_callerid.html` - Arquivo de teste antigo  
 - ❌ `main_completo.py` - Arquivo de referência do backend
+- ❌ `Dashboard-old.tsx` - **NOVO** - Versão antiga do dashboard com design desatualizado
+- ❌ `Dashboard-new.tsx` - **NOVO** - Versão experimental duplicada
+- ❌ `CallItems-fixed.tsx` - **NOVO** - Arquivo duplicado idêntico ao CallItems.tsx
 
 ## 🔧 **CÓDIGO SIMPLIFICADO**
 
@@ -56,6 +59,12 @@ const { data: callerInfo } = useQuery(...);
 // TranscriptionModal direto
 callId={callerInfo?.call_id}
 ```
+
+### **Dashboard Unificado**
+- ✅ **Mantido apenas `Dashboard.tsx`** (versão moderna e ativa)
+- ✅ **Removidas versões antigas** que confundiam o projeto
+- ✅ **Design moderno com cards** e tabelas profissionais
+- ✅ **Arquivo único** evita duplicação e confusão
 
 ## 📊 **RESULTADOS DA LIMPEZA**
 
