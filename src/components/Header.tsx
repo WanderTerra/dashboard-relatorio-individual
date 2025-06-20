@@ -1,5 +1,5 @@
 import React from 'react';
-import logoSrc from '../assets/auditaai-logo.svg';
+import logoSrc from '../assets/logo.png';
 
 interface HeaderProps {}
 
@@ -9,25 +9,19 @@ const Header: React.FC<HeaderProps> = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-col lg:flex-row justify-between items-center">
           {/* Logo e Brand */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
+          <div className="flex items-center space-x-4">            <div className="flex items-center">
               <img 
                 src={logoSrc} 
-                alt="auditaAI Logo" 
-                className="h-14 w-auto"
+                alt="Logo da Empresa" 
+                className="h-40 w-auto"
                 onError={(e) => {
                   // Fallback para texto se a logo não carregar
                   const parent = e.currentTarget.parentElement;
                   if (parent) {
                     parent.innerHTML = `
                       <div class="flex items-center space-x-2">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                          <span class="text-white font-bold text-xl">AI</span>
-                        </div>
-                        <div>
-                          <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                            auditaAI
-                          </span>
+                        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                          <span class="text-white font-bold text-lg">LOGO</span>
                         </div>
                       </div>
                     `;

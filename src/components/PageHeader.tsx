@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
+import logoSrc from '../assets/logo.png';
 
 interface BreadcrumbItem {
   label: string;
@@ -40,9 +41,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     });
   }
 
-  const finalBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : defaultBreadcrumbs;
-
-  return (
+  const finalBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : defaultBreadcrumbs;  return (
     <div className="bg-white border-b border-gray-200">
       <div className="container mx-auto px-4 py-6">
         {/* Breadcrumbs */}
@@ -69,17 +68,37 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </nav>
         )}
         
-        {/* Título e ações */}
+        {/* Logo, Título e ações - tudo na mesma linha */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="text-gray-600 text-lg">
-                {subtitle}
-              </p>
-            )}
+          {/* Logo e Título */}
+          <div className="flex items-center space-x-4">            <Link to="/" className="flex-shrink-0">
+              <img 
+                src={logoSrc} 
+                alt="Logo da Empresa" 
+                className="h-40 w-auto"
+                onError={(e) => {
+                  // Fallback para texto se a logo não carregar
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `
+                      <div class="w-40 h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">LOGO</span>
+                      </div>
+                    `;
+                  }
+                }}
+              />
+            </Link>
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="text-gray-600 text-lg">
+                  {subtitle}
+                </p>
+              )}
+            </div>
           </div>
           
           {actions && (
