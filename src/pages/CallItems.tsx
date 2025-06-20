@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems, getAgentCalls, getAgentSummary } from '../lib/api';
+import { getCallItems, getAgentSummary, getCallerInfo } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
@@ -31,24 +31,14 @@ export default function CallItems() {
     end: filters.end, 
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
-  
-  // Estado para controlar o modal de edição
+    // Estado para controlar o modal de edição
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editedItems, setEditedItems] = useState<Set<string>>(new Set());
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
-  const [callId, setCallId] = useState<string | undefined>(undefined);
-
   const { data = [], isLoading } = useQuery<Item[]>({
     queryKey: ['callItems', avaliacaoId],
     queryFn : () => getCallItems(avaliacaoId!),
-  });
-
-  // Buscar informações da ligação para obter o call_id
-  const { data: calls } = useQuery({
-    queryKey: ['calls', agentId, avaliacaoId, apiFilters],
-    queryFn: () => getAgentCalls(agentId!, apiFilters),
-    enabled: !!agentId
   });
 
   // Buscar informações do agente para obter o nome
@@ -57,16 +47,12 @@ export default function CallItems() {
     queryFn: () => getAgentSummary(agentId!, apiFilters),
     enabled: !!agentId
   });
-
-  // Effect para definir o callId quando os dados estiverem disponíveis
-  useEffect(() => {
-    if (calls) {
-      const callInfo = calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId));
-      if (callInfo) {
-        setCallId(callInfo.call_id);
-      }
-    }
-  }, [calls, avaliacaoId]);
+  // Nova query para buscar informações do caller (telefone)
+  const { data: callerInfo } = useQuery({
+    queryKey: ['callerInfo', avaliacaoId],
+    queryFn: () => getCallerInfo(avaliacaoId!),
+    enabled: !!avaliacaoId
+  });
   
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
@@ -155,8 +141,7 @@ export default function CallItems() {
                   </div>
                 </div>
               )}
-              
-              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor">
@@ -168,23 +153,20 @@ export default function CallItems() {
                   <p className="text-sm text-gray-500">Avaliação ID</p>
                   <p className="font-medium text-gray-900">{avaliacaoId}</p>
                 </div>
-              </div>
-
-              {calls && calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId))?.callerid && (
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                      </svg>
-                    </div>
+              </div>              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                    </svg>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Cliente</p>
-                    <p className="font-medium text-gray-900">{calls.find((c: any) => String(c.avaliacao_id) === String(avaliacaoId))?.callerid}</p>
-                  </div>
+                </div>                <div>
+                  <p className="text-sm text-gray-500">Cliente</p>
+                  <p className="font-medium text-gray-900">
+                    {callerInfo?.callerid || 'Não disponível'}
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
 
             {isTranscriptionModalOpen && (
@@ -288,7 +270,7 @@ export default function CallItems() {
             isOpen={isTranscriptionModalOpen}
             onClose={handleCloseTranscriptionModal}
             avaliacaoId={avaliacaoId!}
-            callId={callId}
+            callId={callerInfo?.call_id}
             isInline={true}
           />
         </div>

@@ -50,6 +50,9 @@ export const getTranscription  = (avaliacaoId: string)   => api.get(`/call/${ava
 export const getAgentWorstItem = (id: string, f: Filters) => api.get(`/agent/${id}/worst_item`, { params: f }).then(r => r.data);
 export const downloadAudio     = (callId: string)     => api.get(`/call/${callId}/audio`, { responseType: 'blob' }).then(r => r.data);
 
+// Nova função para buscar informações do caller (telefone)
+export const getCallerInfo     = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/caller`).then(r => r.data);
+
 // Função para atualizar um item de avaliação
 export const updateItem = (avaliacaoId: string, categoria: string, resultado: string, descricao: string) => {
   return api.put(`/call/${avaliacaoId}/item/${encodeURIComponent(categoria)}`, {
