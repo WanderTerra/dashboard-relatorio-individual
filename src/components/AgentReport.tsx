@@ -267,23 +267,12 @@ const AgentReport = () => {
           <div className="bg-white rounded-lg shadow-md p-6 flex flex-col justify-center items-center">
             <h2 className="text-xl font-semibold mb-4">Nota Final</h2>
             <div className={`text-6xl font-bold ${getScoreColor(agentData.finalScore)}`}>
-              {agentData.finalScore}
-            </div>
+              {agentData.finalScore}            </div>
             <div className="text-2xl font-medium text-gray-500 mt-2">pontos</div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-4 mt-6">
-              <div 
-                className={`h-4 rounded-full ${
-                  agentData.finalScore < 60 ? 'bg-red-600' : 
-                  agentData.finalScore < 70 ? 'bg-yellow-500' : 'bg-green-600'
-                }`} 
-                style={{ width: `${agentData.finalScore}%` }}
-              ></div>
-            </div>
             
             <div className="mt-4 text-center">
               <span className={`text-lg font-medium ${getScoreColor(agentData.finalScore)}`}>
-                {agentData.finalScore < 60 ? 'Não Conforme' : 
+                {agentData.finalScore < 60 ? 'Não Conforme' :
                  agentData.finalScore < 70 ? 'Atenção' : 'Conforme'}
               </span>
             </div>
@@ -309,21 +298,15 @@ const AgentReport = () => {
                   {getStatusBadge(criterion.status)}
                 </div>
                 <p className="text-gray-600 mt-2">{criterion.description}</p>
-                
-                {criterion.status !== 'nao_aplicavel' && (
+                  {criterion.status !== 'nao_aplicavel' && (
                   <div className="mt-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Pontuação</span>
-                      <span className="font-medium">{criterion.value}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${
-                          criterion.value < 60 ? 'bg-red-600' : 
-                          criterion.value < 70 ? 'bg-yellow-500' : 'bg-green-600'
-                        }`} 
-                        style={{ width: `${criterion.value}%` }}
-                      ></div>
+                    <div className="flex justify-between text-sm">
+                      <span>Pontuação:</span>
+                      <span className={`font-medium ${
+                        criterion.value >= 70 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {criterion.value}%
+                      </span>
                     </div>
                   </div>
                 )}

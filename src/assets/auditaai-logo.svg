@@ -1,0 +1,49 @@
+<svg width="200" height="60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Fundo do logo -->
+  <rect width="800" height="240" fill="transparent"/>
+  
+  <!-- Ícone principal - círculo com raio -->
+  <g transform="translate(40, 40)">
+    <!-- Círculo externo -->
+    <circle cx="80" cy="80" r="75" fill="none" stroke="url(#logoGradient)" stroke-width="8"/>
+    
+    <!-- Pessoas conectadas (pontos) -->
+    <circle cx="80" cy="25" r="8" fill="#0EA5E9"/>
+    <circle cx="135" cy="80" r="8" fill="#0EA5E9"/>
+    <circle cx="80" cy="135" r="8" fill="#0EA5E9"/>
+    <circle cx="25" cy="80" r="8" fill="#0EA5E9"/>
+    
+    <!-- Raio/energia no centro -->
+    <g transform="translate(80, 80)">
+      <path d="M-20,-30 L10,-10 L-5,-5 L15,30 L-15,10 L5,5 Z" fill="url(#logoGradient)"/>
+    </g>
+    
+    <!-- Linhas conectando -->
+    <line x1="80" y1="33" x2="80" y2="60" stroke="#0EA5E9" stroke-width="3" opacity="0.7"/>
+    <line x1="127" y1="80" x2="100" y2="80" stroke="#0EA5E9" stroke-width="3" opacity="0.7"/>
+    <line x1="80" y1="127" x2="80" y2="100" stroke="#0EA5E9" stroke-width="3" opacity="0.7"/>
+    <line x1="33" y1="80" x2="60" y2="80" stroke="#0EA5E9" stroke-width="3" opacity="0.7"/>
+  </g>
+  
+  <!-- Texto auditaAI -->
+  <g transform="translate(220, 40)">
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="url(#logoGradient)">
+      audita
+    </text>
+    <text x="280" y="80" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#0EA5E9">
+      AI
+    </text>
+    
+    <!-- Subtitle -->
+    <text x="0" y="120" font-family="Arial, sans-serif" font-size="24" fill="#64748B">
+      Dashboard de Avaliação
+    </text>
+  </g>
+</svg>

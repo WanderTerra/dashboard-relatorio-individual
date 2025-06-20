@@ -13,17 +13,13 @@ interface Props {
   pior: PiorItem | null;
 }
 
-const getIntent = (v: number | null): 'success' | 'warning' | 'danger' | undefined =>
-  v == null ? undefined : v < 50 ? 'danger' : v < 70 ? 'warning' : 'success';
-
 const KpiCards: React.FC<Props> = ({ media, total, pior }) => (
-  <div className="grid gap-4 md:grid-cols-3 mb-6">
-    <KpiCard label="Pontuação média" value={media} intent={getIntent(media)} />
+  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+    <KpiCard label="Pontuação média" value={media} />
     <KpiCard label="Ligações avaliadas" value={total} />
     <KpiCard
       label="Item com maior NC"
       value={pior ? `${formatItemName(pior.categoria)} (${pior.pct_nao_conforme}%)` : '-'}
-      intent="danger"
     />
   </div>
 );

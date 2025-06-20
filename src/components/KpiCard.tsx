@@ -6,23 +6,36 @@ interface Props {
   intent?: 'success' | 'warning' | 'danger';
 }
 
-const intentStyle: Record<NonNullable<Props['intent']>, string> = {
-  success: 'bg-green-50 text-green-600 ring-green-300',
-  warning: 'bg-yellow-50 text-yellow-700 ring-yellow-300',
-  danger : 'bg-red-50 text-red-600 ring-red-300',
+const getColorClass = (value: string | number | null, label: string): string => {
+  // Para o card de "Pontuação média", aplica cores condicionais baseadas no valor
+  if (label === "Pontuação média" && typeof value === 'number') {
+    if (value >= 70) {
+      return 'bg-green-50 text-green-600 ring-green-300';
+    } else {
+      return 'bg-red-50 text-red-600 ring-red-300';
+    }
+  }
+  
+  // Para outros cards, usa cor neutra
+  return 'bg-gray-50 text-gray-700 ring-gray-300';
 };
 
-const KpiCard: React.FC<Props> = ({ label, value, intent = 'success' }) => (
-  <div
-    className={`flex flex-col gap-1 rounded-xl p-4 shadow-sm ring-1 ${
-      intentStyle[intent]
-    }`}
-  >
-    <span className="text-xs/relaxed font-medium uppercase tracking-wide">
-      {label}
-    </span>
-    <span className="text-3xl font-extrabold leading-none">{value ?? '-'}</span>
-  </div>
-);
+const KpiCard: React.FC<Props> = ({ label, value }) => {
+  const colorClass = getColorClass(value, label);
+  
+  return (
+    <div className={`flex flex-col gap-2 rounded-xl p-4 shadow-sm ring-1 min-h-[100px] ${colorClass}`}>
+      <span className="text-xs font-medium uppercase tracking-wide">
+        {label}
+      </span>
+      <span className="text-2xl lg:text-3xl font-extrabold leading-tight break-words">
+        {typeof value === 'number' && label === "Pontuação média" 
+          ? `${value.toFixed(1)}%` 
+          : value ?? '-'
+        }
+      </span>
+    </div>
+  );
+};
 
 export default KpiCard;
