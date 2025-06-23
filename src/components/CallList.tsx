@@ -50,7 +50,16 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
             </td>            <td className="px-2 py-1">
               <Link
                 to={`/call/${c.avaliacao_id}/items`}
-                state={{ agentId }}
+                state={{ 
+                  agentId, 
+                  callData: {
+                    pontuacao: c.pontuacao,
+                    status_avaliacao: c.status_avaliacao,
+                    data_ligacao: c.data_ligacao,
+                    call_id: c.call_id,
+                    avaliacao_id: c.avaliacao_id
+                  }
+                }}
                 className="bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs"
               >
                 &#128203; Itens

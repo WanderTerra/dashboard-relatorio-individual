@@ -19,10 +19,10 @@ const cor = (r: Item['resultado']) =>
   : r === 'NAO SE APLICA'? 'text-gray-600'
   :                       'text-red-600';
 
-export default function CallItems() {
-  const { avaliacaoId } = useParams();
+export default function CallItems() {  const { avaliacaoId } = useParams();
   const location = useLocation();
   const agentId = location.state?.agentId;
+  const callData = location.state?.callData; // Dados da ligação passados da página anterior
   const { filters } = useFilters();
   
   // Construir objeto de filtros para a API
@@ -46,8 +46,7 @@ export default function CallItems() {
     queryKey: ['agentSummary', agentId, apiFilters],
     queryFn: () => getAgentSummary(agentId!, apiFilters),
     enabled: !!agentId
-  });
-  // Nova query para buscar informações do caller (telefone)
+  });  // Nova query para buscar informações do caller (telefone)
   const { data: callerInfo } = useQuery({
     queryKey: ['callerInfo', avaliacaoId],
     queryFn: () => getCallerInfo(avaliacaoId!),
@@ -121,11 +120,10 @@ export default function CallItems() {
           }
         />
 
-        <div className="p-6 space-y-6">
-          {/* Informações da ligação */}
+        <div className="p-6 space-y-6">          {/* Informações da ligação */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Ligação</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {agentInfo && (
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
@@ -166,7 +164,42 @@ export default function CallItems() {
                     {callerInfo?.callerid || 'Não disponível'}
                   </p>
                 </div>
-              </div>
+              </div>              {/* Pontuação da Avaliação */}
+              {callData && (
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      callData.pontuacao >= 80 ? 'bg-green-100' : 
+                      callData.pontuacao >= 60 ? 'bg-yellow-100' : 'bg-red-100'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${
+                        callData.pontuacao >= 80 ? 'text-green-600' : 
+                        callData.pontuacao >= 60 ? 'text-yellow-600' : 'text-red-600'
+                      }`} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Pontuação</p>
+                    <div className="flex items-center space-x-2">
+                      <p className={`font-bold text-lg ${
+                        callData.pontuacao >= 80 ? 'text-green-600' : 
+                        callData.pontuacao >= 60 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {callData.pontuacao.toFixed(1)}%
+                      </p>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        callData.status_avaliacao === 'APROVADA' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {callData.status_avaliacao}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {isTranscriptionModalOpen && (
