@@ -73,7 +73,6 @@ const Dashboard: React.FC = () => {
                 options={carteiras}
                 value={filters.carteira || ''}
                 onChange={(value) => {
-                  console.log('Carteira selecionada:', value);
                   setCarteira(value);
                 }}
                 placeholder="Selecionar carteira"

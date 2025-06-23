@@ -16,20 +16,7 @@ export const api = axios.create({
 });
 
 // DEBUG: log de todas as requests/responses
-api.interceptors.request.use(request => {
-  console.log('→ API Request:', request.method, request.url, request.params || request.data);
-  return request;
-});
-api.interceptors.response.use(
-  response => {
-    console.log('← API Response:', response.status, response.data);
-    return response;
-  },
-  error => {
-    console.error('× API Error:', error.response?.status, error.response?.data);
-    return Promise.reject(error);
-  }
-);
+// Removido para produção
 
 export interface CallRow {
   call_id:         string;

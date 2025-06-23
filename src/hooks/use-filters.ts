@@ -33,25 +33,20 @@ const loadFiltersFromStorage = (): Filters => {
     const storedEnd = localStorage.getItem(STORAGE_KEYS.END_DATE);
     const storedCarteira = localStorage.getItem(STORAGE_KEYS.CARTEIRA);
     
-    console.log('📁 Carregando filtros do localStorage:', { storedStart, storedEnd, storedCarteira });
-    
     // Se não há dados salvos, usa os padrões
     if (!storedStart || !storedEnd) {
       const defaults = getDefaultDates();
-      console.log('⚙️ Usando filtros padrão (6 meses):', defaults);
       return {
         start: defaults.start,
         end: defaults.end,
         carteira: storedCarteira || ''
       };
     }
-    
     const loadedFilters = {
       start: storedStart,
       end: storedEnd,
       carteira: storedCarteira || ''
     };
-    console.log('✅ Filtros carregados do localStorage:', loadedFilters);
     return loadedFilters;
   } catch (error) {
     console.warn('Erro ao carregar filtros do localStorage:', error);
@@ -85,7 +80,6 @@ export const useFilters = () => {
   // Função para atualizar filtros
   const setFilters = (newFilters: Partial<Filters>) => {
     const updatedFilters = { ...filters, ...newFilters };
-    console.log('🔧 Atualizando filtros:', updatedFilters);
     setFiltersState(updatedFilters);
     saveFiltersToStorage(updatedFilters);
   };

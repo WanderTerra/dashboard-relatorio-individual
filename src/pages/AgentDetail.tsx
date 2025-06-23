@@ -26,14 +26,11 @@ const AgentDetail: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
   
-  console.log("Usando filtros do hook:", apiFilters);
     // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ['agentSummary', agentId, apiFilters],
     queryFn: () => {
-      console.log(`Buscando resumo para agente ${agentId} com filtros:`, apiFilters);
       return getAgentSummary(agentId, apiFilters).then(data => {
-        console.log('Dados recebidos do agente:', data);
         return data;
       });
     },
@@ -43,7 +40,6 @@ const AgentDetail: React.FC = () => {
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
     queryKey: ['agentCalls', agentId, apiFilters],
     queryFn: () => {
-      console.log(`Buscando chamadas para agente ${agentId} com filtros:`, apiFilters);
       return getAgentCalls(agentId, apiFilters);
     },
   });
@@ -52,7 +48,6 @@ const AgentDetail: React.FC = () => {
   const { data: worstItem, isLoading: wiLoading, error: wiError } = useQuery({
     queryKey: ['agentWorstItem', agentId, apiFilters],
     queryFn: () => {
-      console.log(`Buscando pior item para agente ${agentId} com filtros:`, apiFilters);
       return getAgentWorstItem(agentId, apiFilters);
     },
   });
