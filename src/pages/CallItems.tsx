@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCallItems, getAgentSummary, getCallerInfo } from '../lib/api';
@@ -22,7 +22,7 @@ const cor = (r: Item['resultado']) =>
 export default function CallItems() {  const { avaliacaoId } = useParams();
   const location = useLocation();
   const agentId = location.state?.agentId;
-  const callData = location.state?.callData; // Dados da ligação passados da página anterior
+  const [callData, setCallData] = useState(location.state?.callData); // Dados da ligação passados da página anterior
   const { filters } = useFilters();
   
   // Construir objeto de filtros para a API
@@ -46,7 +46,20 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryKey: ['agentSummary', agentId, apiFilters],
     queryFn: () => getAgentSummary(agentId!, apiFilters),
     enabled: !!agentId
-  });  // Nova query para buscar informações do caller (telefone)
+  });
+
+  useEffect(() => {
+    if (agentInfo && (agentInfo as any).media !== undefined) {
+      const newPontuacao = (agentInfo as any).media;
+      setCallData((currentCallData: any) => ({
+        ...currentCallData,
+        pontuacao: newPontuacao,
+        status_avaliacao: newPontuacao >= 70 ? 'APROVADA' : 'REPROVADA'
+      }));
+    }
+  }, [agentInfo]);
+
+  // Nova query para buscar informações do caller (telefone)
   const { data: callerInfo } = useQuery({
     queryKey: ['callerInfo', avaliacaoId],
     queryFn: () => getCallerInfo(avaliacaoId!),

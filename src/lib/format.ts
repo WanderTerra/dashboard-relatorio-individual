@@ -1,5 +1,6 @@
 // Mapeamento de nomes técnicos para nomes amigáveis
-export const itemNameMap: Record<string, string> = {  "abordagem_atendeu": "Abordagem ao Atender",
+export const itemNameMap: Record<string, string> = {
+  // Itens de avaliação
   "fraseologia_explica_motivo": "Explicação do Motivo",
   "seguranca_info_corretas": "Confirmações de Segurança",
   "cordialidade_respeito": "Cordialidade e Respeito",
@@ -9,8 +10,6 @@ export const itemNameMap: Record<string, string> = {  "abordagem_atendeu": "Abor
   "comunicacao_tom_adequado": "Tom de Voz Adequado",
   "oferta_valores_corretos": "Apresentação de Valores",
   "confirmacao_aceite": "Confirmação de Aceitação",
-  "encerramento_agradece": "Encerramento Cordial",
-  "reforco_prazo": "Reforço de Prazo",
   
   // Outros critérios
   "saudacao_padrao": "Saudação Padrão", 

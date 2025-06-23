@@ -38,66 +38,60 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
       onClose(false);
     }
   };
-  // Função para ser executada após uma atualização bem-sucedida
-  const handleSuccess = () => {
-    // Mostrar notificação de sucesso
-    toast({
-      title: "Sucesso",
-      description: `Item "${formatItemName(item.categoria)}" atualizado com sucesso!`,
-      variant: "default",
-    });
-    
-    // Invalidar queries para recarregar os dados
-    queryClient.invalidateQueries({ queryKey: ['callItems', avaliacaoId] });
-    
-    // Invalidar potencialmente outras queries afetadas
-    queryClient.invalidateQueries({ queryKey: ['kpis'] });
-    queryClient.invalidateQueries({ queryKey: ['agents'] });
-    queryClient.invalidateQueries({ queryKey: ['agentCalls'] });
-    queryClient.invalidateQueries({ queryKey: ['agentSummary'] });
-    queryClient.invalidateQueries({ queryKey: ['agentWorstItem'] });
-    queryClient.invalidateQueries({ queryKey: ['trend'] });
-    
-    // Fechar o modal após o sucesso e indicar que o item foi editado
-    onClose(true, item.categoria);
-  };
 
   // Usar React Query para gerenciar a mutação de atualização
   const updateMutation = useMutation({
-    mutationFn: () => {
-      console.log('Atualizando item:', {
-        avaliacaoId,
-        categoria: item.categoria,
-        resultado: selectedStatus,
-        descricao
-      });
-      
-      return updateItem(avaliacaoId, item.categoria, selectedStatus, descricao);
+    mutationFn: () => updateItem(avaliacaoId, item.categoria, selectedStatus, descricao),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['callItems', avaliacaoId] });
+      const previousItems = queryClient.getQueryData(['callItems', avaliacaoId]);
+      queryClient.setQueryData(['callItems', avaliacaoId], (old: any[] | undefined) =>
+        old ? old.map(oldItem =>
+          oldItem.categoria === item.categoria
+            ? { ...oldItem, resultado: selectedStatus, descricao }
+            : oldItem
+        ) : []
+      );
+      return { previousItems };
     },
-    onSuccess: () => handleSuccess(),
-    onError: (error) => {
-      // Determinar mensagem de erro baseada no tipo de erro
+    onError: (error: Error, variables: void, context: { previousItems: any; } | undefined) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(['callItems', avaliacaoId], context.previousItems);
+      }
       let errorMessage = 'Erro desconhecido';
-      
       if (error instanceof Error) {
         errorMessage = error.message;
       }
-      // Verificar se é um erro do Axios com resposta do servidor
       if (axios.isAxiosError(error) && error.response) {
-        // Extrair mensagem do servidor se disponível
         if (error.response.data && error.response.data.message) {
           errorMessage = error.response.data.message;
         } else {
-          // Ou usar o código de status HTTP
           errorMessage = `Erro ${error.response.status}: ${error.response.statusText}`;
-        }      }
-      // Mostrar notificação de erro
+        }
+      }
       toast({
         title: "Erro",
         description: `Erro ao atualizar item: ${errorMessage}`,
         variant: "destructive",
       });
-    }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sucesso",
+        description: `Item "${formatItemName(item.categoria)}" atualizado com sucesso!`,
+        variant: "default",
+      });
+      onClose(true, item.categoria);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['callItems', avaliacaoId] });
+      queryClient.invalidateQueries({ queryKey: ['agentSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agentCalls'] });
+      queryClient.invalidateQueries({ queryKey: ['agentWorstItem'] });
+      queryClient.invalidateQueries({ queryKey: ['trend'] });
+    },
   });
 
   // Função para salvar as alterações
