@@ -43,7 +43,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 
   const finalBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : defaultBreadcrumbs;  return (
     <div className="bg-white border-b border-gray-200">
-      <div className="container mx-auto px-4 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumbs */}
         {finalBreadcrumbs.length > 0 && (
           <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
