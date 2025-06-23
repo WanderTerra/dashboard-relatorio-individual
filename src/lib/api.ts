@@ -35,6 +35,7 @@ export const getAgentCalls     = (id: string, f: Filters) => api.get(`/agent/${i
 export const getCallItems      = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/items`).then(r => r.data);
 export const getTranscription  = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/transcription`).then(r => r.data);
 export const getAgentWorstItem = (id: string, f: Filters) => api.get(`/agent/${id}/worst_item`, { params: f }).then(r => r.data);
+export const getAgentCriteria  = (id: string, f: Filters) => api.get(`/agent/${id}/criteria`, { params: f }).then(r => r.data);
 export const downloadAudio     = (callId: string)     => api.get(`/call/${callId}/audio`, { responseType: 'blob' }).then(r => r.data);
 
 // Nova função para buscar informações do caller (telefone)
