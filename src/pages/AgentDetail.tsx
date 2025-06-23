@@ -144,7 +144,7 @@ const AgentDetail: React.FC = () => {
           { label: 'Detalhes do Agente', isActive: true }
         ]}
         actions={
-          <div className="flex items-center space-x-4">
+          <div className="flex items-end space-x-4">
             {/* Filtros de data */}
             <div className="flex gap-4 items-end">
               <div>
