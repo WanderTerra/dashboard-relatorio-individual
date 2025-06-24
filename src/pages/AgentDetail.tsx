@@ -328,15 +328,9 @@ const AgentDetail: React.FC = () => {
                       className="p-4 rounded-lg border border-gray-200 bg-gray-50"
                     >
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">
+                        <div className="flex-1">                          <h3 className="text-sm font-medium text-gray-900">
                             {formatItemName(criterion.categoria || criterion.name || criterion.item)}
                           </h3>
-                          {process.env.NODE_ENV === 'development' && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Raw: {rawValue} → Final: {value.toFixed(1)}%
-                            </p>
-                          )}
                         </div>
                         <span 
                           className={`text-xs font-semibold px-2 py-1 rounded-full ${
