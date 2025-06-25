@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 export default ({ mode }: { mode: string }) => {
   // carrega todas as variáveis VITE_… do .env
   const env = loadEnv(mode, process.cwd(), '');
-  console.log('Configurando proxy para backend em: http://10.100.20.242:8080');
+  console.log('Configurando proxy para backend em: http://localhost:8000');
   
   return defineConfig({
     plugins: [react()],
@@ -13,7 +13,7 @@ export default ({ mode }: { mode: string }) => {
       proxy: {
         // intercepta /api/kpis, /api/agent, etc e encaminha para o BACKEND
         '/api': {
-          target: 'http://10.100.20.242:8080',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           // remove o prefixo /api antes de enviar pro FastAPI
