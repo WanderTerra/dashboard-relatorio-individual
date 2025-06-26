@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Path, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from dotenv import load_dotenv
@@ -7,6 +8,7 @@ from datetime import date
 import os
 import logging
 import time
+import requests
 from pydantic import BaseModel
 
 # Setup logging
@@ -322,6 +324,103 @@ def get_caller_info(
         raise HTTPException(
             status_code=500,
             detail=f"Erro interno do servidor ao buscar informações do caller: {str(e)}"
+        )
+
+@app.get("/call/{call_id}/audio")
+def download_audio(
+    call_id: str = Path(..., description="ID da chamada"),
+    current_user: dict = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Download do áudio da chamada baseado no call_id.
+    Busca o áudio no servidor externo: https://portesmarinho.vonixcc.com.br/recordings/{call_id}
+    """
+    try:
+        logger.info(f"Solicitação de download de áudio para call_id: {call_id}")
+        
+        # Verificar se o call_id existe na base de dados
+        SQL_CHECK_CALL = text("""
+            SELECT 
+                c.call_id,
+                c.callerid
+            FROM calls c
+            WHERE c.call_id = :call_id
+            LIMIT 1;
+        """)
+        
+        result = db.execute(SQL_CHECK_CALL, {"call_id": call_id})
+        row = result.mappings().first()
+        
+        if not row:
+            logger.warning(f"Call ID {call_id} não encontrado na base de dados")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Chamada não encontrada para call_id {call_id}"
+            )
+        
+        # URL do arquivo de áudio no servidor externo
+        audio_url = f"https://portesmarinho.vonixcc.com.br/recordings/{call_id}"
+        logger.info(f"Fazendo download do áudio de: {audio_url}")
+        
+        # Fazer download do arquivo de áudio do servidor externo
+        import requests
+        from fastapi.responses import StreamingResponse
+        
+        try:
+            # Fazer requisição para o servidor de áudio
+            response = requests.get(audio_url, stream=True, timeout=30)
+            response.raise_for_status()  # Levanta exceção se status não for 2xx
+            
+            # Determinar o tipo de conteúdo baseado na resposta
+            content_type = response.headers.get('content-type', 'audio/wav')
+            
+            # Determinar extensão do arquivo
+            if 'mp3' in content_type or 'mpeg' in content_type:
+                file_extension = 'mp3'
+                media_type = 'audio/mpeg'
+            elif 'wav' in content_type:
+                file_extension = 'wav'
+                media_type = 'audio/wav'
+            else:
+                # Default para wav se não conseguir determinar
+                file_extension = 'wav'
+                media_type = 'audio/wav'
+            
+            logger.info(f"Áudio encontrado. Content-Type: {content_type}, Tamanho: {response.headers.get('content-length', 'desconhecido')} bytes")
+            
+            # Criar um stream a partir do conteúdo baixado
+            def generate():
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+            
+            # Retornar o arquivo como stream
+            return StreamingResponse(
+                generate(),
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f"attachment; filename=audio_{call_id}.{file_extension}"
+                }
+            )
+            
+        except requests.exceptions.RequestException as req_error:
+            logger.error(f"Erro ao fazer download do áudio de {audio_url}: {str(req_error)}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Arquivo de áudio não encontrado no servidor externo para call_id {call_id}"
+            )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (404)
+        raise
+        
+    except Exception as e:
+        # Log e retorna erro 500
+        logger.error(f"Erro ao buscar áudio para call_id {call_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor ao buscar áudio: {str(e)}"
         )
 
 @app.get("/agent/{agent_id}/worst_item")

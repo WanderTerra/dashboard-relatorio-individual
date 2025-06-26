@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt-BR" lang="pt-BR">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="/stylesheets/screen.css?1437486581" media="screen" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/prototype.js?1437486581" type="text/javascript"></script>
+<script src="/javascripts/effects.js?1437486581" type="text/javascript"></script>
+<script src="/javascripts/dragdrop.js?1437486581" type="text/javascript"></script>
+<script src="/javascripts/controls.js?1437486581" type="text/javascript"></script>
+<script src="/javascripts/application.js?1682644677" type="text/javascript"></script>
+  <title>TristerixCC</title>
+</head>
+
+<body>
+  <div id="wrapper">
+    <div class="login">
+      <div id="message">
+        Entre com suas credenciais
+      </div>
+      
+      <form action="/login/signin" method="post"><div style="margin:0;padding:0;display:inline"><input name="authenticity_token" type="hidden" value="Qmpm4wHBW7ulamaEhm1/6zGjdUdoaLTDfh5Up8dLSDU=" /></div>
+      <input id="return_to" name="return_to" type="hidden" value="/recordings/1727780400.209738405" />
+      <dl>
+        <dt><label for="username" >Usuário: </label></dt>
+        <dd><input id="username" name="username" type="text" /><br /></dd>
+        <dt><label for="password" >Senha: </label></dt>
+        <dd><input id="password" name="password" type="password" /><br /></dd>
+        <dd><input name="commit" type="submit" value="Entrar" /></dd>
+      </dl>
+      </form>
+    </div>
+  </div>
+
+<script type="text/javascript">
+  document.getElementById("username").focus();
+</script>
+
+</body>
+
+</html>
