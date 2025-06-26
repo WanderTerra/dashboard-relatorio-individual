@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { Filters } from '../hooks/use-filters';
-
+ 
 //
 // baseURL vazio: tudo já vai no proxy do Vite em /api/…
 //
@@ -49,3 +49,144 @@ export const updateItem = (avaliacaoId: string, categoria: string, resultado: st
     descricao
   }).then(r => r.data);
 };
+
+// Authentication interfaces
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: {
+    id: number;
+    username: string;
+    full_name: string;
+    active: boolean;
+    requires_password_change: boolean;
+  };
+}
+
+export interface UserInfo {
+  id: number;
+  username: string;
+  full_name: string;
+  active: boolean;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+// Token management
+export const getAuthToken = (): string | null => {
+  return localStorage.getItem('auth_token');
+};
+
+export const setAuthToken = (token: string): void => {
+  localStorage.setItem('auth_token', token);
+  // Update axios default headers
+  api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+};
+
+export const removeAuthToken = (): void => {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('user_info');
+  delete api.defaults.headers.common['Authorization'];
+};
+
+export const isAuthenticated = (): boolean => {
+  return getAuthToken() !== null;
+};
+
+// Set up axios interceptor to add token to requests
+api.interceptors.request.use(
+  (config) => {
+    console.log('🌐 Requisição:', config.method?.toUpperCase(), config.url);
+    const token = getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.error('❌ Erro na requisição:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Set up axios interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      removeAuthToken();
+      // Redirect to login page
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Authentication API functions
+export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
+  console.log('🔐 Iniciando login...', { username: credentials.username });
+  
+  // OAuth2 password flow requires form data
+  const formData = new URLSearchParams();
+  formData.append('username', credentials.username);
+  formData.append('password', credentials.password);
+  
+  console.log('📝 Form data criado, enviando requisição...');
+  console.log('🌐 URL completa:', `${api.defaults.baseURL}/auth/token`);
+  
+  try {
+    const response = await api.post('/auth/token', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      timeout: 10000, // 10 seconds timeout
+    });
+    
+    console.log('✅ Resposta recebida:', response.status);
+    const data = response.data;
+    console.log('👤 Dados do usuário:', data.user);
+    
+    // Store token and user info
+    setAuthToken(data.access_token);
+    localStorage.setItem('user_info', JSON.stringify(data.user));
+    
+    console.log('💾 Token armazenado com sucesso');
+    return data;
+  } catch (error) {
+    console.error('❌ Erro no login:', error);
+    throw error;
+  }
+};
+
+export const logout = (): void => {
+  removeAuthToken();
+};
+
+export const getCurrentUser = async (): Promise<UserInfo> => {
+  const response = await api.get('/auth/me');
+  return response.data;
+};
+
+export const changePassword = async (passwordData: ChangePasswordRequest): Promise<void> => {
+  await api.post('/auth/change-password', passwordData);
+};
+
+export const getUserInfoFromStorage = (): UserInfo | null => {
+  const userInfo = localStorage.getItem('user_info');
+  return userInfo ? JSON.parse(userInfo) : null;
+};
+
+// Initialize token from storage on app load
+const storedToken = getAuthToken();
+if (storedToken) {
+  setAuthToken(storedToken);
+}
