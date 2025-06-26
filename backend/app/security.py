@@ -61,12 +61,13 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        user_id: int = payload.get("user_id")
         if username is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
     
-    return {"username": username}
+    return {"username": username, "user_id": user_id}
 
 def authenticate_user(db: Session, username: str, password: str):
     """Autentica usuário e retorna dados do usuário se válido"""

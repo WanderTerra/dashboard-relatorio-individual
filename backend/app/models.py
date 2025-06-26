@@ -149,6 +149,49 @@ ORDER BY taxa_nao_conforme DESC
 LIMIT 1;
 """)
 
+# =============================================================================
+# PERMISSIONS SYSTEM
+# =============================================================================
+
+# SQL queries for permissions
+SQL_GET_USER_PERMISSIONS = text("""
+SELECT 
+    p.id as permission_id,
+    p.name as permission_name,
+    p.description as permission_description
+FROM user_permissions up
+JOIN permissions p ON p.id = up.permission_id
+WHERE up.user_id = :user_id;
+""")
+
+SQL_CREATE_PERMISSION = text("""
+INSERT INTO permissions (name, description)
+VALUES (:name, :description);
+""")
+
+SQL_ASSIGN_PERMISSION = text("""
+INSERT INTO user_permissions (user_id, permission_id)
+VALUES (:user_id, :permission_id);
+""")
+
+SQL_GET_PERMISSION_BY_NAME = text("""
+SELECT id, name, description
+FROM permissions 
+WHERE name = :name
+LIMIT 1;
+""")
+
+SQL_CHECK_USER_AGENT_ACCESS = text("""
+SELECT 
+    p.name as permission_name,
+    p.description
+FROM user_permissions up
+JOIN permissions p ON p.id = up.permission_id
+WHERE up.user_id = :user_id 
+  AND (p.name = 'admin' OR p.name = :agent_permission)
+LIMIT 1;
+""")
+
 def get_user_by_username(db: Session, username: str) -> Optional[Dict[str, Any]]:
     """Busca usuário pelo username"""
     try:
@@ -206,4 +249,143 @@ def ensure_users_table_exists(db: Session):
     except Exception as e:
         db.rollback()
         print(f"Erro ao criar tabela users: {e}")
+        return False
+
+def get_user_permissions(db: Session, user_id: int) -> list:
+    """Busca todas as permissões de um usuário"""
+    try:
+        result = db.execute(SQL_GET_USER_PERMISSIONS, {"user_id": user_id})
+        permissions = []
+        for row in result.mappings():
+            permissions.append({
+                "id": row.permission_id,
+                "name": row.permission_name,
+                "description": row.permission_description
+            })
+        return permissions
+    except Exception as e:
+        print(f"Erro ao buscar permissões do usuário {user_id}: {e}")
+        return []
+
+def create_permission(db: Session, name: str, description: str = None) -> bool:
+    """Cria uma nova permissão"""
+    try:
+        db.execute(SQL_CREATE_PERMISSION, {"name": name, "description": description})
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao criar permissão {name}: {e}")
+        return False
+
+def get_permission_by_name(db: Session, name: str) -> Optional[Dict[str, Any]]:
+    """Busca uma permissão pelo nome"""
+    try:
+        result = db.execute(SQL_GET_PERMISSION_BY_NAME, {"name": name})
+        row = result.mappings().first()
+        if row:
+            return {
+                "id": row.id,
+                "name": row.name,
+                "description": row.description
+            }
+        return None
+    except Exception as e:
+        print(f"Erro ao buscar permissão {name}: {e}")
+        return None
+
+def assign_permission_to_user(db: Session, user_id: int, permission_id: int) -> bool:
+    """Atribui uma permissão a um usuário"""
+    try:
+        db.execute(SQL_ASSIGN_PERMISSION, {"user_id": user_id, "permission_id": permission_id})
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"Erro ao atribuir permissão {permission_id} ao usuário {user_id}: {e}")
+        return False
+
+def check_user_agent_access(db: Session, user_id: int, agent_id: str) -> bool:
+    """
+    Verifica se o usuário tem acesso aos dados de um agente específico.
+    Retorna True se:
+    - Usuário tem permissão 'admin' (acesso total)
+    - Usuário tem permissão específica para o agente (ex: 'agent_1116')
+    """
+    try:
+        agent_permission = f"agent_{agent_id}"
+        result = db.execute(SQL_CHECK_USER_AGENT_ACCESS, {
+            "user_id": user_id, 
+            "agent_permission": agent_permission
+        })
+        row = result.mappings().first()
+        return row is not None
+    except Exception as e:
+        print(f"Erro ao verificar acesso do usuário {user_id} ao agente {agent_id}: {e}")
+        return False
+
+def ensure_default_permissions(db: Session):
+    """Cria as permissões padrão se não existirem"""
+    try:
+        # Permissão de administrador
+        if not get_permission_by_name(db, "admin"):
+            create_permission(db, "admin", "Acesso total ao sistema")
+        
+        # Permissão específica para agente 1116 (Kali Vitória)
+        if not get_permission_by_name(db, "agent_1116"):
+            create_permission(db, "agent_1116", "Acesso aos dados do agente Kali Vitória (ID: 1116)")
+        
+        return True
+    except Exception as e:
+        print(f"Erro ao criar permissões padrão: {e}")
+        return False
+
+SQL_GET_USER_BY_ID = text("""
+SELECT 
+    id,
+    username,
+    password_hash,
+    full_name,
+    active
+FROM users 
+WHERE id = :user_id
+LIMIT 1;
+""")
+
+def get_user_by_id(db: Session, user_id: int) -> Optional[Dict[str, Any]]:
+    """Busca um usuário pelo ID"""
+    try:
+        result = db.execute(SQL_GET_USER_BY_ID, {"user_id": user_id})
+        row = result.mappings().first()
+        if row:
+            return {
+                "id": row.id,
+                "username": row.username,
+                "password_hash": row.password_hash,
+                "full_name": row.full_name,
+                "active": row.active
+            }
+        return None
+    except Exception as e:
+        print(f"Erro ao buscar usuário por ID {user_id}: {e}")
+        return None
+
+def check_user_has_permission(db: Session, user_id: int, permission_id: int) -> bool:
+    """Verifica se o usuário já tem uma permissão específica"""
+    try:
+        SQL_CHECK_USER_PERMISSION = text("""
+            SELECT COUNT(*) as count
+            FROM user_permissions up
+            WHERE up.user_id = :user_id AND up.permission_id = :permission_id
+        """)
+        
+        result = db.execute(SQL_CHECK_USER_PERMISSION, {
+            "user_id": user_id,
+            "permission_id": permission_id
+        })
+        count = result.scalar()
+        return count > 0
+        
+    except Exception as e:
+        print(f"Erro ao verificar permissão do usuário: {e}")
         return False

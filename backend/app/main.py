@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query, Path, Request
+from fastapi import FastAPI, Depends, HTTPException, Query, Path, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -21,8 +21,9 @@ load_dotenv()
 # Import local modules
 from .database import get_db
 from .routers.auth import router as auth_router
-from .models import ensure_users_table_exists, create_user
+from .models import ensure_users_table_exists, create_user, ensure_default_permissions
 from .security import get_password_hash, verify_token
+from .permissions import verify_agent_access, verify_admin_access
 
 # Create FastAPI app
 app = FastAPI(title="Dashboard API", description="API com autenticação JWT", version="1.0.0")
@@ -203,6 +204,28 @@ def agent_summary(
     current_user: dict = Depends(verify_token),
     db: Session = Depends(get_db)
 ):
+    # Verificar permissões de acesso ao agente
+    from .models import check_user_agent_access
+    user_id = current_user.get("user_id") or current_user.get("id")
+    
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Informações de usuário inválidas"
+        )
+    
+    # Verificar se o usuário tem acesso ao agente
+    has_access = check_user_agent_access(db, user_id, agent_id)
+    
+    if not has_access:
+        logger.warning(f"Usuário {current_user.get('username')} (ID: {user_id}) tentou acessar dados do agente {agent_id} sem permissão")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Acesso negado aos dados do agente {agent_id}"
+        )
+    
+    logger.info(f"Acesso autorizado: usuário {current_user.get('username')} acessando dados do agente {agent_id}")
+    
     row = db.execute(SQL_AGENT_SUMMARY, {"agent_id": agent_id, **filters(start, end, carteira)}).mappings().first()
     if not row:
         raise HTTPException(404, "Agente não encontrado")
@@ -575,6 +598,98 @@ async def update_call_item_post(
         logger.error(f"Erro ao atualizar item via POST: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar item: {str(e)}")
 
+# =============================================================================
+# PERMISSIONS MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@app.post("/admin/assign-permission")
+async def assign_permission(
+    user_id: int,
+    permission_name: str,
+    current_user: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """Atribuir permissão a um usuário (apenas para administradores)"""
+    try:
+        from .models import get_permission_by_name, assign_permission_to_user, get_user_by_id
+        
+        # Verificar se o usuário existe
+        target_user = get_user_by_id(db, user_id)
+        if not target_user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Usuário com ID {user_id} não encontrado"
+            )
+        
+        # Verificar se a permissão existe
+        permission = get_permission_by_name(db, permission_name)
+        if not permission:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Permissão '{permission_name}' não encontrada"
+            )
+        
+        # Atribuir permissão
+        success = assign_permission_to_user(db, user_id, permission["id"])
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Erro ao atribuir permissão"
+            )
+        
+        logger.info(f"Admin {current_user.get('username')} atribuiu permissão '{permission_name}' ao usuário ID {user_id}")
+        
+        return {
+            "message": f"Permissão '{permission_name}' atribuída com sucesso ao usuário {target_user['username']}",
+            "user_id": user_id,
+            "permission": permission_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atribuir permissão: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor: {str(e)}"
+        )
+
+@app.get("/admin/users/{user_id}/permissions")
+async def get_user_permissions_endpoint(
+    user_id: int,
+    current_user: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """Listar permissões de um usuário (apenas para administradores)"""
+    try:
+        from .models import get_user_permissions, get_user_by_id
+        
+        # Verificar se o usuário existe
+        target_user = get_user_by_id(db, user_id)
+        if not target_user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Usuário com ID {user_id} não encontrado"
+            )
+        
+        permissions = get_user_permissions(db, user_id)
+        
+        return {
+            "user_id": user_id,
+            "username": target_user["username"],
+            "permissions": permissions
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar permissões: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor: {str(e)}"
+        )
+
 # Add a simple test route
 @app.get("/test")
 async def test_route():
@@ -598,6 +713,10 @@ async def startup_event():
         ensure_users_table_exists(db)
         logger.info("Tabela de usuários verificada/criada com sucesso")
         
+        # Create default permissions
+        ensure_default_permissions(db)
+        logger.info("Permissões padrão verificadas/criadas com sucesso")
+        
         # Create default admin user if no users exist
         from .models import get_user_by_username
         admin_user = get_user_by_username(db, "admin.sistema")
@@ -617,6 +736,61 @@ async def startup_event():
                 logger.error("Erro ao criar usuário admin padrão")
         else:
             logger.info("Usuário admin já existe")
+        
+        # Ensure admin user has admin permission
+        admin_user = get_user_by_username(db, "admin.sistema")
+        if admin_user:
+            from .models import (
+                get_permission_by_name, 
+                assign_permission_to_user,
+                check_user_has_permission
+            )
+            
+            admin_permission = get_permission_by_name(db, "admin")
+            if admin_permission and not check_user_has_permission(db, admin_user["id"], admin_permission["id"]):
+                success = assign_permission_to_user(db, admin_user["id"], admin_permission["id"])
+                if success:
+                    logger.info("Permissão admin atribuída ao usuário admin.sistema")
+                else:
+                    logger.error("Erro ao atribuir permissão admin")
+        
+        # Create Kali Vitória user for testing permissions
+        kali_user = get_user_by_username(db, "kali.vitoria")
+        if not kali_user:
+            password_hash = get_password_hash("Temp@2025")
+            success = create_user(
+                db=db,
+                username="kali.vitoria",
+                password_hash=password_hash,
+                full_name="Kali Vitória",
+                active=True
+            )
+            if success:
+                logger.info("Usuário Kali Vitória criado: kali.vitoria / Temp@2025")
+                
+                # Assign agent_1116 permission to Kali
+                from .models import (
+                    get_permission_by_name, 
+                    assign_permission_to_user,
+                    get_user_by_username as get_user_full
+                )
+                
+                # Get the user ID and permission ID
+                kali_user_full = get_user_full(db, "kali.vitoria")
+                agent_permission = get_permission_by_name(db, "agent_1116")
+                
+                if kali_user_full and agent_permission:
+                    success = assign_permission_to_user(db, kali_user_full["id"], agent_permission["id"])
+                    if success:
+                        logger.info("Permissão agent_1116 atribuída a Kali Vitória")
+                    else:
+                        logger.error("Erro ao atribuir permissão a Kali Vitória")
+                else:
+                    logger.warning("Não foi possível encontrar usuário ou permissão para atribuição")
+            else:
+                logger.error("Erro ao criar usuário Kali Vitória")
+        else:
+            logger.info("Usuário Kali Vitória já existe")
             
     except Exception as e:
         logger.error(f"Erro na inicialização: {e}")
