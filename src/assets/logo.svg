@@ -1,7 +1,0 @@
-<!-- Substitua este arquivo pela sua logo -->
-<!-- Tamanho recomendado: 200x50px -->
-<!-- Formatos aceitos: PNG, JPG, SVG -->
-<svg width="200" height="50" xmlns="http://www.w3.org/2000/svg">
-  <rect width="200" height="50" fill="#3B82F6" rx="5"/>
-  <text x="100" y="30" text-anchor="middle" fill="white" font-family="Arial" font-size="16">SUA LOGO AQUI</text>
-</svg>
