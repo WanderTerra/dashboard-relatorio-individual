@@ -23,6 +23,7 @@ from .database import get_db
 from .routers.auth import router as auth_router
 from .models import ensure_users_table_exists, create_user, ensure_default_permissions
 from .security import get_password_hash, verify_token
+from .permissions import verify_admin_access
 from .permissions import verify_agent_access, verify_admin_access
 
 # Create FastAPI app
@@ -690,6 +691,194 @@ async def get_user_permissions_endpoint(
             detail=f"Erro interno do servidor: {str(e)}"
         )
 
+# =============================================================================
+# AGENT PERMISSIONS MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@app.post("/admin/grant-admin-permission")
+async def grant_admin_permission(
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint temporário para dar permissão de admin ao admin.sistema
+    (Deve ser removido após configuração inicial)
+    """
+    try:
+        # Buscar usuário admin.sistema
+        user_query = text("SELECT id FROM users WHERE username = 'admin.sistema'")
+        admin_user_id = db.execute(user_query).scalar()
+        
+        if not admin_user_id:
+            raise HTTPException(status_code=404, detail="Usuário admin.sistema não encontrado")
+        
+        # Buscar permissão admin
+        perm_query = text("SELECT id FROM permissions WHERE name = 'admin'")
+        admin_perm_id = db.execute(perm_query).scalar()
+        
+        if not admin_perm_id:
+            raise HTTPException(status_code=404, detail="Permissão admin não encontrada")
+        
+        # Verificar se já tem a permissão
+        check_query = text("""
+            SELECT 1 FROM user_permissions 
+            WHERE user_id = :user_id AND permission_id = :permission_id
+        """)
+        has_permission = db.execute(check_query, {
+            "user_id": admin_user_id,
+            "permission_id": admin_perm_id
+        }).scalar()
+        
+        if has_permission:
+            return {"message": "Admin já possui permissão de administrador"}
+        
+        # Atribuir permissão
+        assign_query = text("""
+            INSERT INTO user_permissions (user_id, permission_id) 
+            VALUES (:user_id, :permission_id)
+        """)
+        db.execute(assign_query, {
+            "user_id": admin_user_id,
+            "permission_id": admin_perm_id
+        })
+        
+        db.commit()
+        
+        logger.info("✅ Permissão de admin atribuída ao admin.sistema")
+        return {"message": "Permissão de admin atribuída com sucesso ao admin.sistema"}
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro ao atribuir permissão de admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/setup-agent-permissions")
+async def setup_agent_permissions(
+    current_user: dict = Depends(verify_admin_access),
+    db: Session = Depends(get_db)
+):
+    """
+    Cria permissões individuais para cada agente e atribui ao usuário correspondente.
+    Este endpoint deve ser executado pelo administrador para configurar o sistema.
+    """
+    try:
+        logger.info("🔧 Iniciando configuração de permissões de agentes...")
+        
+        # Buscar todos os agentes únicos da base de dados
+        agents_query = text("""
+            SELECT DISTINCT agent_id, 
+                   COALESCE(
+                       (SELECT name FROM agents WHERE id = agent_id LIMIT 1),
+                       CONCAT('Agente ', agent_id)
+                   ) as agent_name
+            FROM avaliacoes 
+            WHERE agent_id IS NOT NULL 
+            ORDER BY agent_id
+        """)
+        
+        agents = db.execute(agents_query).fetchall()
+        logger.info(f"📊 Encontrados {len(agents)} agentes únicos")
+        
+        created_permissions = 0
+        created_users = 0
+        assigned_permissions = 0
+        
+        for agent in agents:
+            agent_id = str(agent.agent_id)
+            agent_name = agent.agent_name
+            
+            # 1. Criar permissão para este agente (se não existir)
+            permission_name = f"agent_{agent_id}"
+            permission_desc = f"Acesso aos dados do agente {agent_name} (ID: {agent_id})"
+            
+            check_perm = text("SELECT id FROM permissions WHERE name = :name")
+            existing_perm = db.execute(check_perm, {"name": permission_name}).scalar()
+            
+            if not existing_perm:
+                create_perm = text("""
+                    INSERT INTO permissions (name, description) 
+                    VALUES (:name, :description)
+                """)
+                db.execute(create_perm, {
+                    "name": permission_name,
+                    "description": permission_desc
+                })
+                created_permissions += 1
+                logger.info(f"✅ Permissão criada: {permission_name}")
+            
+            # 2. Criar usuário para este agente (se não existir)
+            username = f"agent.{agent_id}"
+            
+            check_user = text("SELECT id FROM users WHERE username = :username")
+            existing_user = db.execute(check_user, {"username": username}).scalar()
+            
+            if not existing_user:
+                # Criar usuário
+                password_hash = get_password_hash("Temp@2025")
+                create_user_sql = text("""
+                    INSERT INTO users (username, password_hash, full_name, active) 
+                    VALUES (:username, :password_hash, :full_name, :active)
+                """)
+                db.execute(create_user_sql, {
+                    "username": username,
+                    "password_hash": password_hash,
+                    "full_name": agent_name,
+                    "active": True
+                })
+                created_users += 1
+                logger.info(f"👤 Usuário criado: {username} ({agent_name})")
+                
+                # Buscar o ID do usuário recém-criado
+                user_id = db.execute(check_user, {"username": username}).scalar()
+            else:
+                user_id = existing_user
+            
+            # 3. Atribuir permissão ao usuário (se não já atribuída)
+            perm_id = db.execute(check_perm, {"name": permission_name}).scalar()
+            
+            check_assignment = text("""
+                SELECT 1 FROM user_permissions 
+                WHERE user_id = :user_id AND permission_id = :permission_id
+            """)
+            existing_assignment = db.execute(check_assignment, {
+                "user_id": user_id,
+                "permission_id": perm_id
+            }).scalar()
+            
+            if not existing_assignment:
+                assign_perm = text("""
+                    INSERT INTO user_permissions (user_id, permission_id) 
+                    VALUES (:user_id, :permission_id)
+                """)
+                db.execute(assign_perm, {
+                    "user_id": user_id,
+                    "permission_id": perm_id
+                })
+                assigned_permissions += 1
+                logger.info(f"🔗 Permissão {permission_name} atribuída ao usuário {username}")
+        
+        # Commit todas as mudanças
+        db.commit()
+        
+        result = {
+            "message": "Configuração de permissões de agentes concluída com sucesso!",
+            "summary": {
+                "total_agents": len(agents),
+                "permissions_created": created_permissions,
+                "users_created": created_users,
+                "permissions_assigned": assigned_permissions
+            }
+        }
+        
+        logger.info(f"🎉 Configuração concluída: {result['summary']}")
+        return result
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro ao configurar permissões de agentes: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao configurar permissões: {str(e)}"
+        )
 # Add a simple test route
 @app.get("/test")
 async def test_route():
