@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -24,17 +24,46 @@ import { formatItemName, formatAgentName } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 
+// Funções utilitárias para LocalStorage
+const getPersistedDate = (key: string, fallback: string) =>
+  localStorage.getItem(key) || fallback;
+const setPersistedDate = (key: string, value: string) =>
+  localStorage.setItem(key, value);
+
+function getDefaultStartDate() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toISOString().slice(0, 10);
+}
+const today = new Date().toISOString().slice(0, 10);
+
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { user } = useAuth();
+  const agentName = user?.full_name || user?.username || "Agente";
   if (!agentId) return <div>Agente não especificado.</div>;
 
-  const { filters, setStartDate, setEndDate } = useFilters();
+  const { filters } = useFilters();
 
-  // Construir objeto de filtros para a API
+  // Persistência do filtro de datas
+  const [startDate, setStartDate] = useState(() =>
+    getPersistedDate('agent_filter_start', getDefaultStartDate())
+  );
+  const [endDate, setEndDate] = useState(() =>
+    getPersistedDate('agent_filter_end', today)
+  );
+
+  useEffect(() => {
+    setPersistedDate('agent_filter_start', startDate);
+  }, [startDate]);
+  useEffect(() => {
+    setPersistedDate('agent_filter_end', endDate);
+  }, [endDate]);
+
+  // Use startDate e endDate nos filtros das queries
   const apiFilters = { 
-    start: filters.start, 
-    end: filters.end, 
+    start: startDate, 
+    end: endDate, 
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
   
@@ -142,45 +171,33 @@ const AgentDetail: React.FC = () => {
   return (
     <div>
       <PageHeader 
-        title={summaryLoading ? "Carregando..." : formatAgentName(summary)}
+        title={agentName}
         subtitle={`Análise detalhada do Agente ${agentId}`}
         breadcrumbs={isAgent ? [] : [
           { label: 'Dashboard', href: '/' },
           { label: 'Detalhes do Agente', isActive: true }
         ]}
         actions={
-          !isAgent && (
-            <div className="flex items-end space-x-4">
-              {/* Filtros de data */}
-              <div className="flex gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-                  <input
-                    type="date"
-                    value={filters.start}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-                  <input
-                    type="date"
-                    value={filters.end}
-                    onChange={e => setEndDate(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              {/* Botão voltar */}
-              <Link 
-                to="/" 
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              >
-                ← Voltar
-              </Link>
+          <div className="flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-          )
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
         }
         logoHref={isAgent ? `/agent/${agentId}` : "/"}
       />
