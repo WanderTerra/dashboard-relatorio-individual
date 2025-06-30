@@ -22,9 +22,11 @@ import SummaryCard  from '../components/ui/SummaryCard';
 import PageHeader   from '../components/PageHeader';
 import { formatItemName, formatAgentName } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
+import { useAuth } from '../contexts/AuthContext';
 
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
+  const { user } = useAuth();
   if (!agentId) return <div>Agente não especificado.</div>;
 
   const { filters, setStartDate, setEndDate } = useFilters();
@@ -134,48 +136,53 @@ const AgentDetail: React.FC = () => {
     }
   }, [summaryError, callsError, wiError, criteriaError, criteria]);
 
+  // Verifica se o usuário autenticado é agente (tem permissão agent_{id} e não é admin)
+  const isAgent = user && user.permissions && user.permissions.includes(`agent_${agentId}`) && !user.permissions.includes('admin');
+
   return (
     <div>
       <PageHeader 
         title={summaryLoading ? "Carregando..." : formatAgentName(summary)}
         subtitle={`Análise detalhada do Agente ${agentId}`}
-        breadcrumbs={[
+        breadcrumbs={isAgent ? [] : [
           { label: 'Dashboard', href: '/' },
           { label: 'Detalhes do Agente', isActive: true }
         ]}
         actions={
-          <div className="flex items-end space-x-4">
-            {/* Filtros de data */}
-            <div className="flex gap-4 items-end">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-                <input
-                  type="date"
-                  value={filters.start}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+          !isAgent && (
+            <div className="flex items-end space-x-4">
+              {/* Filtros de data */}
+              <div className="flex gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={filters.start}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={filters.end}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-                <input
-                  type="date"
-                  value={filters.end}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              {/* Botão voltar */}
+              <Link 
+                to="/" 
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                ← Voltar
+              </Link>
             </div>
-            
-            {/* Botão voltar */}
-            <Link 
-              to="/" 
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              ← Voltar
-            </Link>
-          </div>
+          )
         }
+        logoHref={isAgent ? `/agent/${agentId}` : "/"}
       />
 
       <div className="p-6 space-y-8">

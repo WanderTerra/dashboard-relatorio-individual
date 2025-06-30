@@ -14,34 +14,22 @@ interface PageHeaderProps {
   subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
+  logoHref?: string;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({ 
   title, 
   subtitle, 
   breadcrumbs = [], 
-  actions 
+  actions,
+  logoHref = '/',
 }) => {
   const location = useLocation();
 
-  // Breadcrumbs padrão baseado na rota
-  const defaultBreadcrumbs: BreadcrumbItem[] = [
-    { label: 'Dashboard', href: '/', isActive: location.pathname === '/' }
-  ];
+  // Se breadcrumbs for fornecido (mesmo vazio), não usar fallback
+  const finalBreadcrumbs = breadcrumbs;
 
-  if (location.pathname.includes('/agent/')) {
-    defaultBreadcrumbs.push({ 
-      label: 'Detalhes do Agente', 
-      isActive: true 
-    });
-  } else if (location.pathname.includes('/call-items')) {
-    defaultBreadcrumbs.push({ 
-      label: 'Itens de Ligação', 
-      isActive: true 
-    });
-  }
-
-  const finalBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : defaultBreadcrumbs;  return (
+  return (
     <div className="bg-white border-b border-gray-200">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumbs */}
@@ -71,7 +59,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         {/* Logo, Título e ações - tudo na mesma linha */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           {/* Logo e Título */}
-          <div className="flex items-center space-x-4">            <Link to="/" className="flex-shrink-0">
+          <div className="flex items-center space-x-4">            <Link to={logoHref} className="flex-shrink-0">
               <img 
                 src={logoSrc} 
                 alt="Logo da Empresa" 

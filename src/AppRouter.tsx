@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Sidebar } from './components/Sidebar';
 
 import Dashboard   from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
@@ -9,34 +10,43 @@ import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 
-const AppRouter: React.FC = () => (
-  <AuthProvider>
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/agent/:agentId" element={
-          <ProtectedRoute>
-            <AgentDetail />
-          </ProtectedRoute>
-        } />
-        <Route path="/call/:avaliacaoId/items" element={
-          <ProtectedRoute>
-            <CallItems />
-          </ProtectedRoute>
-        } />
-        <Route path="/call/:avaliacaoId/transcription" element={
-          <ProtectedRoute>
-            <Transcription />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </Router>
-  </AuthProvider>
-);
+const AppRouter: React.FC = () => {
+  const [collapsed, setCollapsed] = useState(true);
+
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="flex">
+          <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+          <main className={`flex-1 ml-0 bg-gray-50 min-h-screen lg:transition-all lg:duration-200 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/agent/:agentId" element={
+                <ProtectedRoute>
+                  <AgentDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/call/:avaliacaoId/items" element={
+                <ProtectedRoute>
+                  <CallItems />
+                </ProtectedRoute>
+              } />
+              <Route path="/call/:avaliacaoId/transcription" element={
+                <ProtectedRoute>
+                  <Transcription />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+};
 
 export default AppRouter;
