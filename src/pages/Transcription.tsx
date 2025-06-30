@@ -4,11 +4,13 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getTranscription, getAgentCalls, downloadAudio, getAgentSummary } from '../lib/api';
 import { formatAgentName } from '../lib/format';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Transcription() {
   const { avaliacaoId } = useParams();
   const location = useLocation();
-  const agentId = location.state?.agentId;  const [isDownloading, setIsDownloading] = useState(false);
+  const agentId = location.state?.agentId;
+  const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   
   const { data: calls, error: callsError } = useQuery({
@@ -38,7 +40,12 @@ export default function Transcription() {
   const { data, isLoading } = useQuery({
     queryKey: ['transcription', avaliacaoId],
     queryFn: () => getTranscription(avaliacaoId!),
-  });  const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+  });
+
+  const { user } = useAuth();
+  const isAdmin = user?.permissions?.includes('admin');
+
+  const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     
     if (!callInfo?.call_id) {
@@ -69,7 +76,9 @@ export default function Transcription() {
     } finally {
       setIsDownloading(false);
     }
-  };return (
+  };
+
+  return (
     <div className="mx-auto max-w-3xl p-6 space-y-6">
       <Link 
         to={-1 as any} 
@@ -146,29 +155,30 @@ export default function Transcription() {
                   <p className="text-sm text-gray-600 mb-1">Controles de Áudio</p>
                   <p className="text-xs text-gray-500">Faça o download do arquivo de áudio desta ligação</p>
                 </div>
-                
-                <button
-                  className={`inline-flex items-center rounded-lg px-4 py-2 text-white font-medium shadow transition-all ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                  onClick={handleDownloadClick}
-                  disabled={isDownloading}
-                >
-                  {isDownloading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Baixando...
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      Baixar Áudio
-                    </>
-                  )}
-                </button>
+                {isAdmin && (
+                  <button
+                    className={`inline-flex items-center rounded-lg px-4 py-2 text-white font-medium shadow transition-all ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                    onClick={handleDownloadClick}
+                    disabled={isDownloading}
+                  >
+                    {isDownloading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Baixando...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Baixar Áudio
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
             
