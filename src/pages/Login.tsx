@@ -37,16 +37,32 @@ const Login: React.FC = () => {
       console.log('🔍 Usuario requires_password_change:', response.user.requires_password_change);
       
       // Update the auth context with user info
-      authLogin(response.user);
-      console.log('🔐 AuthContext atualizado com usuário:', response.user);
+      const userWithPermissions = {
+        ...response.user,
+        permissions: (response.user as any).permissions || [],
+      };
+      authLogin(userWithPermissions);
+      console.log('🔐 AuthContext atualizado com usuário:', userWithPermissions);
       
-      if (response.user.requires_password_change) {
+      const permissions = userWithPermissions.permissions;
+      if (userWithPermissions.requires_password_change) {
         console.log('⚠️ Usuário precisa trocar senha, mostrando tela de troca');
         setShowPasswordChange(true);
       } else {
-        console.log('✅ Login completo, redirecionando para dashboard');
-        // Successful login, redirect to dashboard
-        navigate('/');
+        // Redirecionamento baseado nas permissões
+        if (permissions.includes('admin')) {
+          navigate('/');
+        } else {
+          // Procurar permissão do tipo agent_{id}
+          const agentPerm = permissions.find((p: string) => p.startsWith('agent_'));
+          if (agentPerm) {
+            const agentId = agentPerm.replace('agent_', '');
+            navigate(`/agent/${agentId}`);
+          } else {
+            // fallback: dashboard
+            navigate('/');
+          }
+        }
       }
     } catch (err: any) {
       if (err.response?.status === 401) {

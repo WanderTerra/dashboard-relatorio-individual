@@ -73,6 +73,7 @@ export interface UserInfo {
   username: string;
   full_name: string;
   active: boolean;
+  permissions: string[];
 }
 
 export interface ChangePasswordRequest {
