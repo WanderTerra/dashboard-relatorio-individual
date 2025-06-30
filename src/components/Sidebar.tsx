@@ -54,16 +54,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
 
       {/* Sidebar Desktop/Tablet */}
       <aside
-        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full bg-white shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
+        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full bg-blue-900 shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
       >
         <div className={`flex items-center justify-between px-2 py-4 border-b ${collapsed ? 'justify-center' : ''}`}>
-          <span className={`font-bold text-xl text-blue-900 transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>Monitoria</span>
+          <span className={`font-bold text-xl text-white transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>Monitoria</span>
           <button
             className={`hidden lg:block rounded-full p-1 border ${collapsed ? 'mx-auto' : ''}`}
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
           >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {collapsed ? <ChevronRight size={20} color="#fff" /> : <ChevronLeft size={20} color="#fff" />}
           </button>
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-1">
@@ -73,21 +73,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
               to={link.to}
               className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium transition-colors ${
                 location.pathname === link.to
-                  ? "bg-blue-100 text-blue-900"
-                  : "text-gray-700 hover:bg-blue-50"
+                  ? "bg-blue-700 text-white"
+                  : "text-white hover:bg-blue-800 hover:text-white"
               } ${collapsed ? 'justify-center' : ''}`}
               title={link.label}
             >
-              <span>{link.icon}</span>
+              <span className="flex items-center">{React.cloneElement(link.icon, { color: "#fff" })}</span>
               <span className={`transition-all duration-200 ${collapsed ? 'hidden' : 'inline'}`}>{link.label}</span>
             </Link>
           ))}
           <button
             onClick={logout}
-            className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
+            className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium text-white hover:bg-red-700 hover:text-white transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
             title="Sair"
           >
-            <LogOut size={20} />
+            <LogOut size={20} color="#fff" />
             <span className={`transition-all duration-200 ${collapsed ? 'hidden' : 'inline'}`}>Sair</span>
           </button>
         </nav>
