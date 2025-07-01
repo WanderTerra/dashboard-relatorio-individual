@@ -100,6 +100,17 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     setIsTranscriptionModalOpen(false);
   };
 
+  const breadcrumbs = isAdmin
+    ? [
+        { label: 'Dashboard', href: '/' },
+        { label: 'Detalhes do Agente', href: agentId ? `/agent/${agentId}` : '#' },
+        { label: 'Itens da Avaliação', isActive: true }
+      ]
+    : [
+        { label: 'Detalhes do Agente', href: agentId ? `/agent/${agentId}` : '#' },
+        { label: 'Itens da Avaliação', isActive: true }
+      ];
+
   return (
     <div className={`min-h-screen transition-all duration-300 ${isTranscriptionModalOpen ? 'flex' : ''}`}>
       {/* Área principal dos itens */}
@@ -107,11 +118,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         <PageHeader 
           title="Itens da Avaliação"
           subtitle={`Análise detalhada da avaliação ${avaliacaoId}`}
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/' },
-            { label: 'Detalhes do Agente', href: agentId ? `/agent/${agentId}` : '#' },
-            { label: 'Itens da Avaliação', isActive: true }
-          ]}
+          breadcrumbs={breadcrumbs}
           actions={
             <div className="flex items-center space-x-4">
               <button
