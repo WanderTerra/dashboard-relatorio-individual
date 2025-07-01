@@ -7,6 +7,7 @@ import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
 import PageHeader from '../components/PageHeader';
 import { useFilters } from '../hooks/use-filters';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Item {
   categoria:  string;
@@ -65,6 +66,9 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryFn: () => getCallerInfo(avaliacaoId!),
     enabled: !!avaliacaoId
   });
+  
+  const { user } = useAuth();
+  const isAdmin = user?.permissions?.includes('admin');
   
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
@@ -282,15 +286,17 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                         {formatItemName(it.resultado)}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleEditItem(it)}
-                      className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full transition-all duration-200 font-medium shadow-sm hover:shadow-md group"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                      </svg>
-                      <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleEditItem(it)}
+                        className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full transition-all duration-200 font-medium shadow-sm hover:shadow-md group"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -298,7 +304,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
           )}
 
           {/* Modal de edição */}
-          {selectedItem && (
+          {isAdmin && selectedItem && (
             <ItemEditModal
               isOpen={isModalOpen}
               onClose={handleCloseModal}

@@ -1,0 +1,90 @@
+"filename", "language", "TypeScript", "TypeScript JSX", "CSS", "XML", "comment", "blank", "total"
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\App.css", "CSS", 0, 0, 37, 0, 0, 6, 43
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\App.tsx", "TypeScript JSX", 0, 87, 0, 0, 6, 8, 101
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\AppRouter.tsx", "TypeScript JSX", 0, 48, 0, 0, 0, 5, 53
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\assets\auditaai-logo.svg", "XML", 0, 0, 0, 34, 8, 8, 50
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\assets\react.svg", "XML", 0, 0, 0, 1, 0, 0, 1
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\AgentReport.tsx", "TypeScript JSX", 0, 319, 0, 0, 12, 20, 351
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\AgentsList.tsx", "TypeScript JSX", 0, 101, 0, 0, 0, 8, 109
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\AgentsTable.tsx", "TypeScript JSX", 0, 51, 0, 0, 0, 6, 57
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\CallList.tsx", "TypeScript JSX", 0, 80, 0, 0, 0, 7, 87
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\Header.tsx", "TypeScript JSX", 0, 120, 0, 0, 9, 15, 144
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ItemEditModal.tsx", "TypeScript JSX", 0, 203, 0, 0, 8, 10, 221
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\KpiCard.tsx", "TypeScript JSX", 0, 33, 0, 0, 2, 7, 42
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\KpiCards.tsx", "TypeScript JSX", 0, 23, 0, 0, 0, 5, 28
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\MetricCard.tsx", "TypeScript JSX", 0, 51, 0, 0, 0, 5, 56
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\MonthlyChart.tsx", "TypeScript JSX", 0, 65, 0, 0, 0, 4, 69
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\PageHeader.tsx", "TypeScript JSX", 0, 90, 0, 0, 5, 9, 104
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\Placeholder.tsx", "TypeScript JSX", 0, 1, 0, 0, 0, 0, 1
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ProtectedRoute.tsx", "TypeScript JSX", 0, 25, 0, 0, 1, 7, 33
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\Sidebar.tsx", "TypeScript JSX", 0, 127, 0, 0, 8, 11, 146
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\TranscriptionModal.tsx", "TypeScript JSX", 0, 207, 0, 0, 9, 22, 238
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\TrendLineChart.tsx", "TypeScript JSX", 0, 19, 0, 0, 0, 4, 23
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\SummaryCard.tsx", "TypeScript JSX", 0, 26, 0, 0, 0, 4, 30
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\accordion.tsx", "TypeScript JSX", 0, 49, 0, 0, 0, 7, 56
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\alert-dialog.tsx", "TypeScript JSX", 0, 126, 0, 0, 0, 14, 140
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\alert.tsx", "TypeScript JSX", 0, 53, 0, 0, 0, 7, 60
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\aspect-ratio.tsx", "TypeScript JSX", 0, 3, 0, 0, 0, 3, 6
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\avatar.tsx", "TypeScript JSX", 0, 44, 0, 0, 0, 7, 51
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\badge.tsx", "TypeScript JSX", 0, 31, 0, 0, 0, 6, 37
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\breadcrumb.tsx", "TypeScript JSX", 0, 105, 0, 0, 0, 11, 116
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\button.tsx", "TypeScript JSX", 0, 52, 0, 0, 0, 6, 58
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\calendar.tsx", "TypeScript JSX", 0, 70, 0, 0, 0, 5, 75
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\card.tsx", "TypeScript JSX", 0, 68, 0, 0, 0, 9, 77
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\carousel.tsx", "TypeScript JSX", 0, 231, 0, 0, 0, 30, 261
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\chart.tsx", "TypeScript JSX", 0, 327, 0, 0, 2, 37, 366
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\checkbox.tsx", "TypeScript JSX", 0, 25, 0, 0, 0, 4, 29
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\collapsible.tsx", "TypeScript JSX", 0, 6, 0, 0, 0, 6, 12
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\combobox.tsx", "TypeScript JSX", 0, 84, 0, 0, 3, 6, 93
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\command.tsx", "TypeScript JSX", 0, 135, 0, 0, 0, 17, 152
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\context-menu.tsx", "TypeScript JSX", 0, 181, 0, 0, 0, 18, 199
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\dialog.tsx", "TypeScript JSX", 0, 109, 0, 0, 0, 14, 123
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\drawer.tsx", "TypeScript JSX", 0, 105, 0, 0, 0, 14, 119
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\dropdown-menu.tsx", "TypeScript JSX", 0, 182, 0, 0, 0, 18, 200
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\form.tsx", "TypeScript JSX", 0, 153, 0, 0, 0, 26, 179
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\hover-card.tsx", "TypeScript JSX", 0, 23, 0, 0, 0, 7, 30
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\input-otp.tsx", "TypeScript JSX", 0, 62, 0, 0, 0, 8, 70
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\input.tsx", "TypeScript JSX", 0, 19, 0, 0, 0, 4, 23
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\label.tsx", "TypeScript JSX", 0, 20, 0, 0, 0, 5, 25
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\menubar.tsx", "TypeScript JSX", 0, 217, 0, 0, 0, 20, 237
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\navigation-menu.tsx", "TypeScript JSX", 0, 117, 0, 0, 0, 12, 129
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\pagination.tsx", "TypeScript JSX", 0, 107, 0, 0, 0, 11, 118
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\popover.tsx", "TypeScript JSX", 0, 25, 0, 0, 0, 7, 32
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\progress.tsx", "TypeScript JSX", 0, 24, 0, 0, 0, 5, 29
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\radio-group.tsx", "TypeScript JSX", 0, 38, 0, 0, 0, 5, 43
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\resizable.tsx", "TypeScript JSX", 0, 39, 0, 0, 0, 7, 46
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\scroll-area.tsx", "TypeScript JSX", 0, 42, 0, 0, 0, 5, 47
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\select-simple.tsx", "TypeScript JSX", 0, 50, 0, 0, 0, 3, 53
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\select.tsx", "TypeScript JSX", 0, 146, 0, 0, 0, 14, 160
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\separator.tsx", "TypeScript JSX", 0, 26, 0, 0, 0, 4, 30
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\sheet.tsx", "TypeScript JSX", 0, 125, 0, 0, 0, 16, 141
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\sidebar.tsx", "TypeScript JSX", 0, 696, 0, 0, 12, 54, 762
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\skeleton.tsx", "TypeScript JSX", 0, 13, 0, 0, 0, 3, 16
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\slider.tsx", "TypeScript JSX", 0, 23, 0, 0, 0, 4, 27
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\sonner.tsx", "TypeScript JSX", 0, 26, 0, 0, 0, 6, 32
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\switch.tsx", "TypeScript JSX", 0, 24, 0, 0, 0, 4, 28
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\table.tsx", "TypeScript JSX", 0, 110, 0, 0, 0, 11, 121
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\tabs.tsx", "TypeScript JSX", 0, 47, 0, 0, 0, 7, 54
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\textarea.tsx", "TypeScript JSX", 0, 19, 0, 0, 0, 4, 23
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\toast.tsx", "TypeScript JSX", 0, 115, 0, 0, 0, 13, 128
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\toaster.tsx", "TypeScript JSX", 0, 31, 0, 0, 0, 3, 34
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\toggle-group.tsx", "TypeScript JSX", 0, 51, 0, 0, 0, 9, 60
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\toggle.tsx", "TypeScript JSX", 0, 39, 0, 0, 0, 7, 46
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\components\ui\tooltip.tsx", "TypeScript JSX", 0, 25, 0, 0, 0, 8, 33
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\contexts\AuthContext.tsx", "TypeScript JSX", 0, 54, 0, 0, 1, 11, 66
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\hooks\use-filters.ts", "TypeScript", 99, 0, 0, 0, 9, 13, 121
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\hooks\use-mobile.tsx", "TypeScript JSX", 0, 15, 0, 0, 0, 5, 20
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\hooks\use-toast.ts", "TypeScript", 160, 0, 0, 0, 3, 32, 195
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\hooks\use-update-item.ts", "TypeScript", 0, 0, 0, 0, 0, 1, 1
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\index.css", "CSS", 0, 0, 6, 0, 0, 2, 8
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\lib\api.ts", "TypeScript", 145, 0, 0, 0, 19, 30, 194
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\lib\format.ts", "TypeScript", 90, 0, 0, 0, 14, 12, 116
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\lib\utils.ts", "TypeScript", 5, 0, 0, 0, 0, 2, 7
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\main.tsx", "TypeScript JSX", 0, 13, 0, 0, 0, 4, 17
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\pages\AgentDetail.tsx", "TypeScript JSX", 0, 356, 0, 0, 20, 35, 411
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\pages\CallItems.tsx", "TypeScript JSX", 0, 294, 0, 0, 13, 20, 327
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\pages\Dashboard.tsx", "TypeScript JSX", 0, 174, 0, 0, 8, 14, 196
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\pages\Login.tsx", "TypeScript JSX", 0, 315, 0, 0, 8, 29, 352
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\pages\Transcription.tsx", "TypeScript JSX", 0, 189, 0, 0, 6, 18, 213
+"c:\Users\wanderley.terra\Downloads\Pata backup\dashboard-relatorio-individual\src\vite-env.d.ts", "TypeScript", 0, 0, 0, 0, 1, 1, 2
+"Total", "-", 499, 7524, 43, 35, 187, 931, 9219
