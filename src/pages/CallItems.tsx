@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems, getAgentSummary, getCallerInfo, getFeedbacksByAvaliacao } from '../lib/api';
+import { getCallItems, getAgentSummary, getCallerInfo, getFeedbacksByAvaliacao, getAvaliacaoById } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
@@ -49,16 +49,12 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     enabled: !!agentId
   });
 
-  useEffect(() => {
-    if (agentInfo && (agentInfo as any).media !== undefined) {
-      const newPontuacao = (agentInfo as any).media;
-      setCallData((currentCallData: any) => ({
-        ...currentCallData,
-        pontuacao: newPontuacao,
-        status_avaliacao: newPontuacao >= 70 ? 'APROVADA' : 'REPROVADA'
-      }));
-    }
-  }, [agentInfo]);
+  // Buscar avaliação individual
+  const { data: avaliacao, refetch: refetchAvaliacao } = useQuery({
+    queryKey: ['avaliacao', avaliacaoId],
+    queryFn: () => getAvaliacaoById(avaliacaoId!),
+    enabled: !!avaliacaoId
+  });
 
   // Nova query para buscar informações do caller (telefone)
   const { data: callerInfo } = useQuery({
@@ -149,12 +145,12 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   // Fechar o modal de edição
   const handleCloseModal = (itemEdited = false, categoria?: string) => {
     if (itemEdited && categoria) {
-      // Adicionar o item à lista de itens editados
       setEditedItems(prev => {
         const newSet = new Set(prev);
         newSet.add(categoria);
         return newSet;
       });
+      refetchAvaliacao(); // Atualiza a nota após edição
     }
     setIsModalOpen(false);
     setSelectedItem(null);
@@ -169,6 +165,17 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const handleCloseTranscriptionModal = () => {
     setIsTranscriptionModalOpen(false);
   };
+
+  // Atualizar callData com a avaliação individual
+  useEffect(() => {
+    if (avaliacao) {
+      setCallData((currentCallData: any) => ({
+        ...currentCallData,
+        pontuacao: avaliacao.pontuacao,
+        status_avaliacao: avaliacao.status_avaliacao
+      }));
+    }
+  }, [avaliacao]);
 
   const breadcrumbs = isAdmin
     ? [

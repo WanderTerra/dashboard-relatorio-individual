@@ -195,3 +195,7 @@ if (storedToken) {
 // Função para buscar feedbacks de uma avaliação específica
 export const getFeedbacksByAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/feedbacks`).then(r => r.data);
+
+// Função para buscar uma avaliação individual pelo ID
+export const getAvaliacaoById = (avaliacaoId: string) =>
+  api.get(`/avaliacao/${avaliacaoId}`).then(r => r.data);
