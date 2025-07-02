@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { formatItemName } from '../lib/format';
 import { getFeedbacksByAvaliacao } from '../lib/api';
+import type { UserInfo } from '../lib/api';
 
 export interface CallRow {
   call_id: string;
@@ -13,11 +14,17 @@ export interface CallRow {
 
 interface CallListProps {
   calls: CallRow[];
+  user?: UserInfo | null;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls }) => {
+const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   const { agentId } = useParams<{ agentId: string }>();
   const [feedbackStatus, setFeedbackStatus] = React.useState<Record<string, string>>({});
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [selectedAvaliacao, setSelectedAvaliacao] = React.useState<string | null>(null);
+
+  // Permissão: admin ou monitor
+  const isMonitor = user && (user.permissions?.includes('admin') || user.permissions?.includes('monitor'));
 
   React.useEffect(() => {
     async function fetchFeedbacks() {
@@ -42,6 +49,48 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
     }
     if (calls.length > 0) fetchFeedbacks();
   }, [calls]);
+
+  // Modal de feedback (simples)
+  const [comentario, setComentario] = React.useState('');
+  // Status fixo: ENVIADO
+  const [enviando, setEnviando] = React.useState(false);
+  const [erro, setErro] = React.useState<string | null>(null);
+  const [sucesso, setSucesso] = React.useState(false);
+
+  async function handleEnviarFeedback() {
+    if (!selectedAvaliacao || !user) return;
+    setEnviando(true);
+    setErro(null);
+    setSucesso(false);
+    try {
+      // Chamar endpoint de criar feedback
+      const res = await fetch('/api/feedbacks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          avaliacao_id: selectedAvaliacao,
+          agent_id: agentId,
+          comentario,
+          status: 'ENVIADO',
+          origem: 'monitoria',
+          criado_por: user.id
+        })
+      });
+      if (!res.ok) throw new Error('Erro ao enviar feedback');
+      setSucesso(true);
+      setComentario('');
+      setModalOpen(false);
+      // Atualizar status do feedback na tabela
+      setFeedbackStatus(prev => ({ ...prev, [selectedAvaliacao]: 'ENVIADO' }));
+    } catch (e: any) {
+      setErro(e.message || 'Erro desconhecido');
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   return (
   <div className="bg-white p-4 rounded shadow overflow-auto">
@@ -109,6 +158,40 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
         ))}
       </tbody>
     </table>
+    {/* Modal de feedback */}
+    {modalOpen && (
+      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <h3 className="text-lg font-semibold mb-4">Aplicar Feedback</h3>
+          <label className="block mb-2 text-sm font-medium">Comentário</label>
+          <textarea
+            className="w-full border border-gray-300 rounded p-2 mb-4"
+            rows={3}
+            value={comentario}
+            onChange={e => setComentario(e.target.value)}
+            disabled={enviando}
+          />
+          {erro && <div className="text-red-600 mb-2 text-sm">{erro}</div>}
+          {sucesso && <div className="text-green-600 mb-2 text-sm">Feedback enviado com sucesso!</div>}
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              onClick={() => setModalOpen(false)}
+              disabled={enviando}
+            >
+              Cancelar
+            </button>
+            <button
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              onClick={handleEnviarFeedback}
+              disabled={enviando || !comentario}
+            >
+              {enviando ? 'Enviando...' : 'Enviar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
   );
 }

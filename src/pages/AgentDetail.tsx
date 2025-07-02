@@ -399,7 +399,7 @@ const AgentDetail: React.FC = () => {
               </div>
             </div>
           ) : (
-            <CallList calls={calls ?? []} />
+            <CallList calls={calls ?? []} user={user} />
           )}
         </div>
       </div>

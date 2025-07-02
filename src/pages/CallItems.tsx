@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems, getAgentSummary, getCallerInfo } from '../lib/api';
+import { getCallItems, getAgentSummary, getCallerInfo, getFeedbacksByAvaliacao } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
@@ -70,6 +70,25 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const { user } = useAuth();
   const isAdmin = user?.permissions?.includes('admin');
   
+  // Buscar status do feedback da avaliação
+  const [feedbackStatus, setFeedbackStatus] = useState<string>('...');
+  useEffect(() => {
+    async function fetchFeedback() {
+      if (!avaliacaoId) return;
+      try {
+        const feedbacks = await getFeedbacksByAvaliacao(avaliacaoId);
+        if (feedbacks && feedbacks.length > 0) {
+          setFeedbackStatus(feedbacks[0].status || 'Enviado');
+        } else {
+          setFeedbackStatus('Sem feedback');
+        }
+      } catch {
+        setFeedbackStatus('Erro');
+      }
+    }
+    fetchFeedback();
+  }, [avaliacaoId]);
+
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -147,6 +166,10 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         <div className="p-6 space-y-6">          {/* Informações da ligação */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Ligação</h3>
+            <div className="mb-4">
+              <span className="text-sm font-medium text-gray-700">Status do Feedback: </span>
+              <span className="text-sm font-semibold text-blue-700">{feedbackStatus}</span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {agentInfo && (
                 <div className="flex items-center space-x-3">
