@@ -191,3 +191,7 @@ const storedToken = getAuthToken();
 if (storedToken) {
   setAuthToken(storedToken);
 }
+
+// Função para buscar feedbacks de uma avaliação específica
+export const getFeedbacksByAvaliacao = (avaliacaoId: string) =>
+  api.get(`/avaliacao/${avaliacaoId}/feedbacks`).then(r => r.data);

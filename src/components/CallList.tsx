@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { formatItemName } from '../lib/format';
+import { getFeedbacksByAvaliacao } from '../lib/api';
 
 export interface CallRow {
   call_id: string;
@@ -16,7 +17,32 @@ interface CallListProps {
 
 const CallList: React.FC<CallListProps> = ({ calls }) => {
   const { agentId } = useParams<{ agentId: string }>();
-  
+  const [feedbackStatus, setFeedbackStatus] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    async function fetchFeedbacks() {
+      const statusMap: Record<string, string> = {};
+      await Promise.all(
+        calls.map(async (c) => {
+          try {
+            const feedbacks = await getFeedbacksByAvaliacao(c.avaliacao_id);
+            if (feedbacks && feedbacks.length > 0) {
+              // Pega o feedback mais recente
+              const latest = feedbacks[0];
+              statusMap[c.avaliacao_id] = latest.status || 'Enviado';
+            } else {
+              statusMap[c.avaliacao_id] = 'Sem feedback';
+            }
+          } catch (e) {
+            statusMap[c.avaliacao_id] = 'Erro';
+          }
+        })
+      );
+      setFeedbackStatus(statusMap);
+    }
+    if (calls.length > 0) fetchFeedbacks();
+  }, [calls]);
+
   return (
   <div className="bg-white p-4 rounded shadow overflow-auto">
     <h2 className="text-lg font-semibold mb-2">Lista de Chamadas</h2>
@@ -28,11 +54,13 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
           <th className="px-2 py-1">Status</th>
           <th className="px-2 py-1">Itens</th>
           <th className="px-2 py-1">Transcrição</th>
+          <th className="px-2 py-1">Feedback</th>
         </tr>
       </thead>
       <tbody>
         {calls.map(c => (
-          <tr key={c.call_id} className="border-b last:border-0">            <td className="px-2 py-1">{new Date(c.data_ligacao).toLocaleDateString()}</td>
+          <tr key={c.call_id} className="border-b last:border-0">            
+          <td className="px-2 py-1">{new Date(c.data_ligacao).toLocaleDateString()}</td>
             <td className="px-2 py-1">
               <span className={
                 c.pontuacao >= 80 ? 'text-green-600 font-medium' :
@@ -73,6 +101,9 @@ const CallList: React.FC<CallListProps> = ({ calls }) => {
               >
                 &#128172; Transcrição
               </Link>
+            </td>
+            <td className="px-2 py-1">
+              {feedbackStatus[c.avaliacao_id] || '...'}
             </td>
           </tr>
         ))}
