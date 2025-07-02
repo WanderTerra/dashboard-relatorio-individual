@@ -69,9 +69,12 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   
   const { user } = useAuth();
   const isAdmin = user?.permissions?.includes('admin');
+  const isMonitor = user && (user.permissions?.includes('admin') || user.permissions?.includes('monitor'));
   
-  // Buscar status do feedback da avaliação
+  // Estado do feedback
   const [feedbackStatus, setFeedbackStatus] = useState<string>('...');
+  const [feedbackComentario, setFeedbackComentario] = useState<string>('');
+  const [feedbackId, setFeedbackId] = useState<number | null>(null);
   useEffect(() => {
     async function fetchFeedback() {
       if (!avaliacaoId) return;
@@ -79,15 +82,63 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         const feedbacks = await getFeedbacksByAvaliacao(avaliacaoId);
         if (feedbacks && feedbacks.length > 0) {
           setFeedbackStatus(feedbacks[0].status || 'Enviado');
+          setFeedbackComentario(feedbacks[0].comentario || '');
+          setFeedbackId(feedbacks[0].id || null);
         } else {
           setFeedbackStatus('Sem feedback');
+          setFeedbackComentario('');
+          setFeedbackId(null);
         }
       } catch {
         setFeedbackStatus('Erro');
+        setFeedbackComentario('');
+        setFeedbackId(null);
       }
     }
     fetchFeedback();
   }, [avaliacaoId]);
+
+  // Modal feedback
+  const [modalOpen, setModalOpen] = useState(false);
+  const [comentario, setComentario] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState(false);
+
+  async function handleEnviarFeedback() {
+    if (!avaliacaoId || !user) return;
+    setEnviando(true);
+    setErro(null);
+    setSucesso(false);
+    try {
+      const res = await fetch('/api/feedbacks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          avaliacao_id: avaliacaoId,
+          agent_id: agentId,
+          comentario,
+          status: 'ENVIADO',
+          origem: 'monitoria',
+          criado_por: user.id
+        })
+      });
+      if (!res.ok) throw new Error('Erro ao enviar feedback');
+      setSucesso(true);
+      setModalOpen(false);
+      setComentario('');
+      // Atualizar status/comentário localmente
+      setFeedbackStatus('ENVIADO');
+      setFeedbackComentario(comentario);
+    } catch (e: any) {
+      setErro(e.message || 'Erro desconhecido');
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
@@ -166,6 +217,24 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         <div className="p-6 space-y-6">          {/* Informações da ligação */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Ligação</h3>
+            {/* Caixa de feedback para monitor/admin */}
+            {isMonitor && (
+              <div className="mb-6 p-4 rounded-lg border border-blue-200 bg-blue-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-blue-900">Feedback desta ligação</span>
+                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${feedbackStatus === 'ENVIADO' ? 'bg-green-100 text-green-700' : feedbackStatus === 'Sem feedback' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-800'}`}>{feedbackStatus}</span>
+                </div>
+                {feedbackComentario && (
+                  <div className="mb-2 text-sm text-blue-900"><strong>Comentário:</strong> {feedbackComentario}</div>
+                )}
+                <button
+                  className="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                  onClick={() => setModalOpen(true)}
+                >
+                  {feedbackStatus === 'Sem feedback' ? 'Aplicar Feedback' : 'Editar Feedback'}
+                </button>
+              </div>
+            )}
             <div className="mb-4">
               <span className="text-sm font-medium text-gray-700">Status do Feedback: </span>
               <span className="text-sm font-semibold text-blue-700">{feedbackStatus}</span>
@@ -355,6 +424,41 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             callId={callerInfo?.call_id}
             isInline={true}
           />
+        </div>
+      )}
+
+      {/* Modal de feedback */}
+      {modalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Aplicar Feedback</h3>
+            <label className="block mb-2 text-sm font-medium">Comentário</label>
+            <textarea
+              className="w-full border border-gray-300 rounded p-2 mb-4"
+              rows={3}
+              value={comentario}
+              onChange={e => setComentario(e.target.value)}
+              disabled={enviando}
+            />
+            {erro && <div className="text-red-600 mb-2 text-sm">{erro}</div>}
+            {sucesso && <div className="text-green-600 mb-2 text-sm">Feedback enviado com sucesso!</div>}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                onClick={() => setModalOpen(false)}
+                disabled={enviando}
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleEnviarFeedback}
+                disabled={enviando || !comentario}
+              >
+                {enviando ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
