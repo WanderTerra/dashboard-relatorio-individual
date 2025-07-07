@@ -280,6 +280,22 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   </div>
                 </div>
               )}
+              {/* Nome da Fila */}
+              {callerInfo?.queue_id && (
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5zm2 2v2h2V7H6zm4 0v2h2V7h-2z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Fila</p>
+                    <p className="font-medium text-gray-900">{callerInfo.queue_id}</p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
