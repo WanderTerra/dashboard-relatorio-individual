@@ -199,3 +199,13 @@ export const getFeedbacksByAvaliacao = (avaliacaoId: string) =>
 // Função para buscar uma avaliação individual pelo ID
 export const getAvaliacaoById = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}`).then(r => r.data);
+
+export async function getAllAgents() {
+  const res = await fetch('/api/admin/agents', {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+    }
+  });
+  if (!res.ok) throw new Error('Erro ao buscar agentes');
+  return await res.json();
+}
