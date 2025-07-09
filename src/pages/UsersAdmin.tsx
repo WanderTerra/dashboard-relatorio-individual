@@ -213,7 +213,7 @@ export default function UsersAdmin() {
       <p className="text-gray-600 mb-6">Gerencie usuários do sistema: editar nome/status e resetar senha.</p>
       {/* Modal de criação de usuário */}
       <Modal>
-        <ModalTrigger className="mb-4 bg-green-700 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-green-800 transition-colors duration-300">
+        <ModalTrigger className="mb-4 bg-green-700 text-white px-6 py-2 rounded-full font-medium shadow-lg hover:bg-green-800 transition-colors duration-300">
           Novo Usuário
         </ModalTrigger>
         <CreateUserModalContent 
@@ -248,11 +248,11 @@ export default function UsersAdmin() {
               <td className="px-4 py-2">{user.active ? 'Sim' : 'Não'}</td>
               <td className="px-4 py-2 space-x-2">
                 <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-colors duration-300"
+                  className="bg-blue-800 text-white px-4 py-1 rounded-full font-medium shadow-lg hover:bg-blue-900 transition-colors duration-300"
                   onClick={() => openEditModal(user)}
                 >Editar</button>
                 <button
-                  className="bg-yellow-500 text-white px-2 py-1 rounded"
+                  className="bg-gray-600 text-white px-4 py-1 rounded-full font-medium shadow-lg hover:bg-gray-700 transition-colors duration-300"
                   onClick={() => {
                     if(window.confirm('Deseja resetar a senha deste usuário?')) {
                       resetPasswordMutation.mutate(user.id);
