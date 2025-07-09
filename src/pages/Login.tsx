@@ -192,6 +192,8 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -219,21 +221,46 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
     setIsLoading(true);
 
     try {
-      const { changePassword } = await import('../lib/api');
+      const { changePassword, login } = await import('../lib/api');
       await changePassword({
         current_password: passwords.current_password,
         new_password: passwords.new_password
       });
-      
-      // Update user info in localStorage to reflect password change
+      // Guarde o username antes de limpar o localStorage
       const userInfo = localStorage.getItem('user_info');
+      let username = '';
       if (userInfo) {
-        const user = JSON.parse(userInfo);
-        user.requires_password_change = false;
-        localStorage.setItem('user_info', JSON.stringify(user));
+        try {
+          username = JSON.parse(userInfo).username || '';
+        } catch {}
       }
-      
-      onComplete();
+      // Limpe o token antigo
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_info');
+      // Faça login novamente
+      const response = await login({
+        username: username,
+        password: passwords.new_password
+      });
+      // Atualize o contexto do usuário
+      const userWithPermissions = {
+        ...response.user,
+        permissions: (response.user as any).permissions || [],
+      };
+      authLogin(userWithPermissions);
+      // Redirecione conforme as permissões
+      const permissions = userWithPermissions.permissions;
+      if (permissions.includes('admin')) {
+        navigate('/');
+      } else {
+        const agentPerm = permissions.find((p: string) => p.startsWith('agent_'));
+        if (agentPerm) {
+          const agentId = agentPerm.replace('agent_', '');
+          navigate(`/agent/${agentId}`);
+        } else {
+          navigate('/');
+        }
+      }
     } catch (err: any) {
       if (err.response?.data?.detail) {
         setError(err.response.data.detail);
