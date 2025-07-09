@@ -209,3 +209,36 @@ export async function getAllAgents() {
   if (!res.ok) throw new Error('Erro ao buscar agentes');
   return await res.json();
 }
+
+// Lista todos os usuários do sistema (admin)
+export async function getAllUsers() {
+  const res = await fetch(`/admin/users`, {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) throw new Error('Erro ao buscar usuários');
+  return res.json();
+}
+
+// Reseta a senha do usuário para o valor padrão (admin)
+export async function resetUserPassword(userId: number) {
+  const res = await fetch(`/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) throw new Error('Erro ao resetar senha');
+  return res.json();
+}
+
+// Atualiza dados do usuário (admin)
+export async function updateUser(userId: number, data: { full_name: string; active: boolean }) {
+  const res = await fetch(`/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Erro ao atualizar usuário');
+  return res.json();
+}
