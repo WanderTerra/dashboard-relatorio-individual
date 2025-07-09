@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import AgentsAdmin from './pages/AgentsAdmin';
+import UsersAdmin from './pages/UsersAdmin';
 
 const AppRouter: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -45,6 +46,11 @@ const AppRouter: React.FC = () => {
               <Route path="/agents" element={
                 <ProtectedRoute requiredPermission="admin">
                   <AgentsAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/users" element={
+                <ProtectedRoute requiredPermission="admin">
+                  <UsersAdmin />
                 </ProtectedRoute>
               } />
             </Routes>
