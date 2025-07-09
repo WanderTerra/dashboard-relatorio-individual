@@ -102,6 +102,8 @@ function CreateUserModalContent({
   );
 }
 
+
+
 export default function UsersAdmin() {
   const queryClient = useQueryClient();
   const { data = [], isLoading, error } = useQuery<User[]>({
@@ -114,7 +116,7 @@ export default function UsersAdmin() {
   const [editName, setEditName] = React.useState('');
   const [editActive, setEditActive] = React.useState(true);
   const [editUsername, setEditUsername] = React.useState('');
-  const [modalOpen, setModalOpen] = React.useState(false);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
@@ -146,15 +148,17 @@ export default function UsersAdmin() {
     setEditName(user.full_name);
     setEditActive(user.active);
     setEditUsername(user.username);
-    setModalOpen(true);
     setLoadingPerms(true);
     try {
       const perms = await getUserPermissions(user.id);
       setUserPermissions(perms);
       setEditIsAdmin(perms.includes('admin'));
+      // Abrir o modal após carregar as permissões
+      setEditModalOpen(true);
     } catch {
       setUserPermissions([]);
       setEditIsAdmin(false);
+      setEditModalOpen(true);
     } finally {
       setLoadingPerms(false);
     }
@@ -170,7 +174,7 @@ export default function UsersAdmin() {
       const perms = userPermissions.filter(p => p !== 'admin');
       if (editIsAdmin) perms.push('admin');
       await updateUserPermissions(editingUser.id, perms);
-      setModalOpen(false);
+      setEditModalOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     } catch (e) {
@@ -244,7 +248,7 @@ export default function UsersAdmin() {
               <td className="px-4 py-2">{user.active ? 'Sim' : 'Não'}</td>
               <td className="px-4 py-2 space-x-2">
                 <button
-                  className="bg-blue-500 text-white px-2 py-1 rounded"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-colors duration-300"
                   onClick={() => openEditModal(user)}
                 >Editar</button>
                 <button
@@ -262,7 +266,7 @@ export default function UsersAdmin() {
       </table>
 
       {/* Modal de edição */}
-      {modalOpen && (
+      {editModalOpen && editingUser && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white p-6 rounded shadow-lg min-w-[320px]">
             <h2 className="text-xl font-bold mb-4">Editar Usuário</h2>
@@ -317,7 +321,7 @@ export default function UsersAdmin() {
             <div className="flex justify-end space-x-2">
               <button
                 className="px-3 py-1 rounded bg-gray-300"
-                onClick={() => { setModalOpen(false); setEditingUser(null); }}
+                onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
                 disabled={saving}
               >Cancelar</button>
               <button
