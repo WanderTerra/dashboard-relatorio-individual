@@ -124,7 +124,7 @@ export default function UsersAdmin() {
       <p className="text-gray-600 mb-6">Gerencie usuários do sistema: editar nome/status e resetar senha.</p>
       {/* Modal de criação de usuário */}
       <Modal>
-        <ModalTrigger className="mb-4 bg-green-600 text-white px-4 py-2 rounded">
+        <ModalTrigger className="mb-4 bg-green-700 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-green-800 transition-colors duration-300">
           Novo Usuário
         </ModalTrigger>
         <ModalBody>
