@@ -137,7 +137,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                     avaliacao_id: c.avaliacao_id
                   }
                 }}
-                className="bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs"
+                className="bg-blue-600/70 text-white px-2 py-1 rounded-lg shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30 font-light text-xs"
               >
                 &#128203; Itens
               </Link>
@@ -146,7 +146,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
               <Link
                 to={`/call/${c.avaliacao_id}/transcription`}
                 state={{ agentId }}
-                className="bg-blue-600 text-white px-2 py-1 rounded shadow hover:bg-blue-700 transition-colors font-medium text-xs"
+                className="bg-blue-600/70 text-white px-2 py-1 rounded-lg shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30 font-light text-xs"
               >
                 &#128172; Transcrição
               </Link>
@@ -175,14 +175,14 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
           {sucesso && <div className="text-green-600 mb-2 text-sm">Feedback enviado com sucesso!</div>}
           <div className="flex justify-end gap-2">
             <button
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              className="px-4 py-2 rounded-lg bg-gray-300/80 text-gray-700 border border-gray-400/30 font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
               onClick={() => setModalOpen(false)}
               disabled={enviando}
             >
               Cancelar
             </button>
             <button
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              className="px-4 py-2 rounded-lg bg-blue-600/80 text-white font-light backdrop-blur-sm hover:bg-blue-600/90 transition-all duration-200 border border-blue-500/30"
               onClick={handleEnviarFeedback}
               disabled={enviando || !comentario}
             >

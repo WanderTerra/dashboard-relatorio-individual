@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, type LoginRequest } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,9 +12,24 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
+
+  useEffect(() => {
+    // Removido log de debug
+  }, [showToast, toastMessage]);
+
+  const showErrorToast = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+  };
+
+  const hideToast = () => {
+    setShowToast(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,14 +37,11 @@ const Login: React.FC = () => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
-    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     try {
       const response = await login(credentials);
@@ -66,11 +78,21 @@ const Login: React.FC = () => {
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setError('Usuário ou senha incorretos');
+        showErrorToast('Usuário ou senha incorretos');
+      } else if (err.response?.status === 422) {
+        // Erro de validação - extrair mensagem do primeiro erro
+        const errorDetail = err.response?.data?.detail;
+        if (Array.isArray(errorDetail) && errorDetail.length > 0) {
+          showErrorToast(errorDetail[0].msg || 'Dados inválidos');
+        } else if (typeof errorDetail === 'string') {
+          showErrorToast(errorDetail);
+        } else {
+          showErrorToast('Dados inválidos');
+        }
       } else if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
+        showErrorToast(err.response.data.detail);
       } else {
-        setError('Erro ao conectar. Tente novamente.');
+        showErrorToast('Erro ao conectar. Tente novamente.');
       }
     } finally {
       setIsLoading(false);
@@ -103,7 +125,9 @@ const Login: React.FC = () => {
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={(e) => {
+          handleSubmit(e);
+        }}>
           <div className="space-y-4">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -139,18 +163,37 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
-              </div>
+          {showToast && (
+            <div style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'red',
+              color: 'white',
+              padding: '15px 20px',
+              borderRadius: '8px',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+            }}>
+              <span>❌</span>
+              <span>{toastMessage}</span>
+              <button
+                onClick={hideToast}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  marginLeft: '10px'
+                }}
+              >
+                ×
+              </button>
             </div>
           )}
 
@@ -192,8 +235,16 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [autoClearError, setAutoClearError] = useState(false);
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
+
+  const showErrorToast = (message: string) => {
+    console.log('🔴 showErrorToast chamada com:', message);
+    setToastMessage(message);
+    setShowToast(true);
+    console.log('🔴 Estados atualizados - showToast:', true, 'toastMessage:', message);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -201,12 +252,12 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
       ...prev,
       [name]: value
     }));
-    if (error) setError('');
+    // Não limpar erro automaticamente - deixar usuário ver a mensagem
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    // Não limpar erro automaticamente - deixar usuário ver mensagens anteriores
 
     if (passwords.new_password !== passwords.confirm_password) {
       setError('As senhas não coincidem');

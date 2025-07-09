@@ -40,7 +40,7 @@ const AgentsTable: React.FC<Props> = ({ agents, filters }) => {
             
               <td className="p-3">
                 <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600/70 text-white px-3 py-1.5 rounded-lg font-light shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30"
                   onClick={() => navigate(`/agent/${a.agent_id}`, { state: filters })}
                 >
                   DETALHAR

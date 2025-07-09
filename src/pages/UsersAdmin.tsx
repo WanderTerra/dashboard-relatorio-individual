@@ -81,14 +81,14 @@ function CreateUserModalContent({
       </ModalContent>
       <ModalFooter className="gap-4">
         <button
-          className="px-2 py-1 bg-gray-200 text-black border border-gray-300 rounded-md text-sm w-28"
+          className="px-3 py-1 bg-gray-300/80 text-gray-700 border border-gray-400/30 rounded-lg text-sm font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
           onClick={handleCancel}
           disabled={creating}
         >
           Cancelar
         </button>
         <button
-          className="bg-green-600 text-white text-sm px-2 py-1 rounded-md border border-green-700 w-28"
+          className="bg-green-600/80 text-white text-sm px-3 py-1 rounded-lg border border-green-500/30 font-light backdrop-blur-sm hover:bg-green-600/90 transition-all duration-200"
           onClick={async () => {
             await handleCreateUser();
             setOpen(false);
@@ -213,7 +213,7 @@ export default function UsersAdmin() {
       <p className="text-gray-600 mb-6">Gerencie usuários do sistema: editar nome/status e resetar senha.</p>
       {/* Modal de criação de usuário */}
       <Modal>
-        <ModalTrigger className="mb-4 bg-green-700 text-white px-6 py-2 rounded-full font-medium shadow-lg hover:bg-green-800 transition-colors duration-300">
+        <ModalTrigger className="mb-4 bg-green-600/80 text-white px-4 py-1.5 rounded-xl font-light shadow-sm hover:bg-green-600/90 transition-all duration-200 backdrop-blur-sm border border-green-500/30">
           Novo Usuário
         </ModalTrigger>
         <CreateUserModalContent 
@@ -248,11 +248,11 @@ export default function UsersAdmin() {
               <td className="px-4 py-2">{user.active ? 'Sim' : 'Não'}</td>
               <td className="px-4 py-2 space-x-2">
                 <button
-                  className="bg-blue-800 text-white px-4 py-1 rounded-full font-medium shadow-lg hover:bg-blue-900 transition-colors duration-300"
+                  className="bg-blue-600/70 text-white px-3 py-1 rounded-lg font-light shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30"
                   onClick={() => openEditModal(user)}
                 >Editar</button>
                 <button
-                  className="bg-gray-600 text-white px-4 py-1 rounded-full font-medium shadow-lg hover:bg-gray-700 transition-colors duration-300"
+                  className="bg-gray-500/70 text-white px-3 py-1 rounded-lg font-light shadow-sm hover:bg-gray-500/80 transition-all duration-200 backdrop-blur-sm border border-gray-400/30"
                   onClick={() => {
                     if(window.confirm('Deseja resetar a senha deste usuário?')) {
                       resetPasswordMutation.mutate(user.id);
@@ -320,12 +320,12 @@ export default function UsersAdmin() {
             </div>
             <div className="flex justify-end space-x-2">
               <button
-                className="px-3 py-1 rounded bg-gray-300"
+                className="px-3 py-1 rounded-lg bg-gray-300/80 text-gray-700 border border-gray-400/30 font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
                 onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
                 disabled={saving}
               >Cancelar</button>
               <button
-                className="px-3 py-1 rounded bg-blue-600 text-white"
+                className="px-3 py-1 rounded-lg bg-blue-600/80 text-white font-light backdrop-blur-sm hover:bg-blue-600/90 transition-all duration-200 border border-blue-500/30"
                 onClick={handleSave}
                 disabled={saving || !editName.trim() || !editUsername.trim()}
               >{saving ? 'Salvando...' : 'Salvar'}</button>
