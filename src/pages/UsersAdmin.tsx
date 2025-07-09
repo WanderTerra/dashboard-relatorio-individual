@@ -192,15 +192,6 @@ export default function UsersAdmin() {
               />
               <label htmlFor="is-admin-checkbox" className="ml-2">Admin</label>
             </div>
-            <div className="mb-4">
-              <label className="block mb-1">ID do Agente (opcional)</label>
-              <input
-                className="border px-2 py-1 rounded w-full"
-                value={agentId}
-                onChange={e => setAgentId(e.target.value)}
-                disabled={creating}
-              />
-            </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-3 py-1 rounded bg-gray-300"
