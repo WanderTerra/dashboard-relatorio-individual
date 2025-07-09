@@ -51,3 +51,36 @@ def resetar_senha_usuario(
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return {"message": "Senha resetada com sucesso", "temporary_password": nova_senha} 
+
+@app.post("/admin/ensure-user")
+def ensure_user_endpoint(
+    username: str = Body(...),
+    full_name: str = Body(...),
+    permissions: Optional[list[str]] = Body(default=None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_admin_access)
+):
+    from .models import ensure_user_exists
+    user = ensure_user_exists(db, username, full_name)
+    
+    if permissions:
+        # Para cada permissão, atribuir ao usuário
+        user_id = user["id"]
+        for perm_name in permissions:
+            # Buscar id da permissão
+            perm_id = db.execute(text("SELECT id FROM permissions WHERE name = :name"), {"name": perm_name}).scalar()
+            if not perm_id:
+                # Cria permissão se não existir
+                db.execute(text("INSERT INTO permissions (name, description) VALUES (:name, :desc)"),
+                           {"name": perm_name, "desc": f"Permissão {perm_name}"})
+                perm_id = db.execute(text("SELECT id FROM permissions WHERE name = :name"), {"name": perm_name}).scalar()
+            
+            # Verifica se já tem
+            exists = db.execute(text("SELECT 1 FROM user_permissions WHERE user_id = :user_id AND permission_id = :perm_id"),
+                                {"user_id": user_id, "perm_id": perm_id}).scalar()
+            if not exists:
+                db.execute(text("INSERT INTO user_permissions (user_id, permission_id) VALUES (:user_id, :perm_id)"),
+                           {"user_id": user_id, "perm_id": perm_id})
+        db.commit()
+    
+    return {"user": user} 

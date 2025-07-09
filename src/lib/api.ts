@@ -242,3 +242,19 @@ export async function updateUser(userId: number, data: { full_name: string; acti
   if (!res.ok) throw new Error('Erro ao atualizar usuário');
   return res.json();
 }
+
+export async function createUser(username: string, full_name: string, permissions?: string[]) {
+  const body: any = { username, full_name };
+  if (permissions) body.permissions = permissions;
+  
+  const res = await fetch('/api/admin/ensure-user', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error('Erro ao criar usuário');
+  return res.json();
+}
