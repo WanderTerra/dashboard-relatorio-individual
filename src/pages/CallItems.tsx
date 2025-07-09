@@ -219,6 +219,13 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
               </Link>
             </div>
           }
+          logoHref={
+            isAdmin
+              ? '/'
+              : agentId
+                ? `/agent/${agentId}`
+                : '/'
+          }
         />
 
         <div className="p-6 space-y-6">          {/* Informações da ligação */}

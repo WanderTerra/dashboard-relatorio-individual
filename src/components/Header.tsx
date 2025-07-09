@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import logoSrc from '../assets/logo.png';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {}
 
 const Header: React.FC<HeaderProps> = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +42,21 @@ const Header: React.FC<HeaderProps> = () => {
               <img 
                 src={logoSrc} 
                 alt="Logo da Empresa" 
-                className="h-40 w-auto"
+                className="h-40 w-auto cursor-pointer"
+                onClick={() => {
+                  if (!user) return;
+                  if (user.permissions?.includes('admin')) {
+                    navigate('/');
+                  } else {
+                    const agentPerm = user.permissions?.find((p: string) => p.startsWith('agent_'));
+                    if (agentPerm) {
+                      const agentId = agentPerm.replace('agent_', '');
+                      navigate(`/agent/${agentId}`);
+                    } else {
+                      navigate('/');
+                    }
+                  }
+                }}
                 onError={(e) => {
                   // Fallback para texto se a logo não carregar
                   const parent = e.currentTarget.parentElement;
