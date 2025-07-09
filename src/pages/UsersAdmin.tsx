@@ -7,6 +7,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalTrigger,
+  useModal,
 } from '../components/ui/animated-modal';
 
 interface User {
@@ -14,6 +15,91 @@ interface User {
   username: string;
   full_name: string;
   active: boolean;
+}
+
+// Componente interno para o modal de criação de usuário
+function CreateUserModalContent({ 
+  newUsername, 
+  setNewUsername, 
+  newFullName, 
+  setNewFullName, 
+  isAdmin, 
+  setIsAdmin, 
+  creating, 
+  handleCreateUser 
+}: {
+  newUsername: string;
+  setNewUsername: (value: string) => void;
+  newFullName: string;
+  setNewFullName: (value: string) => void;
+  isAdmin: boolean;
+  setIsAdmin: (value: boolean) => void;
+  creating: boolean;
+  handleCreateUser: () => void;
+}) {
+  const { setOpen } = useModal();
+
+  const handleCancel = () => {
+    setOpen(false);
+    setNewUsername('');
+    setNewFullName('');
+    setIsAdmin(false);
+  };
+
+  return (
+    <ModalBody>
+      <ModalContent>
+        <h2 className="text-xl font-bold mb-4">Novo Usuário</h2>
+        <div className="mb-4">
+          <label className="block mb-1">Nome de usuário</label>
+          <input
+            className="border px-2 py-1 rounded w-full"
+            value={newUsername}
+            onChange={e => setNewUsername(e.target.value)}
+            disabled={creating}
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Nome completo</label>
+          <input
+            className="border px-2 py-1 rounded w-full"
+            value={newFullName}
+            onChange={e => setNewFullName(e.target.value)}
+            disabled={creating}
+          />
+        </div>
+        <div className="mb-4 flex items-center">
+          <input
+            type="checkbox"
+            checked={isAdmin}
+            onChange={e => setIsAdmin(e.target.checked)}
+            id="is-admin-checkbox"
+            disabled={creating}
+          />
+          <label htmlFor="is-admin-checkbox" className="ml-2">Admin</label>
+        </div>
+      </ModalContent>
+      <ModalFooter className="gap-4">
+        <button
+          className="px-2 py-1 bg-gray-200 text-black border border-gray-300 rounded-md text-sm w-28"
+          onClick={handleCancel}
+          disabled={creating}
+        >
+          Cancelar
+        </button>
+        <button
+          className="bg-green-600 text-white text-sm px-2 py-1 rounded-md border border-green-700 w-28"
+          onClick={async () => {
+            await handleCreateUser();
+            setOpen(false);
+          }}
+          disabled={creating || !newUsername.trim() || !newFullName.trim()}
+        >
+          {creating ? 'Criando...' : 'Criar'}
+        </button>
+      </ModalFooter>
+    </ModalBody>
+  );
 }
 
 export default function UsersAdmin() {
@@ -104,7 +190,6 @@ export default function UsersAdmin() {
       
       const result = await createUser(newUsername, newFullName, permissions.length > 0 ? permissions : undefined);
       setCreatedPassword('Temp@2025'); // senha padrão, ou result.temporary_password se backend retornar
-      setCreateModalOpen(false);
       setNewUsername('');
       setNewFullName('');
       setIsAdmin(false);
@@ -127,55 +212,16 @@ export default function UsersAdmin() {
         <ModalTrigger className="mb-4 bg-green-700 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-green-800 transition-colors duration-300">
           Novo Usuário
         </ModalTrigger>
-        <ModalBody>
-          <ModalContent>
-            <h2 className="text-xl font-bold mb-4">Novo Usuário</h2>
-            <div className="mb-4">
-              <label className="block mb-1">Nome de usuário</label>
-              <input
-                className="border px-2 py-1 rounded w-full"
-                value={newUsername}
-                onChange={e => setNewUsername(e.target.value)}
-                disabled={creating}
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1">Nome completo</label>
-              <input
-                className="border px-2 py-1 rounded w-full"
-                value={newFullName}
-                onChange={e => setNewFullName(e.target.value)}
-                disabled={creating}
-              />
-            </div>
-            <div className="mb-4 flex items-center">
-              <input
-                type="checkbox"
-                checked={isAdmin}
-                onChange={e => setIsAdmin(e.target.checked)}
-                id="is-admin-checkbox"
-                disabled={creating}
-              />
-              <label htmlFor="is-admin-checkbox" className="ml-2">Admin</label>
-            </div>
-          </ModalContent>
-          <ModalFooter className="gap-4">
-            <button
-              className="px-2 py-1 bg-gray-200 text-black border border-gray-300 rounded-md text-sm w-28"
-              onClick={() => setCreateModalOpen(false)}
-              disabled={creating}
-            >
-              Cancelar
-            </button>
-            <button
-              className="bg-green-600 text-white text-sm px-2 py-1 rounded-md border border-green-700 w-28"
-              onClick={handleCreateUser}
-              disabled={creating || !newUsername.trim() || !newFullName.trim()}
-            >
-              {creating ? 'Criando...' : 'Criar'}
-            </button>
-          </ModalFooter>
-        </ModalBody>
+        <CreateUserModalContent 
+          newUsername={newUsername}
+          setNewUsername={setNewUsername}
+          newFullName={newFullName}
+          setNewFullName={setNewFullName}
+          isAdmin={isAdmin}
+          setIsAdmin={setIsAdmin}
+          creating={creating}
+          handleCreateUser={handleCreateUser}
+        />
       </Modal>
       {isLoading && <div>Carregando usuários...</div>}
       {error && <div className="text-red-600">Erro ao carregar usuários.</div>}
