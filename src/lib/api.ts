@@ -258,3 +258,24 @@ export async function createUser(username: string, full_name: string, permission
   if (!res.ok) throw new Error('Erro ao criar usuário');
   return res.json();
 }
+
+export async function getUserPermissions(userId: number): Promise<string[]> {
+  const res = await fetch(`/api/admin/users/${userId}/permissions`, {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) throw new Error('Erro ao buscar permissões');
+  return res.json();
+}
+
+export async function updateUserPermissions(userId: number, permissions: string[]) {
+  const res = await fetch(`/api/admin/users/${userId}/permissions`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(permissions)
+  });
+  if (!res.ok) throw new Error('Erro ao atualizar permissões');
+  return res.json();
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllUsers, resetUserPassword, updateUser, createUser } from '../lib/api';
+import { getAllUsers, resetUserPassword, updateUser, createUser, getUserPermissions, updateUserPermissions } from '../lib/api';
 
 interface User {
   id: number;
@@ -32,6 +32,10 @@ export default function UsersAdmin() {
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [agentId, setAgentId] = React.useState('');
 
+  const [editIsAdmin, setEditIsAdmin] = React.useState(false);
+  const [loadingPerms, setLoadingPerms] = React.useState(false);
+  const [userPermissions, setUserPermissions] = React.useState<string[]>([]);
+
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: number) => resetUserPassword(userId),
     onSuccess: (data) => {
@@ -44,12 +48,23 @@ export default function UsersAdmin() {
   });
 
   // Função para abrir modal e preencher dados
-  const openEditModal = (user: User) => {
+  const openEditModal = async (user: User) => {
     setEditingUser(user);
     setEditName(user.full_name);
     setEditActive(user.active);
     setEditUsername(user.username);
     setModalOpen(true);
+    setLoadingPerms(true);
+    try {
+      const perms = await getUserPermissions(user.id);
+      setUserPermissions(perms);
+      setEditIsAdmin(perms.includes('admin'));
+    } catch {
+      setUserPermissions([]);
+      setEditIsAdmin(false);
+    } finally {
+      setLoadingPerms(false);
+    }
   };
 
   // Função para salvar edição
@@ -58,6 +73,10 @@ export default function UsersAdmin() {
     setSaving(true);
     try {
       await updateUser(editingUser.id, { full_name: editName, active: editActive, username: editUsername });
+      // Atualizar permissões - manter as existentes e adicionar/remover admin
+      const perms = userPermissions.filter(p => p !== 'admin');
+      if (editIsAdmin) perms.push('admin');
+      await updateUserPermissions(editingUser.id, perms);
       setModalOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -230,6 +249,26 @@ export default function UsersAdmin() {
                 disabled={saving}
               />
               <label htmlFor="active-checkbox" className="ml-2">Ativo</label>
+            </div>
+            <div className="mb-4">
+              <label className="block mb-1 font-bold">Permissões atuais:</label>
+              <div className="text-sm text-gray-600 mb-2">
+                {userPermissions.map(perm => (
+                  <span key={perm} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2 mb-1">
+                    {perm}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                checked={editIsAdmin}
+                onChange={e => setEditIsAdmin(e.target.checked)}
+                id="edit-admin-checkbox"
+                disabled={saving || loadingPerms}
+              />
+              <label htmlFor="edit-admin-checkbox" className="ml-2">Tornar Administrador</label>
             </div>
             <div className="flex justify-end space-x-2">
               <button
