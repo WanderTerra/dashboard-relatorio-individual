@@ -27,6 +27,18 @@ export default function UsersAdmin() {
     }
   });
 
+  const [editingUser, setEditingUser] = React.useState<User | null>(null);
+  const [editName, setEditName] = React.useState('');
+  const [editActive, setEditActive] = React.useState(true);
+  const [modalOpen, setModalOpen] = React.useState(false);
+
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setEditName(user.full_name);
+    setEditActive(user.active);
+    setModalOpen(true);
+  };
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Administração de Usuários</h1>
@@ -51,7 +63,10 @@ export default function UsersAdmin() {
               <td className="px-4 py-2">{user.full_name}</td>
               <td className="px-4 py-2">{user.active ? 'Sim' : 'Não'}</td>
               <td className="px-4 py-2 space-x-2">
-                <button className="bg-blue-500 text-white px-2 py-1 rounded" /*onClick={...}*/>Editar</button>
+                <button
+                  className="bg-blue-500 text-white px-2 py-1 rounded"
+                  onClick={() => openEditModal(user)}
+                >Editar</button>
                 <button
                   className="bg-yellow-500 text-white px-2 py-1 rounded"
                   onClick={() => {
@@ -65,6 +80,41 @@ export default function UsersAdmin() {
           ))}
         </tbody>
       </table>
+
+      {modalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white p-6 rounded shadow-lg min-w-[320px]">
+            <h2 className="text-xl font-bold mb-4">Editar Usuário</h2>
+            <div className="mb-4">
+              <label className="block mb-1">Nome completo</label>
+              <input
+                className="border px-2 py-1 rounded w-full"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                checked={editActive}
+                onChange={e => setEditActive(e.target.checked)}
+                id="active-checkbox"
+              />
+              <label htmlFor="active-checkbox" className="ml-2">Ativo</label>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                className="px-3 py-1 rounded bg-gray-300"
+                onClick={() => setModalOpen(false)}
+              >Cancelar</button>
+              <button
+                className="px-3 py-1 rounded bg-blue-600 text-white"
+                // onClick={handleSave} // Implemente a função de salvar!
+              >Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
