@@ -9,15 +9,19 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     plugins: [react()],
     server: {
-      host: true, // Habilita acesso de outros dispositivos na rede
+      host: true,
       proxy: {
-        // intercepta /api/kpis, /api/agent, etc e encaminha para o BACKEND
         '/api': {
           target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
-          // remove o prefixo /api antes de enviar pro FastAPI
           rewrite: path => path.replace(/^\/api/, ''),
+        },
+        '/admin': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          // NÃO faça rewrite, pois o backend espera /admin mesmo!
         },
       },
     },
