@@ -20,6 +20,7 @@ export default function UsersAdmin() {
   const [editingUser, setEditingUser] = React.useState<User | null>(null);
   const [editName, setEditName] = React.useState('');
   const [editActive, setEditActive] = React.useState(true);
+  const [editUsername, setEditUsername] = React.useState('');
   const [modalOpen, setModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
@@ -39,6 +40,7 @@ export default function UsersAdmin() {
     setEditingUser(user);
     setEditName(user.full_name);
     setEditActive(user.active);
+    setEditUsername(user.username);
     setModalOpen(true);
   };
 
@@ -47,7 +49,7 @@ export default function UsersAdmin() {
     if (!editingUser) return;
     setSaving(true);
     try {
-      await updateUser(editingUser.id, { full_name: editName, active: editActive });
+      await updateUser(editingUser.id, { full_name: editName, active: editActive, username: editUsername });
       setModalOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -106,6 +108,15 @@ export default function UsersAdmin() {
           <div className="bg-white p-6 rounded shadow-lg min-w-[320px]">
             <h2 className="text-xl font-bold mb-4">Editar Usuário</h2>
             <div className="mb-4">
+              <label className="block mb-1">Nome de usuário</label>
+              <input
+                className="border px-2 py-1 rounded w-full"
+                value={editUsername}
+                onChange={e => setEditUsername(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+            <div className="mb-4">
               <label className="block mb-1">Nome completo</label>
               <input
                 className="border px-2 py-1 rounded w-full"
@@ -133,7 +144,7 @@ export default function UsersAdmin() {
               <button
                 className="px-3 py-1 rounded bg-blue-600 text-white"
                 onClick={handleSave}
-                disabled={saving || !editName.trim()}
+                disabled={saving || !editName.trim() || !editUsername.trim()}
               >{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>

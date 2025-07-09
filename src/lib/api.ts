@@ -230,7 +230,7 @@ export async function resetUserPassword(userId: number) {
 }
 
 // Atualiza dados do usuário (admin)
-export async function updateUser(userId: number, data: { full_name: string; active: boolean }) {
+export async function updateUser(userId: number, data: { full_name: string; active: boolean; username: string }) {
   const res = await fetch(`/admin/users/${userId}`, {
     method: 'PUT',
     headers: {
