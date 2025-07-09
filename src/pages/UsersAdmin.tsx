@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllUsers, resetUserPassword } from '../lib/api';
+import { getAllUsers, resetUserPassword, updateUser } from '../lib/api';
 
 interface User {
   id: number;
@@ -16,27 +16,46 @@ export default function UsersAdmin() {
     queryFn: getAllUsers,
   });
 
+  // Estado para modal de edição
+  const [editingUser, setEditingUser] = React.useState<User | null>(null);
+  const [editName, setEditName] = React.useState('');
+  const [editActive, setEditActive] = React.useState(true);
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: number) => resetUserPassword(userId),
     onSuccess: (data) => {
       alert(`Senha resetada para: ${data.temporary_password}`);
-      queryClient.invalidateQueries(['allUsers']);
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     },
     onError: () => {
       alert('Erro ao resetar senha');
     }
   });
 
-  const [editingUser, setEditingUser] = React.useState<User | null>(null);
-  const [editName, setEditName] = React.useState('');
-  const [editActive, setEditActive] = React.useState(true);
-  const [modalOpen, setModalOpen] = React.useState(false);
-
+  // Função para abrir modal e preencher dados
   const openEditModal = (user: User) => {
     setEditingUser(user);
     setEditName(user.full_name);
     setEditActive(user.active);
     setModalOpen(true);
+  };
+
+  // Função para salvar edição
+  const handleSave = async () => {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      await updateUser(editingUser.id, { full_name: editName, active: editActive });
+      setModalOpen(false);
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+    } catch (e) {
+      alert('Erro ao salvar alterações');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -81,6 +100,7 @@ export default function UsersAdmin() {
         </tbody>
       </table>
 
+      {/* Modal de edição */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white p-6 rounded shadow-lg min-w-[320px]">
@@ -91,6 +111,7 @@ export default function UsersAdmin() {
                 className="border px-2 py-1 rounded w-full"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
+                disabled={saving}
               />
             </div>
             <div className="mb-4 flex items-center">
@@ -99,18 +120,21 @@ export default function UsersAdmin() {
                 checked={editActive}
                 onChange={e => setEditActive(e.target.checked)}
                 id="active-checkbox"
+                disabled={saving}
               />
               <label htmlFor="active-checkbox" className="ml-2">Ativo</label>
             </div>
             <div className="flex justify-end space-x-2">
               <button
                 className="px-3 py-1 rounded bg-gray-300"
-                onClick={() => setModalOpen(false)}
+                onClick={() => { setModalOpen(false); setEditingUser(null); }}
+                disabled={saving}
               >Cancelar</button>
               <button
                 className="px-3 py-1 rounded bg-blue-600 text-white"
-                // onClick={handleSave} // Implemente a função de salvar!
-              >Salvar</button>
+                onClick={handleSave}
+                disabled={saving || !editName.trim()}
+              >{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>
