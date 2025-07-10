@@ -285,7 +285,7 @@ const AgentDetail: React.FC = () => {
                 onClick={() => {
                   console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
                 }}
-                className="text-xs bg-blue-100/80 text-blue-800 px-2 py-1 rounded-lg font-light backdrop-blur-sm border border-blue-200/30"
+                className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
               >
                 Debug Data
               </button>

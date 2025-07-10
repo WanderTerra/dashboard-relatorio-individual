@@ -200,7 +200,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleTranscriptionClick}
-                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow group"
+                className="inline-flex items-center rounded-full bg-blue-600/70 hover:bg-blue-700/80 px-4 py-2 text-sm font-light text-white transition-all duration-200 shadow-sm backdrop-blur-sm border border-blue-300/50 group"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
@@ -242,7 +242,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   <div className="mb-2 text-sm text-blue-900"><strong>Comentário:</strong> {feedbackComentario}</div>
                 )}
                 <button
-                  className="mt-2 bg-blue-600/70 text-white px-3 py-1.5 rounded-lg font-light shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30"
+                  className="mt-2 bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light shadow-sm transition-all duration-200 backdrop-blur-sm border border-blue-300/50"
                   onClick={() => setModalOpen(true)}
                 >
                   {feedbackStatus === 'Sem feedback' ? 'Aplicar Feedback' : 'Editar Feedback'}
@@ -439,7 +439,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                     {isAdmin && (
                       <button
                         onClick={() => handleEditItem(it)}
-                        className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full transition-all duration-200 font-medium shadow-sm hover:shadow-md group"
+                        className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-full transition-all duration-200 font-light shadow-sm backdrop-blur-sm border border-blue-300/50 group"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -495,14 +495,14 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             {sucesso && <div className="text-green-600 mb-2 text-sm">Feedback enviado com sucesso!</div>}
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded-lg bg-gray-300/80 text-gray-700 border border-gray-400/30 font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
+                className="px-4 py-2 rounded-full bg-gray-300/80 hover:bg-gray-300/90 text-gray-700 border border-gray-400/30 font-light backdrop-blur-sm transition-all duration-200"
                 onClick={() => setModalOpen(false)}
                 disabled={enviando}
               >
                 Cancelar
               </button>
               <button
-                className="px-4 py-2 rounded-lg bg-blue-600/80 text-white font-light backdrop-blur-sm hover:bg-blue-600/90 transition-all duration-200 border border-blue-500/30"
+                className="px-4 py-2 rounded-full bg-blue-600/80 hover:bg-blue-600/90 text-white font-light backdrop-blur-sm transition-all duration-200 border border-blue-500/30"
                 onClick={handleEnviarFeedback}
                 disabled={enviando || !comentario}
               >
