@@ -92,13 +92,13 @@ const Dashboard: React.FC = () => {
         />
 
         {/* Gráfico de linha */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
           <TrendLineChart data={trend ?? []} />
         </div>
 
         {/* Tabela de Agentes */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Performance por Agente</h2>
             <p className="text-sm text-gray-600 mt-1">

@@ -229,7 +229,7 @@ export default function UsersAdmin() {
       </Modal>
       {isLoading && <div>Carregando usuários...</div>}
       {error && <div className="text-red-600">Erro ao carregar usuários.</div>}
-      <table className="min-w-full bg-white rounded shadow">
+      <table className="min-w-full bg-white rounded-xl shadow-sm border border-gray-100">
         <thead>
           <tr>
             <th className="px-4 py-2 text-left">ID</th>
@@ -268,7 +268,7 @@ export default function UsersAdmin() {
       {/* Modal de edição */}
       {editModalOpen && editingUser && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded shadow-lg min-w-[320px]">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 min-w-[320px]">
             <h2 className="text-xl font-bold mb-4">Editar Usuário</h2>
             <div className="mb-4">
               <label className="block mb-1">Nome de usuário</label>

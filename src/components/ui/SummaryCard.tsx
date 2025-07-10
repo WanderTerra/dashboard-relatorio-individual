@@ -9,7 +9,7 @@ interface SummaryCardProps {
 }
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, subtitle, media, total, name }) => (
-  <div className="bg-white p-4 rounded shadow">
+  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
     {name && <h1 className="text-xl font-bold mb-1">{name}</h1>}
     <h2 className={`${name ? 'text-lg' : 'text-xl font-bold'}`}>{title}</h2>
     <p className="text-sm text-gray-600">{subtitle}</p>

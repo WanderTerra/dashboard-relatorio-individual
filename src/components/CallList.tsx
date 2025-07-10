@@ -93,7 +93,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   }
 
   return (
-  <div className="bg-white p-4 rounded shadow overflow-auto">
+  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-auto">
     <h2 className="text-lg font-semibold mb-2">Lista de Chamadas</h2>
     <table className="min-w-full text-left">
       <thead>

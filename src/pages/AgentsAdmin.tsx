@@ -19,7 +19,7 @@ export default function AgentsAdmin() {
       <p className="text-gray-600 mb-6">Aqui você poderá visualizar, editar e resetar senhas dos agentes.</p>
       {isLoading && <div>Carregando agentes...</div>}
       {error && <div className="text-red-600">Erro ao carregar agentes.</div>}
-      <table className="min-w-full bg-white rounded shadow">
+      <table className="min-w-full bg-white rounded-xl shadow-sm border border-gray-100">
         <thead>
           <tr>
             <th className="px-4 py-2 text-left">ID</th>
