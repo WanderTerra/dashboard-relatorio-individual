@@ -191,7 +191,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
           <button 
             onClick={handleSave}
             disabled={updateMutation.isPending || !hasChanges}
-            className={`px-5 py-2 text-sm font-medium rounded-lg text-white transition-all ${hasChanges ? 'bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow' : 'bg-gray-400'} disabled:opacity-70 flex items-center`}
+            className={`px-6 py-2.5 text-sm font-light rounded-full text-white transition-all duration-200 backdrop-blur-sm border ${hasChanges ? 'bg-blue-600/80 hover:bg-blue-600/90 shadow-md hover:shadow-lg border-blue-500/30' : 'bg-gray-400/80 border-gray-300/30 shadow-md'} disabled:opacity-70 flex items-center`}
           >
             {updateMutation.isPending && (
               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
