@@ -53,7 +53,7 @@ function CreateUserModalContent({
         <div className="mb-4">
           <label className="block mb-1">Nome de usuário</label>
           <input
-            className="border px-2 py-1 rounded w-full"
+            className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             value={newUsername}
             onChange={e => setNewUsername(e.target.value)}
             disabled={creating}
@@ -62,7 +62,7 @@ function CreateUserModalContent({
         <div className="mb-4">
           <label className="block mb-1">Nome completo</label>
           <input
-            className="border px-2 py-1 rounded w-full"
+            className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             value={newFullName}
             onChange={e => setNewFullName(e.target.value)}
             disabled={creating}
@@ -273,7 +273,7 @@ export default function UsersAdmin() {
             <div className="mb-4">
               <label className="block mb-1">Nome de usuário</label>
               <input
-                className="border px-2 py-1 rounded w-full"
+                className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 value={editUsername}
                 onChange={e => setEditUsername(e.target.value)}
                 disabled={saving}
@@ -282,7 +282,7 @@ export default function UsersAdmin() {
             <div className="mb-4">
               <label className="block mb-1">Nome completo</label>
               <input
-                className="border px-2 py-1 rounded w-full"
+                className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
                 disabled={saving}
