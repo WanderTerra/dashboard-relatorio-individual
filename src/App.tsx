@@ -77,7 +77,7 @@ function App() {
         </div>
         
         {/* Gráfico mensal */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
           <h2 className="text-xl font-semibold mb-4">Pontuação Mensal</h2>
           <div className="h-80">
             <MonthlyChart data={monthlyData} />

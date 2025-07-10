@@ -235,7 +235,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Ligação</h3>
             {/* Caixa de feedback para monitor/admin */}
             {isMonitor && (
-              <div className="mb-6 p-4 rounded-lg border border-blue-200 bg-blue-50">
+              <div className="mb-6 p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-blue-900">Feedback desta ligação</span>
                   <span className={`text-xs px-2 py-1 rounded-full font-semibold ${feedbackStatus === 'ENVIADO' ? 'bg-green-100 text-green-700' : feedbackStatus === 'Sem feedback' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-800'}`}>{feedbackStatus}</span>
@@ -386,7 +386,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
           </div>
 
           {/* Status legend bar */}
-          <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
             <h3 className="text-sm font-medium text-gray-700">Status dos itens:</h3>
             <div className="flex space-x-5">
               <div className="flex items-center">

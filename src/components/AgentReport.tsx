@@ -239,7 +239,7 @@ const AgentReport = () => {
         {/* Gráfico e Nota Final */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Gráfico de desempenho */}
-          <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <div className="md:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center mb-4">
               <BarChart2 className="h-6 w-6 text-indigo-700 mr-2" />
               <h2 className="text-xl font-semibold">Desempenho da Ligação</h2>
@@ -264,7 +264,7 @@ const AgentReport = () => {
           </div>
 
           {/* Nota Final */}
-          <div className="bg-white rounded-lg shadow-md p-6 flex flex-col justify-center items-center">
+          <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col justify-center items-center border border-gray-100">
             <h2 className="text-xl font-semibold mb-4">Nota Final</h2>
             <div className={`text-6xl font-bold ${getScoreColor(agentData.finalScore)}`}>
               {agentData.finalScore}            </div>
@@ -280,17 +280,17 @@ const AgentReport = () => {
         </div>
 
         {/* Critérios de Avaliação */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h2 className="text-xl font-semibold mb-6">Critérios de Avaliação</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {agentData.criteria.map((criterion) => (
               <div 
                 key={criterion.id} 
-                className={`p-4 rounded-lg border ${
+                className={`p-4 rounded-xl border shadow-sm ${
                   criterion.status === 'nao_conforme' ? 'border-red-200 bg-red-50' : 
                   criterion.status === 'conforme' ? 'border-green-200 bg-green-50' : 
-                  'border-gray-200 bg-gray-50'
+                  'border-gray-100 bg-white'
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -322,7 +322,7 @@ const AgentReport = () => {
         </div>
 
         {/* Pontos de Melhoria */}
-        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 mt-6 border border-gray-100">
           <h2 className="text-xl font-semibold mb-4">
             <span className="text-red-600 mr-2">⚠️</span> 
             Pontos de Melhoria

@@ -153,7 +153,7 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
             </div>
           )}
           
-          <div className="bg-gray-50 rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-inner border border-gray-200 leading-relaxed">
+          <div className="bg-white rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-sm border border-gray-100 leading-relaxed">
             {data.conteudo || 'Sem transcrição disponível.'}
           </div>
         </>

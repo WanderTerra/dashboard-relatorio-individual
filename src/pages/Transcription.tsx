@@ -102,7 +102,7 @@ export default function Transcription() {
             <span className="ml-4 text-sm font-medium text-gray-600">Carregando transcrição...</span>
           </div>        ) : data ? (
           <>            {/* Informações do agente e ligação */}
-            <div className="mb-6 bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <div className="mb-6 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {agentInfo && (
                   <div className="flex items-center text-gray-600">
@@ -193,7 +193,7 @@ export default function Transcription() {
               </div>
             )}
             
-            <div className="bg-gray-50 rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-inner border border-gray-200 leading-relaxed">
+            <div className="bg-white rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-sm border border-gray-100 leading-relaxed">
               {data.conteudo || 'Sem transcrição disponível.'}
             </div>
           </>
