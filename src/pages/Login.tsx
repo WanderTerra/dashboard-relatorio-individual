@@ -390,7 +390,7 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 shadow-sm">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

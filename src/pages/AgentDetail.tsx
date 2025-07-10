@@ -249,7 +249,7 @@ const AgentDetail: React.FC = () => {
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
             </div>
           ) : worstItem ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">

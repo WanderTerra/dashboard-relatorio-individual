@@ -85,7 +85,7 @@ function App() {
         </div>
         
         {/* Lista de agentes com piores notas */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h2 className="text-xl font-semibold mb-4">
             <span className="text-red-600 mr-2">⚠️</span> 
             Área de Atenção: Agentes com Baixo Desempenho
