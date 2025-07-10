@@ -157,7 +157,7 @@ export default function Transcription() {
                 </div>
                 {isAdmin && (
                   <button
-                    className={`inline-flex items-center rounded-lg px-4 py-2 text-white font-medium shadow transition-all ${isDownloading ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                    className={`inline-flex items-center rounded-full px-6 py-2.5 text-white font-light shadow-md backdrop-blur-sm border transition-all duration-200 ${isDownloading ? 'bg-gray-500/80 cursor-not-allowed border-gray-400/30' : 'bg-green-600/80 hover:bg-green-600/90 hover:shadow-lg border-green-500/30'}`}
                     onClick={handleDownloadClick}
                     disabled={isDownloading}
                   >
