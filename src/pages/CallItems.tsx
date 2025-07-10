@@ -231,7 +231,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         />
 
         <div className="p-6 space-y-6">          {/* Informações da ligação */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Ligação</h3>
             {/* Caixa de feedback para monitor/admin */}
             {isMonitor && (
@@ -483,7 +483,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
       {/* Modal de feedback */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Aplicar Feedback</h3>
             <label className="block mb-2 text-sm font-medium">Comentário</label>
             <textarea

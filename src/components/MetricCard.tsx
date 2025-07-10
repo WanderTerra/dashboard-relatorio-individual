@@ -20,7 +20,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-600'
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 transition-all duration-300 hover:shadow-lg">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
       <div className="flex justify-between items-start">
         <div>
           <h3 className="text-lg font-medium text-gray-700">{title}</h3>

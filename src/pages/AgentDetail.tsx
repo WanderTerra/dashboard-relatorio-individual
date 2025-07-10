@@ -382,7 +382,7 @@ const AgentDetail: React.FC = () => {
         </div>
 
         {/* Lista de ligações */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
             <p className="text-sm text-gray-600 mt-1">
