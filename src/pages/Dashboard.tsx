@@ -49,25 +49,25 @@ const Dashboard: React.FC = () => {
         actions={
           <div className="flex flex-wrap gap-4 items-end">
             {/* Filtros */}
-            <div>
+            <div className="flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
               <input
                 type="date"
                 value={filters.start}
                 onChange={e => setStartDate(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
-            <div>
+            <div className="flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
               <input
                 type="date"
                 value={filters.end}
                 onChange={e => setEndDate(e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
-            <div className="min-w-[180px]">
+            <div className="min-w-[180px] flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-1">Carteira</label>
               <Combobox
                 options={carteiras}

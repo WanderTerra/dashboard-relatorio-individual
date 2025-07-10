@@ -56,7 +56,7 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           onClick={handleButtonClick}
-          className={cn("w-full h-9 justify-between px-3 py-2 border border-zinc-200 text-sm bg-white", className)}
+          className={cn("w-full h-9 justify-between px-3 py-2 border border-gray-200 text-sm bg-white rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200", className)}
         >
           {value
             ? options.find((option) => option.value === value)?.label || value
