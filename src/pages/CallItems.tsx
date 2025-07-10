@@ -210,7 +210,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
               
               <Link 
                 to={-1 as any} 
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center px-6 py-2.5 border border-blue-200/60 rounded-full text-sm font-light text-blue-700 bg-white/80 backdrop-blur-sm hover:bg-blue-50/80 hover:border-blue-300/70 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />

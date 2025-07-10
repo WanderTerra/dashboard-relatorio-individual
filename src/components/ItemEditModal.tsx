@@ -184,7 +184,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
         </div>        <div className="flex justify-end space-x-3">
           <button 
             onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-all shadow-sm hover:shadow"
+            className="px-6 py-2.5 text-sm font-light border border-blue-200/60 rounded-full text-blue-700 bg-white/80 backdrop-blur-sm hover:bg-blue-50/80 hover:border-blue-300/70 transition-all duration-200 shadow-md hover:shadow-lg"
           >
             Cancelar
           </button>
