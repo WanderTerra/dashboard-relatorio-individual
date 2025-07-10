@@ -175,7 +175,7 @@ const Dashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <Link
                           to={`/agent/${agent.agent_id}`}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                          className="inline-flex items-center px-3 py-2 border border-blue-300/50 text-sm leading-4 font-light rounded-full text-white bg-blue-600/70 hover:bg-blue-700/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-sm backdrop-blur-sm"
                         >
                           Detalhar
                         </Link>
