@@ -60,14 +60,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
         onMouseLeave={() => !collapsed && setCollapsed(true)}
       >
         <div className={`flex items-center justify-between px-2 py-4 border-b ${collapsed ? 'justify-center' : ''}`}>
-          <span className={`font-bold text-xl text-white transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>Monitoria</span>
-          <button
-            className={`hidden lg:block rounded-full p-1 border ${collapsed ? 'mx-auto' : ''}`}
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
-          >
-            {collapsed ? <ChevronRight size={20} color="#fff" /> : <ChevronLeft size={20} color="#fff" />}
-          </button>
+          {/* Avatar e nome do usuário */}
+          <div className={`flex items-center gap-2 transition-all duration-200 ${collapsed ? 'justify-center w-full' : ''}`}>
+            {/* Avatar com iniciais */}
+            <div className="flex items-center justify-center rounded-full bg-blue-700 text-white font-bold text-lg w-10 h-10 uppercase select-none">
+              {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0,2) : <UserCog size={24} />}
+            </div>
+            {/* Nome do usuário (só quando expandido) */}
+            <span className={`text-white font-medium text-base transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>{user?.full_name}</span>
+          </div>
+          {/* Botão de seta removido */}
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-1">
           {links.map((link) => (
