@@ -56,6 +56,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
       {/* Sidebar Desktop/Tablet */}
       <aside
         className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full bg-blue-900 shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
+        onMouseEnter={() => collapsed && setCollapsed(false)}
+        onMouseLeave={() => !collapsed && setCollapsed(true)}
       >
         <div className={`flex items-center justify-between px-2 py-4 border-b ${collapsed ? 'justify-center' : ''}`}>
           <span className={`font-bold text-xl text-white transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>Monitoria</span>
