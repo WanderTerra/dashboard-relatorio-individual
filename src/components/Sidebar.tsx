@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings } from "lucide-react";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -12,6 +12,7 @@ const adminLinks = [
   { to: "/", label: "Dashboard", icon: <Home size={20} /> },
   { to: "/agents", label: "Agentes", icon: <Users size={20} /> },
   { to: "/users", label: "Usuários", icon: <UserCog size={20} /> },
+  { to: "/carteiras", label: "Carteiras", icon: <Settings size={20} /> }, // Novo menu para admin
   // Adicione mais links para admin aqui se desejar
 ];
 
