@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List } from "lucide-react";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -9,10 +9,17 @@ interface SidebarProps {
 }
 
 const adminLinks = [
-  { to: "/", label: "Dashboard", icon: <Home size={20} /> },
-  { to: "/agents", label: "Agentes", icon: <Users size={20} /> },
-  { to: "/users", label: "Usuários", icon: <UserCog size={20} /> },
-  { to: "/carteiras", label: "Carteiras", icon: <Settings size={20} /> }, // Novo menu para admin
+  { label: "Dashboard", to: "/", icon: <Home size={20} /> },
+  { label: "Agentes", to: "/agents", icon: <Users size={20} /> },
+  { label: "Usuários", to: "/users", icon: <UserCog size={20} /> },
+  {
+    label: "Gerenciar",
+    icon: <Settings size={20} />,
+    children: [
+      { label: "Carteiras", to: "/carteiras", icon: <Folder size={18} /> },
+      { label: "Critérios", to: "/criterios", icon: <List size={18} /> },
+    ],
+  },
   // Adicione mais links para admin aqui se desejar
 ];
 
@@ -73,21 +80,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
           {/* Botão de seta removido */}
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-1">
-          {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium transition-colors ${
-                location.pathname === link.to
-                  ? "bg-blue-700 text-white"
-                  : "text-white hover:bg-blue-800 hover:text-white"
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={link.label}
-            >
-              <span className="flex items-center">{React.cloneElement(link.icon, { color: "#fff" })}</span>
-              <span className={`transition-all duration-200 ${collapsed ? 'hidden' : 'inline'}`}>{link.label}</span>
-            </Link>
-          ))}
+          {links.map((link) =>
+            link.children ? (
+              <div key={link.label} className="mb-2">
+                <div className="flex items-center gap-2 text-zinc-200 font-semibold px-4 py-2">
+                  {link.icon}
+                  {!collapsed && <span>{link.label}</span>}
+                </div>
+                <div className={`ml-6 ${collapsed ? 'flex flex-col items-center' : ''}`}> {/* Centraliza ícones quando colapsado */}
+                  {link.children.map((child) => (
+                    <NavLink
+                      key={child.to}
+                      to={child.to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"} ${collapsed ? 'justify-center' : ''}`
+                      }
+                    >
+                      {child.icon}
+                      {!collapsed && <span>{child.label}</span>}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"} ${collapsed ? 'justify-center' : ''}`
+                }
+              >
+                {link.icon}
+                {!collapsed && <span>{link.label}</span>}
+              </NavLink>
+            )
+          )}
           <button
             onClick={logout}
             className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium text-white hover:bg-red-700 hover:text-white transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
