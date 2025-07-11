@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import AgentsAdmin from './pages/AgentsAdmin';
 import UsersAdmin from './pages/UsersAdmin';
+import Carteiras from './pages/Carteiras';
 
 const AppRouter: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -51,6 +52,11 @@ const AppRouter: React.FC = () => {
               <Route path="/users" element={
                 <ProtectedRoute requiredPermission="admin">
                   <UsersAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/carteiras" element={
+                <ProtectedRoute requiredPermission="admin">
+                  <Carteiras />
                 </ProtectedRoute>
               } />
             </Routes>
