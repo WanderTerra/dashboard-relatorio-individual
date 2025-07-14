@@ -82,8 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
         <nav className="flex flex-col gap-2 mt-4 px-1">
           {links.map((link) =>
             link.children ? (
-              <div key={link.label} className="mb-2">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold px-4 py-2">
+              <div key={link.label} className="mb-2 transition-all duration-200">
+                <div className={`flex items-center gap-2 text-zinc-200 font-semibold px-4 py-2 ${collapsed ? 'justify-center' : ''}`}>
                   {link.icon}
                   {!collapsed && <span>{link.label}</span>}
                 </div>
