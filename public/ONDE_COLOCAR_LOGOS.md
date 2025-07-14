@@ -45,3 +45,12 @@ dashboard-relatorio-individual/
 - [ ] Adicionar `logo.png` em `src/assets/` 
 - [ ] (Opcional) Adicionar logos PWA em `public/`
 - [ ] Executar configuração automática
+
+# Instruções para uso do logotipo
+
+- Utilize sempre o arquivo original do logotipo.
+- Respeite a área de proteção indicada no manual da marca.
+- Não distorça, rotacione ou altere as cores do logotipo.
+- Tamanho mínimo: utilize o recomendado no manual.
+- Use preferencialmente sobre fundo navy blue ou branco.
+- Não aplique efeitos, sombras ou gradientes não autorizados.

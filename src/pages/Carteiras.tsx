@@ -95,81 +95,83 @@ const Carteiras: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Carteiras</h1>
-        <Button onClick={() => handleOpenModal()}>Nova Carteira</Button>
-      </div>
-      {error && <div className="text-red-500 mb-2">{error}</div>}
-      {loading && <div>Carregando...</div>}
-      <table className="min-w-full bg-white shadow rounded">
-        <thead>
-          <tr>
-            <th className="p-2 text-left">Nome</th>
-            <th className="p-2 text-left">Descrição</th>
-            <th className="p-2 text-left">Ativo</th>
-            <th className="p-2 text-left">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {carteiras.map((c) => (
-            <tr key={c.id}>
-              <td className="p-2">{c.nome}</td>
-              <td className="p-2">{c.descricao}</td>
-              <td className="p-2">{c.ativo ? "Sim" : "Não"}</td>
-              <td className="p-2 flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleOpenModal(c)}>
-                  Editar
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(c.id)}>
-                  Excluir
-                </Button>
-              </td>
+    <div className="carteiras-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Carteiras</h1>
+          <Button onClick={() => handleOpenModal()}>Nova Carteira</Button>
+        </div>
+        {error && <div className="text-red-500 mb-2">{error}</div>}
+        {loading && <div>Carregando...</div>}
+        <table className="min-w-full bg-white shadow rounded">
+          <thead>
+            <tr>
+              <th className="p-2 text-left">Nome</th>
+              <th className="p-2 text-left">Descrição</th>
+              <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-left">Ações</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {carteiras.map((c) => (
+              <tr key={c.id}>
+                <td className="p-2">{c.nome}</td>
+                <td className="p-2">{c.descricao}</td>
+                <td className="p-2">{c.ativo ? "Sim" : "Não"}</td>
+                <td className="p-2 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleOpenModal(c)}>
+                    Editar
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(c.id)}>
+                    Excluir
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      {/* Modal de criação/edição */}
-      {showModal && (
-        <Dialog open={showModal} onOpenChange={setShowModal}>
-          <DialogContent>
-            <DialogTitle>{editCarteira ? "Editar Carteira" : "Nova Carteira"}</DialogTitle>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-              <Input
-                name="nome"
-                placeholder="Nome"
-                value={form.nome}
-                onChange={handleChange}
-                required
-              />
-              <Input
-                name="descricao"
-                placeholder="Descrição"
-                value={form.descricao}
-                onChange={handleChange}
-              />
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="ativo"
-                  checked={form.ativo}
+        {/* Modal de criação/edição */}
+        {showModal && (
+          <Dialog open={showModal} onOpenChange={setShowModal}>
+            <DialogContent>
+              <DialogTitle>{editCarteira ? "Editar Carteira" : "Nova Carteira"}</DialogTitle>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                <Input
+                  name="nome"
+                  placeholder="Nome"
+                  value={form.nome}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  name="descricao"
+                  placeholder="Descrição"
+                  value={form.descricao}
                   onChange={handleChange}
                 />
-                Ativo
-              </label>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={handleCloseModal}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  Salvar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="ativo"
+                    checked={form.ativo}
+                    onChange={handleChange}
+                  />
+                  Ativo
+                </label>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={handleCloseModal}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    Salvar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 };

@@ -63,19 +63,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
 
       {/* Sidebar Desktop/Tablet */}
       <aside
-        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full bg-blue-900 shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
+        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
+        style={{ backgroundColor: 'var(--color-navy-blue)' }}
         onMouseEnter={() => collapsed && setCollapsed(false)}
         onMouseLeave={() => !collapsed && setCollapsed(true)}
       >
         <div className={`flex items-center justify-between px-2 py-4 border-b ${collapsed ? 'justify-center' : ''}`}>
           {/* Avatar e nome do usuário */}
-          <div className={`flex items-center gap-2 transition-all duration-200 ${collapsed ? 'justify-center w-full' : ''}`}>
+          <div className={`flex items-center gap-2 transition-all duration-200 ${collapsed ? 'justify-center w-full' : ''}`} style={{ color: 'var(--color-beige)' }}>
             {/* Avatar com iniciais */}
-            <div className="flex items-center justify-center rounded-full bg-blue-700 text-white font-bold text-lg w-10 h-10 uppercase select-none">
+            <div className="flex items-center justify-center rounded-full text-white font-bold text-lg w-10 h-10 uppercase select-none"
+              style={{ backgroundColor: 'var(--color-gold)' }}>
               {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0,2) : <UserCog size={24} />}
             </div>
             {/* Nome do usuário (só quando expandido) */}
-            <span className={`text-white font-medium text-base transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}>{user?.full_name}</span>
+            <span className={`text-base font-bold transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}
+              style={{ color: 'var(--color-beige)' }}>
+              {user?.full_name}
+            </span>
           </div>
           {/* Botão de seta removido */}
         </div>
@@ -83,7 +88,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
           {links.map((link) =>
             link.children ? (
               <div key={link.label} className="mb-2 transition-all duration-200">
-                <div className={`flex items-center gap-2 text-zinc-200 font-semibold px-4 py-2 ${collapsed ? 'justify-center' : ''}`}>
+                <div className={`flex items-center gap-2 font-semibold px-4 py-2 ${collapsed ? 'justify-center' : ''}`}
+                  style={{ color: 'var(--color-beige)' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+                    e.currentTarget.style.color = 'var(--color-navy-blue)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = '';
+                    e.currentTarget.style.color = 'var(--color-beige)';
+                  }}
+                >
                   {link.icon}
                   {!collapsed && <span>{link.label}</span>}
                 </div>
@@ -95,8 +110,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                         key={child.to}
                         to={child.to}
                         className={({ isActive }) =>
-                          `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"}`
+                          `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? '' : ''}`
                         }
+                        style={{ color: 'var(--color-beige)' }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+                          e.currentTarget.style.color = 'var(--color-navy-blue)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.backgroundColor = '';
+                          e.currentTarget.style.color = 'var(--color-beige)';
+                        }}
                       >
                         {child.icon}
                         <span>{child.label}</span>
@@ -110,8 +134,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"} ${collapsed ? 'justify-center' : ''}`
+                  `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${collapsed ? 'justify-center' : ''}`
                 }
+                style={{ color: 'var(--color-beige)' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+                  e.currentTarget.style.color = 'var(--color-navy-blue)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = '';
+                  e.currentTarget.style.color = 'var(--color-beige)';
+                }}
               >
                 {link.icon}
                 {!collapsed && <span>{link.label}</span>}
@@ -120,10 +153,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
           )}
           <button
             onClick={logout}
-            className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium text-white hover:bg-red-700 hover:text-white transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
+            className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
             title="Sair"
+            style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-navy-blue)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--color-muted-blue)';
+              e.currentTarget.style.color = 'var(--color-beige)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+              e.currentTarget.style.color = 'var(--color-navy-blue)';
+            }}
           >
-            <LogOut size={20} color="#fff" />
+            <LogOut size={20} color="var(--color-navy-blue)" />
             <span className={`transition-all duration-200 ${collapsed ? 'hidden' : 'inline'}`}>Sair</span>
           </button>
         </nav>

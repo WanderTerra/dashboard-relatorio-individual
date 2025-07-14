@@ -19,7 +19,19 @@ module.exports = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+        primary: {
+          DEFAULT: '#192339', // Navy Blue
+        },
+        secondary: {
+          DEFAULT: '#A58950', // Gold
+        },
+        mutedblue: {
+          DEFAULT: '#1B3D59',
+        },
+        beige: {
+          DEFAULT: '#D1CDC1',
+        },
   		},
   		keyframes: {
   			'accordion-down': {

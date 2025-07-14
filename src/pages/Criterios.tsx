@@ -103,7 +103,7 @@ const Criterios: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="criterios-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Critérios</h1>
         <Button onClick={() => handleOpenModal()}>Novo Critério</Button>

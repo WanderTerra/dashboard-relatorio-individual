@@ -14,7 +14,7 @@ export default function AgentsAdmin() {
   });
 
   return (
-    <div className="p-6">
+    <div className="agents-admin-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
       <h1 className="text-2xl font-bold mb-4">Visualização de Agentes</h1>
       <p className="text-gray-600 mb-6">Aqui você poderá visualizar os agentes cadastrados no sistema do VONIX</p>
       {isLoading && <div>Carregando agentes...</div>}

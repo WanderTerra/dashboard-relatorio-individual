@@ -2,8 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Paleta da Marca */
+  --color-navy-blue: rgb(25, 35, 57); /* Principal */
+  --color-gold: rgb(165, 137, 80);    /* Secundária */
+  --color-muted-blue: #1B3D59;
+  --color-beige: #D1CDC1;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply text-gray-900;
+  background-color: var(--color-navy-blue);
+  color: var(--color-beige);
+}
+
+/* Exemplo de uso para links ou botões */
+.a, .btn-primary {
+  background-color: var(--color-gold);
+  color: var(--color-navy-blue);
 }
 
 @keyframes fadeIn {

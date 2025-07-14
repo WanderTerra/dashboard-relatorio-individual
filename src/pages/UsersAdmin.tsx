@@ -208,9 +208,11 @@ export default function UsersAdmin() {
   };
 
   return (
-    <div className="p-6">
+    <div className="users-admin-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
       <h1 className="text-2xl font-bold mb-4">Administração de Usuários</h1>
-      <p className="text-gray-600 mb-6">Gerencie usuários do sistema: editar nome/status e resetar senha.</p>
+      <p className="mb-6" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
+        Gerencie usuários do sistema: editar nome/status e resetar senha.
+      </p>
       {/* Modal de criação de usuário */}
       <Modal>
         <ModalTrigger className="mb-4 bg-green-600/80 text-white px-4 py-1.5 rounded-full font-light shadow-sm hover:bg-green-600/90 transition-all duration-200 backdrop-blur-sm border border-green-500/30">
