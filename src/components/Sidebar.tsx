@@ -87,20 +87,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                   {link.icon}
                   {!collapsed && <span>{link.label}</span>}
                 </div>
-                <div className={`ml-6 ${collapsed ? 'flex flex-col items-center' : ''}`}> {/* Centraliza ícones quando colapsado */}
-                  {link.children.map((child) => (
-                    <NavLink
-                      key={child.to}
-                      to={child.to}
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"} ${collapsed ? 'justify-center' : ''}`
-                      }
-                    >
-                      {child.icon}
-                      {!collapsed && <span>{child.label}</span>}
-                    </NavLink>
-                  ))}
-                </div>
+                {/* Renderiza subitens SOMENTE se o sidebar está expandido */}
+                {!collapsed && (
+                  <div className="ml-6">
+                    {link.children.map((child) => (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? "bg-blue-800 text-white" : "text-zinc-200 hover:bg-blue-800 hover:text-white"}`
+                        }
+                      >
+                        {child.icon}
+                        <span>{child.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <NavLink
