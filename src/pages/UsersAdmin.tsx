@@ -119,7 +119,6 @@ export default function UsersAdmin() {
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
-  const [createModalOpen, setCreateModalOpen] = React.useState(false);
   const [newUsername, setNewUsername] = React.useState('');
   const [newFullName, setNewFullName] = React.useState('');
   const [creating, setCreating] = React.useState(false);
@@ -209,26 +208,31 @@ export default function UsersAdmin() {
 
   return (
     <div className="users-admin-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
-      <h1 className="text-2xl font-bold mb-4">Administração de Usuários</h1>
+      <div className="flex items-end justify-between mb-4 gap-4 pt-2 max-w-screen-lg mx-auto">
+        <h1 className="text-2xl font-bold whitespace-nowrap" style={{ color: 'var(--color-navy-blue)' }}>
+          Administração de Usuários
+        </h1>
+        <div className="flex-shrink-0 max-w-[180px] w-full sm:w-auto pr-8">
+          <Modal>
+            <ModalTrigger className="w-full px-4 py-1.5 rounded-full font-bold shadow-sm transition-all duration-200 bg-[var(--color-muted-blue)] text-white border-none hover:bg-[var(--color-navy-blue)]">
+              Novo Usuário
+            </ModalTrigger>
+            <CreateUserModalContent 
+              newUsername={newUsername}
+              setNewUsername={setNewUsername}
+              newFullName={newFullName}
+              setNewFullName={setNewFullName}
+              isAdmin={isAdmin}
+              setIsAdmin={setIsAdmin}
+              creating={creating}
+              handleCreateUser={handleCreateUser}
+            />
+          </Modal>
+        </div>
+      </div>
       <p className="mb-6" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
         Gerencie usuários do sistema: editar nome/status e resetar senha.
       </p>
-      {/* Modal de criação de usuário */}
-      <Modal>
-        <ModalTrigger className="mb-4 bg-green-600/80 text-white px-4 py-1.5 rounded-full font-light shadow-sm hover:bg-green-600/90 transition-all duration-200 backdrop-blur-sm border border-green-500/30">
-          Novo Usuário
-        </ModalTrigger>
-        <CreateUserModalContent 
-          newUsername={newUsername}
-          setNewUsername={setNewUsername}
-          newFullName={newFullName}
-          setNewFullName={setNewFullName}
-          isAdmin={isAdmin}
-          setIsAdmin={setIsAdmin}
-          creating={creating}
-          handleCreateUser={handleCreateUser}
-        />
-      </Modal>
       {isLoading && <div>Carregando usuários...</div>}
       {error && <div className="text-red-600">Erro ao carregar usuários.</div>}
       <table className="min-w-full bg-white rounded-xl shadow-sm border border-gray-100">
@@ -246,15 +250,39 @@ export default function UsersAdmin() {
             <tr key={user.id}>
               <td className="px-4 py-2">{user.id}</td>
               <td className="px-4 py-2">{user.username}</td>
-              <td className="px-4 py-2">{user.full_name}</td>
-              <td className="px-4 py-2">{user.active ? 'Sim' : 'Não'}</td>
+              <td className="px-4 py-2">
+                <span className="text-base font-bold" style={{ color: 'var(--color-navy-blue)' }}>{user.full_name}</span>
+              </td>
+              <td className="px-4 py-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(27, 61, 89, 0.4)', color: 'var(--color-navy-blue)' }}>
+                  {user.active ? 'Sim' : 'Não'}
+                </span>
+              </td>
               <td className="px-4 py-2 space-x-2">
                 <button
-                  className="bg-blue-600/70 text-white px-3 py-1 rounded-full font-light shadow-sm hover:bg-blue-600/80 transition-all duration-200 backdrop-blur-sm border border-blue-500/30"
+                  className="px-3 py-1 rounded-full font-bold shadow-sm transition-all duration-200"
+                  style={{ backgroundColor: 'var(--color-muted-blue)', color: '#fff', border: 'none' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-muted-blue)';
+                    e.currentTarget.style.color = '#fff';
+                  }}
                   onClick={() => openEditModal(user)}
                 >Editar</button>
                 <button
-                  className="bg-gray-500/70 text-white px-3 py-1 rounded-full font-light shadow-sm hover:bg-gray-500/80 transition-all duration-200 backdrop-blur-sm border border-gray-400/30"
+                  className="px-3 py-1 rounded-full font-bold shadow-sm transition-all duration-200"
+                  style={{ backgroundColor: 'var(--color-beige)', color: 'var(--color-navy-blue)', border: 'none' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--color-beige)';
+                    e.currentTarget.style.color = 'var(--color-navy-blue)';
+                  }}
                   onClick={() => {
                     if(window.confirm('Deseja resetar a senha deste usuário?')) {
                       resetPasswordMutation.mutate(user.id);
