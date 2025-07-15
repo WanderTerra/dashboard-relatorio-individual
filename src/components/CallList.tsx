@@ -137,7 +137,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                     avaliacao_id: c.avaliacao_id
                   }
                 }}
-                className="bg-blue-600/70 hover:bg-blue-700/80 text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-blue-300/50 font-light text-xs"
+                className="bg-[var(--color-muted-blue)] hover:bg-[var(--color-navy-blue)] text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-[var(--color-muted-blue)] font-bold text-xs"
               >
                 &#128203; Itens
               </Link>
@@ -146,7 +146,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
               <Link
                 to={`/call/${c.avaliacao_id}/transcription`}
                 state={{ agentId }}
-                className="bg-blue-600/70 hover:bg-blue-700/80 text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-blue-300/50 font-light text-xs"
+                className="bg-[var(--color-muted-blue)] hover:bg-[var(--color-navy-blue)] text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-[var(--color-muted-blue)] font-bold text-xs"
               >
                 &#128172; Transcrição
               </Link>

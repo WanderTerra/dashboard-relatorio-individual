@@ -169,7 +169,7 @@ const AgentDetail: React.FC = () => {
   const isAgent = user && user.permissions && user.permissions.includes(`agent_${agentId}`) && !user.permissions.includes('admin');
 
   return (
-    <div>
+    <div style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
       <PageHeader 
         title={agentName}
         subtitle={`Análise detalhada do Agente ${agentId}`}
@@ -180,21 +180,21 @@ const AgentDetail: React.FC = () => {
         actions={
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <label className="block text-sm font-medium text-[var(--color-navy-blue)] mb-1">Data Início</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-[var(--color-muted-blue)] focus:border-[var(--color-muted-blue)] transition-all duration-200"
               />
             </div>
             <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <label className="block text-sm font-medium text-[var(--color-navy-blue)] mb-1">Data Fim</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-[var(--color-muted-blue)] focus:border-[var(--color-muted-blue)] transition-all duration-200"
               />
             </div>
           </div>
@@ -222,18 +222,18 @@ const AgentDetail: React.FC = () => {
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900">
+                <h3 className="text-2xl font-bold" style={{ color: 'var(--color-navy-blue)' }}>
                   {formatAgentName(summary)}
                 </h3>
-                <p className="text-gray-600">Agente ID: {agentId}</p>
+                <p className="text-[var(--color-muted-blue)]">Agente ID: {agentId}</p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Total de Ligações</p>
-                    <p className="text-xl font-semibold text-gray-900">{summary?.ligacoes ?? 0}</p>
+                    <p className="text-sm text-[var(--color-muted-blue)]">Total de Ligações</p>
+                    <p className="text-xl font-semibold text-[var(--color-navy-blue)]">{summary?.ligacoes ?? 0}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Média de Avaliação</p>
-                    <p className="text-xl font-semibold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
+                    <p className="text-sm text-[var(--color-muted-blue)]">Média de Avaliação</p>
+                    <p className="text-xl font-semibold text-[var(--color-muted-blue)]">{(summary?.media ?? 0).toFixed(1)}</p>
                   </div>
                 </div>
               </div>
@@ -243,13 +243,13 @@ const AgentDetail: React.FC = () => {
 
         {/* Pior item */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pior Item Avaliado</h2>
+          <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-navy-blue)' }}>Pior Item Avaliado</h2>
           {wiLoading ? (
             <div className="animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
             </div>
           ) : worstItem ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-[var(--color-beige)]/60 border border-[var(--color-beige)] rounded-xl p-4 shadow-sm">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -257,10 +257,10 @@ const AgentDetail: React.FC = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
+                  <h3 className="text-sm font-medium" style={{ color: 'var(--color-navy-blue)' }}>
                     {formatItemName(worstItem.categoria)}
                   </h3>
-                  <p className="text-sm text-red-700 mt-1">
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-navy-blue)' }}>
                     Taxa de não conformidade: <span className="font-semibold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
                   </p>
                 </div>
@@ -268,14 +268,14 @@ const AgentDetail: React.FC = () => {
             </div>
           ) : (
             <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-              <p className="text-gray-600">Sem dados de avaliação disponíveis para o período selecionado.</p>
+              <p className="text-[var(--color-muted-blue)]">Sem dados de avaliação disponíveis para o período selecionado.</p>
             </div>
           )}
         </div>        {/* Gráfico de Radar - Critérios do Agente */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              <svg className="inline-block w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-navy-blue)' }}>
+              <svg className="inline-block w-5 h-5 mr-2 text-[var(--color-muted-blue)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               Desempenho por Critério
@@ -285,7 +285,7 @@ const AgentDetail: React.FC = () => {
                 onClick={() => {
                   console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
                 }}
-                className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
+                className="text-xs bg-[var(--color-muted-blue)]/80 hover:bg-[var(--color-navy-blue)] text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-[var(--color-muted-blue)]/50 shadow-sm transition-all duration-200"
               >
                 Debug Data
               </button>
@@ -352,7 +352,7 @@ const AgentDetail: React.FC = () => {
                       className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm"
                     >
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">                          <h3 className="text-sm font-medium text-gray-900">
+                        <div className="flex-1">                          <h3 className="text-sm font-medium text-[var(--color-navy-blue)]">
                             {formatItemName(criterion.categoria || criterion.name || criterion.item)}
                           </h3>
                         </div>
@@ -376,7 +376,7 @@ const AgentDetail: React.FC = () => {
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              <p className="mt-4 text-gray-600">Nenhum critério de avaliação encontrado para o período selecionado.</p>
+              <p className="mt-4 text-[var(--color-muted-blue)]">Nenhum critério de avaliação encontrado para o período selecionado.</p>
             </div>
           )}
         </div>
@@ -384,8 +384,8 @@ const AgentDetail: React.FC = () => {
         {/* Lista de ligações */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-navy-blue)' }}>Histórico de Ligações</h2>
+            <p className="text-sm text-[var(--color-muted-blue)] mt-1">
               Detalhes das ligações realizadas no período
             </p>
           </div>
