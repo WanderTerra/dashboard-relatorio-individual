@@ -215,8 +215,8 @@ const AgentDetail: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center space-x-4">
               <div className="flex-shrink-0 h-16 w-16">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
+                <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(165, 137, 80, 0.4)' }}>
+                  <span className="text-2xl font-bold" style={{ color: 'var(--color-navy-blue)' }}>
                     {formatAgentName(summary).charAt(0)}
                   </span>
                 </div>

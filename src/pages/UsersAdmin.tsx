@@ -251,7 +251,14 @@ export default function UsersAdmin() {
               <td className="px-4 py-2">{user.id}</td>
               <td className="px-4 py-2">{user.username}</td>
               <td className="px-4 py-2">
-                <span className="text-base font-bold" style={{ color: 'var(--color-navy-blue)' }}>{user.full_name}</span>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(165, 137, 80, 0.4)' }}>
+                    <span className="text-sm font-bold" style={{ color: 'var(--color-navy-blue)' }}>
+                      {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-base font-bold" style={{ color: 'var(--color-navy-blue)' }}>{user.full_name}</span>
+                </div>
               </td>
               <td className="px-4 py-2">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(27, 61, 89, 0.4)', color: 'var(--color-navy-blue)' }}>
