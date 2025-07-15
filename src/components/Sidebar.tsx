@@ -8,7 +8,13 @@ interface SidebarProps {
   setCollapsed?: (collapsed: boolean) => void;
 }
 
-const adminLinks = [
+// Definição de tipo segura para os links da sidebar
+
+type SidebarLink =
+  | { label: string; to: string; icon: JSX.Element; children?: undefined }
+  | { label: string; icon: JSX.Element; children: SidebarLink[]; to?: undefined };
+
+const adminLinks: SidebarLink[] = [
   { label: "Dashboard", to: "/", icon: <Home size={20} /> },
   { label: "Agentes", to: "/agents", icon: <Users size={20} /> },
   { label: "Usuários", to: "/users", icon: <UserCog size={20} /> },
@@ -20,10 +26,9 @@ const adminLinks = [
       { label: "Critérios", to: "/criterios", icon: <List size={18} /> },
     ],
   },
-  // Adicione mais links para admin aqui se desejar
 ];
 
-const agentLinks = (agentId: string) => [
+const agentLinks = (agentId: string): SidebarLink[] => [
   { to: `/agent/${agentId}`, label: "Minha Página", icon: <Home size={20} /> },
 ];
 
@@ -86,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-1">
           {links.map((link) =>
-            link.children ? (
+            'children' in link && link.children ? (
               <div key={link.label} className="mb-2 transition-all duration-200">
                 <div className={`flex items-center gap-2 font-semibold px-4 py-2 ${collapsed ? 'justify-center' : ''}`}
                   style={{ color: 'var(--color-beige)' }}
@@ -105,10 +110,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                 {/* Renderiza subitens SOMENTE se o sidebar está expandido */}
                 {!collapsed && (
                   <div className="ml-6">
-                    {link.children.map((child) => (
+                    {link.children.map((child: SidebarLink, idx: number) => (
                       <NavLink
-                        key={child.to}
-                        to={child.to}
+                        key={child.to ?? `child-${idx}`}
+                        to={child.to ?? '#'}
                         className={({ isActive }) =>
                           `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? '' : ''}`
                         }
@@ -131,8 +136,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
               </div>
             ) : (
               <NavLink
-                key={link.to}
-                to={link.to}
+                key={link.to ?? link.label}
+                to={link.to ?? '#'}
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${collapsed ? 'justify-center' : ''}`
                 }
@@ -187,20 +192,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
           </button>
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-4">
-          {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
-                location.pathname === link.to
-                  ? "bg-blue-100 text-blue-900"
-                  : "text-gray-700 hover:bg-blue-50"
-              }`}
-              onClick={() => setOpen(false)}
-            >
-              {link.icon}
-              {link.label}
-            </Link>
+          {links.map((link: SidebarLink) => (
+            'to' in link && link.to ? (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  location.pathname === link.to
+                    ? "bg-blue-100 text-blue-900"
+                    : "text-gray-700 hover:bg-blue-50"
+                }`}
+                onClick={() => setOpen(false)}
+              >
+                {link.icon}
+                {link.label}
+              </Link>
+            ) : null
           ))}
           <button
             onClick={logout}
