@@ -175,17 +175,15 @@ const Dashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <Link
                           to={`/agent/${agent.agent_id}`}
-                          className="inline-flex items-center px-3 py-2 border text-sm font-bold leading-4 rounded-full transition-all shadow-sm backdrop-blur-sm"
-                          style={{ backgroundColor: 'var(--color-muted-blue)', color: '#fff', borderColor: 'var(--color-muted-blue)' }}
+                          className="inline-flex items-center px-3 py-2 border border-[var(--color-navy-blue)] text-sm font-bold leading-4 rounded-full transition-all shadow-sm backdrop-blur-sm"
+                          style={{ backgroundColor: 'rgba(165, 137, 80, 0.09)', color: 'var(--color-navy-blue)', borderWidth: '1px' }}
                           onMouseEnter={e => {
                             e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
                             e.currentTarget.style.color = '#fff';
-                            e.currentTarget.style.borderColor = 'var(--color-navy-blue)';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-muted-blue)';
-                            e.currentTarget.style.color = '#fff';
-                            e.currentTarget.style.borderColor = 'var(--color-muted-blue)';
+                            e.currentTarget.style.backgroundColor = 'rgba(165, 137, 80, 0.09)';
+                            e.currentTarget.style.color = 'var(--color-navy-blue)';
                           }}
                         >
                           Detalhar
