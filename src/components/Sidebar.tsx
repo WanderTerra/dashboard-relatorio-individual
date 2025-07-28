@@ -46,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
   const agentId = agentPerm ? agentPerm.replace("agent_", "") : null;
 
   // Links conforme perfil
-  const links = isAdmin
+  const links: SidebarLink[] = isAdmin
     ? adminLinks
     : agentId
     ? agentLinks(agentId)

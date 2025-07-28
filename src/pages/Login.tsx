@@ -236,6 +236,8 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [autoClearError, setAutoClearError] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
 

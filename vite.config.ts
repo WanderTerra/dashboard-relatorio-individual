@@ -5,7 +5,11 @@ import path from 'path';
 export default ({ mode }: { mode: string }) => {
   // carrega todas as variáveis VITE_… do .env
   const env = loadEnv(mode, process.cwd(), '');
-  console.log('Configurando proxy para backend em: http://localhost:8000');
+  
+  // Configuração do backend remoto - AJUSTE O IP AQUI
+  const BACKEND_URL = 'http://10.100.20.188:8000'; // ✅ IP da máquina do backend
+  
+  console.log(`Configurando proxy para backend em: ${BACKEND_URL}`);
   
   return defineConfig({
     plugins: [react()],
@@ -16,18 +20,24 @@ export default ({ mode }: { mode: string }) => {
     },
     server: {
       host: true,
+      port: 5175,
       proxy: {
         '/api': {
-          target: 'http://localhost:8000',
+          target: BACKEND_URL,
           changeOrigin: true,
           secure: false,
           rewrite: path => path.replace(/^\/api/, ''),
         },
         '/admin': {
-          target: 'http://localhost:8000',
+          target: BACKEND_URL,
           changeOrigin: true,
           secure: false,
           // NÃO faça rewrite, pois o backend espera /admin mesmo!
+        },
+        '/auth': {
+          target: BACKEND_URL,
+          changeOrigin: true,
+          secure: false,
         },
       },
     },
