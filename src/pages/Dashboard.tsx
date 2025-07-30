@@ -42,7 +42,7 @@ const Dashboard: React.FC = () => {
   });
 
   return (
-    <div className="dashboard-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
+    <div>
       <PageHeader 
         title="Dashboard de Avaliação" 
         subtitle="Análise de performance e qualidade de ligações"
@@ -143,21 +143,21 @@ const Dashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-8 w-8">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(165, 137, 80, 0.4)' }}>
-                              <span className="text-sm font-bold" style={{ color: 'var(--color-navy-blue)' }}>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-sm font-medium text-blue-600">
                                 {formatAgentName(agent).charAt(0)}
                               </span>
                             </div>
                           </div>
                           <div className="ml-3">
-                            <div className="text-base font-bold" style={{ color: 'var(--color-navy-blue)' }}>
+                            <div className="text-sm font-medium text-gray-900">
                               {formatAgentName(agent)}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(209, 205, 193, 0.4)', color: 'var(--color-navy-blue)' }}>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           {agent.ligacoes}
                         </span>
                       </td>                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -169,22 +169,13 @@ const Dashboard: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-base" style={{ color: 'var(--color-navy-blue)', fontWeight: 500 }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {piorLabel}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <Link
                           to={`/agent/${agent.agent_id}`}
-                          className="inline-flex items-center px-3 py-2 border border-[var(--color-navy-blue)] text-sm font-bold leading-4 rounded-full transition-all shadow-sm backdrop-blur-sm"
-                          style={{ backgroundColor: 'rgba(165, 137, 80, 0.09)', color: 'var(--color-navy-blue)', borderWidth: '1px' }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
-                            e.currentTarget.style.color = '#fff';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.backgroundColor = 'rgba(165, 137, 80, 0.09)';
-                            e.currentTarget.style.color = 'var(--color-navy-blue)';
-                          }}
+                          className="inline-flex items-center px-3 py-2 border border-blue-300/50 text-sm leading-4 font-light rounded-full text-white bg-blue-600/70 hover:bg-blue-700/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-sm backdrop-blur-sm"
                         >
                           Detalhar
                         </Link>
