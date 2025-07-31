@@ -13,6 +13,7 @@ import AgentsAdmin from './pages/AgentsAdmin';
 import UsersAdmin from './pages/UsersAdmin';
 import Carteiras from './pages/Carteiras';
 import Criterios from './pages/Criterios';
+import AudioUpload from './pages/AudioUpload';
 
 const AppRouter: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -63,6 +64,11 @@ const AppRouter: React.FC = () => {
               <Route path="/criterios" element={
                 <ProtectedRoute requiredPermission="admin">
                   <Criterios />
+                </ProtectedRoute>
+              } />
+              <Route path="/upload" element={
+                <ProtectedRoute>
+                  <AudioUpload />
                 </ProtectedRoute>
               } />
             </Routes>

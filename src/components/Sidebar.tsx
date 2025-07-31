@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload } from "lucide-react";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -18,6 +18,7 @@ const adminLinks: SidebarLink[] = [
   { label: "Dashboard", to: "/", icon: <Home size={20} /> },
   { label: "Agentes", to: "/agents", icon: <Users size={20} /> },
   { label: "Usuários", to: "/users", icon: <UserCog size={20} /> },
+  { label: "Upload de Áudios", to: "/upload", icon: <Upload size={20} /> },
   {
     label: "Gerenciar",
     icon: <Settings size={20} />,
@@ -30,6 +31,7 @@ const adminLinks: SidebarLink[] = [
 
 const agentLinks = (agentId: string): SidebarLink[] => [
   { to: `/agent/${agentId}`, label: "Minha Página", icon: <Home size={20} /> },
+  { to: "/upload", label: "Upload de Áudios", icon: <Upload size={20} /> },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setCollapsed: setCollapsedProp }) => {
