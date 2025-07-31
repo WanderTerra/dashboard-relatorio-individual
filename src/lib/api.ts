@@ -212,11 +212,30 @@ export async function getAllAgents() {
 
 // Lista todos os usuários do sistema (admin)
 export async function getAllUsers() {
+  console.log('🔍 Buscando usuários via getAllUsers...');
+  
   const res = await fetch(`/admin/users`, {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
   });
-  if (!res.ok) throw new Error('Erro ao buscar usuários');
-  return res.json();
+  
+  if (!res.ok) {
+    console.error('❌ Erro ao buscar usuários:', res.status, res.statusText);
+    throw new Error('Erro ao buscar usuários');
+  }
+  
+  const data = await res.json();
+  console.log('✅ Usuários recebidos (raw):', data);
+  
+  // Validar e converter dados - campo active: 0 = false, 1 = true
+  const validatedUsers = data.map((user: any) => ({
+    id: user.id || null,
+    username: user.username || '',
+    full_name: user.full_name || '',
+    active: user.active === 1 || user.active === true // Converte 0/1 para boolean
+  }));
+  
+  console.log('🔧 Usuários validados (active convertido):', validatedUsers);
+  return validatedUsers;
 }
 
 // Reseta a senha do usuário para o valor padrão (admin)

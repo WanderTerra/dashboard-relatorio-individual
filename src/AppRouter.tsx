@@ -15,17 +15,28 @@ import Carteiras from './pages/Carteiras';
 import Criterios from './pages/Criterios';
 
 const AppContent: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false); // Mudado para false para aparecer expandido
   const { user } = useAuth();
   const location = useLocation();
 
-  // Se estiver na tela de login ou não houver usuário, não mostrar sidebar
+  // Não mostrar sidebar se estiver na tela de login ou não houver usuário
   const shouldShowSidebar = user && location.pathname !== '/login';
+
+  // Debug logs
+  console.log('🔍 AppRouter Debug:', {
+    user: user ? `Usuário: ${user.full_name} (${user.username})` : 'Sem usuário',
+    pathname: location.pathname,
+    shouldShowSidebar,
+    collapsed,
+    userPermissions: user?.permissions || 'Nenhuma permissão'
+  });
 
   return (
     <div className="flex">
       {shouldShowSidebar && <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />}
-      <main className={`flex-1 ml-0 bg-gray-50 min-h-screen lg:transition-all lg:duration-200 ${shouldShowSidebar ? (collapsed ? 'lg:ml-16' : 'lg:ml-64') : ''}`}>
+      <main className={`flex-1 min-h-screen bg-gray-50 transition-all duration-300 ease-out ${
+        shouldShowSidebar && collapsed ? 'ml-16' : shouldShowSidebar ? 'ml-64' : 'ml-0'
+      }`}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={

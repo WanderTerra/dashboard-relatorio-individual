@@ -33,8 +33,11 @@ export const itemNameMap: Record<string, string> = {
 };
 
 // Função que formata um nome técnico para exibição amigável
-export function formatItemName(technicalName: string): string {
-  if (!technicalName) return "";
+export function formatItemName(technicalName: any): string {
+  // Verificar se technicalName existe e é uma string
+  if (!technicalName || typeof technicalName !== 'string') {
+    return "";
+  }
   
   // Se existir no mapa, retorna o valor mapeado
   if (itemNameMap[technicalName]) {
