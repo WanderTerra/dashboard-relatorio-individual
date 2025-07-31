@@ -1,9 +1,35 @@
+from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from typing import Optional
 from pydantic import BaseModel
 
+from .database import get_db
+from .security import verify_token, verify_admin_access
+from .routers import carteiras, criterios
+
+app = FastAPI(title="Dashboard API", version="1.0.0")
+
+# Configuração CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Incluir routers
+app.include_router(carteiras.router, prefix="/api")
+app.include_router(criterios.router, prefix="/api")
+
+# Modelos Pydantic
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     active: Optional[bool] = None
 
+# Endpoints de usuários
 @app.put("/admin/users/{user_id}")
 def editar_usuario(
     user_id: int,
@@ -83,4 +109,9 @@ def ensure_user_endpoint(
                            {"user_id": user_id, "perm_id": perm_id})
         db.commit()
     
-    return {"user": user} 
+    return {"user": user}
+
+# Health check
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "API funcionando corretamente"} 

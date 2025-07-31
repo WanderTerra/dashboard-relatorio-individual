@@ -279,3 +279,12 @@ export async function updateUserPermissions(userId: number, permissions: string[
   if (!res.ok) throw new Error('Erro ao atualizar permissões');
   return res.json();
 }
+
+// Função para buscar todas as carteiras
+export async function getAllCarteiras() {
+  const res = await fetch('/api/carteiras/', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) throw new Error('Erro ao buscar carteiras');
+  return res.json();
+}
