@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload, Link2 } from "lucide-react";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -25,6 +25,7 @@ const adminLinks: SidebarLink[] = [
     children: [
       { label: "Carteiras", to: "/carteiras", icon: <Folder size={18} /> },
       { label: "Critérios", to: "/criterios", icon: <List size={18} /> },
+      { label: "Carteiras & Critérios", to: "/carteira-criterios", icon: <Link2 size={18} /> },
     ],
   },
 ];
