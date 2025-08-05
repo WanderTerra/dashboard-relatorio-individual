@@ -252,6 +252,15 @@ const AudioUpload: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Caixa de texto para teste de transcrição */}
+        <div className="bg-white rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-sm border border-gray-100 leading-relaxed">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Transcrição (teste local)</label>
+          <textarea
+            className="w-full min-h-[180px] border border-gray-300 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-vertical shadow-sm mb-2"
+            placeholder="Digite ou cole aqui a transcrição para teste..."
+          />
+        </div>
+
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
