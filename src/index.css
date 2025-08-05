@@ -36,3 +36,23 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Forçar texto escuro em inputs */
+input, select, textarea {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Estilo específico para inputs de data */
+input[type="date"] {
+  color: #111827 !important;
+}
+
+/* Estilo específico para selects */
+select {
+  color: #111827 !important;
+}
+
+/* Estilo específico para textareas */
+textarea {
+  color: #111827 !important;
+}
