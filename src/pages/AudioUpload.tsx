@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Combobox } from '../components/ui/select-simple';
 import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
+import axios from 'axios';
 
 interface UploadedFile {
   id: string;
@@ -26,6 +27,10 @@ const AudioUpload: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Estado para transcrição
+  const [transcriptionText, setTranscriptionText] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Buscar carteiras disponíveis
   const { data: carteiras = [] } = useQuery({
@@ -258,7 +263,44 @@ const AudioUpload: React.FC = () => {
           <textarea
             className="w-full min-h-[180px] border border-gray-300 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-vertical shadow-sm mb-2"
             placeholder="Digite ou cole aqui a transcrição para teste..."
+            value={transcriptionText}
+            onChange={e => setTranscriptionText(e.target.value)}
+            disabled={isTranscribing}
           />
+          <Button
+            className="mt-2"
+            onClick={async () => {
+              if (!uploadedFiles.length) {
+                toast.error('Envie um arquivo de áudio primeiro!');
+                return;
+              }
+              setIsTranscribing(true);
+              setTranscriptionText('');
+              try {
+                // Procurar o input file para pegar o File real
+                const input = fileInputRef.current;
+                if (!input || !input.files || !input.files[0]) {
+                  toast.error('Arquivo de áudio não encontrado.');
+                  setIsTranscribing(false);
+                  return;
+                }
+                const file = input.files[0];
+                const formData = new FormData();
+                formData.append('arquivo', file);
+                const res = await axios.post('/transcricao/upload', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                setTranscriptionText(res.data.transcricao.text || 'Sem texto retornado.');
+              } catch (err: any) {
+                toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
+              } finally {
+                setIsTranscribing(false);
+              }
+            }}
+            disabled={isTranscribing || !uploadedFiles.length}
+          >
+            {isTranscribing ? 'Transcrevendo...' : 'Fazer Transcrição'}
+          </Button>
         </div>
 
         {/* Hidden file input */}

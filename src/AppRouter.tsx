@@ -5,7 +5,6 @@ import { Sidebar } from './components/Sidebar';
 import Dashboard   from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
 import CallItems from './pages/CallItems';
-import Transcription from './pages/Transcription'
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -40,11 +39,6 @@ const AppRouter: React.FC = () => {
               <Route path="/call/:avaliacaoId/items" element={
                 <ProtectedRoute>
                   <CallItems />
-                </ProtectedRoute>
-              } />
-              <Route path="/call/:avaliacaoId/transcription" element={
-                <ProtectedRoute>
-                  <Transcription />
                 </ProtectedRoute>
               } />
               <Route path="/agents" element={
