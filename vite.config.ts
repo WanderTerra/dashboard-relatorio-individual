@@ -29,6 +29,11 @@ export default ({ mode }: { mode: string }) => {
           secure: false,
           // NÃO faça rewrite, pois o backend espera /admin mesmo!
         },
+        '/carteiras-avaliacoes': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
     define: { 'process.env': {} },

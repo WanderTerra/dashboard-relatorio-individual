@@ -14,6 +14,7 @@ import UsersAdmin from './pages/UsersAdmin';
 import Carteiras from './pages/Carteiras';
 import Criterios from './pages/Criterios';
 import AudioUpload from './pages/AudioUpload';
+import CarteiraCriterios from './pages/CarteiraCriterios';
 
 const AppRouter: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -69,6 +70,11 @@ const AppRouter: React.FC = () => {
               <Route path="/upload" element={
                 <ProtectedRoute>
                   <AudioUpload />
+                </ProtectedRoute>
+              } />
+              <Route path="/carteira-criterios" element={
+                <ProtectedRoute requiredPermission="admin">
+                  <CarteiraCriterios />
                 </ProtectedRoute>
               } />
             </Routes>

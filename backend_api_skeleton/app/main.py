@@ -111,6 +111,46 @@ def ensure_user_endpoint(
     
     return {"user": user}
 
+@app.get("/carteiras-avaliacoes")
+def get_carteiras_from_avaliacoes(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_token)
+):
+    """
+    Retorna lista de carteiras únicas da tabela avaliacoes.
+    Usado para filtros no Dashboard.
+    """
+    try:
+        logger.info("🔍 Endpoint /carteiras-avaliacoes chamado")
+        
+        # Query para buscar carteiras únicas e não nulas
+        stmt = text("""
+            SELECT DISTINCT carteira as nome
+            FROM avaliacoes 
+            WHERE carteira IS NOT NULL 
+            AND carteira != ''
+            ORDER BY carteira
+        """)
+        
+        result = db.execute(stmt).mappings().all()
+        logger.info(f"📊 Encontradas {len(result)} carteiras únicas")
+        
+        # Converter para o formato esperado pelo frontend
+        carteiras = [
+            {"value": row.nome, "label": row.nome}
+            for row in result
+        ]
+        
+        logger.info(f"✅ Retornando carteiras: {[c['value'] for c in carteiras]}")
+        return carteiras
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao buscar carteiras: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno ao buscar carteiras: {str(e)}"
+        )
+
 # Health check
 @app.get("/health")
 def health_check():

@@ -280,11 +280,22 @@ export async function updateUserPermissions(userId: number, permissions: string[
   return res.json();
 }
 
-// Função para buscar todas as carteiras
+// Função para buscar todas as carteiras (tabela carteiras)
 export async function getAllCarteiras() {
   const res = await fetch('/api/carteiras/', {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
   });
   if (!res.ok) throw new Error('Erro ao buscar carteiras');
+  return res.json();
+}
+
+// Função para buscar carteiras únicas da tabela avaliacoes
+export async function getCarteirasFromAvaliacoes() {
+  const res = await fetch('/carteiras-avaliacoes', {
+    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+  });
+  if (!res.ok) {
+    throw new Error('Erro ao buscar carteiras das avaliações');
+  }
   return res.json();
 }

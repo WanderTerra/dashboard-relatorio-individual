@@ -6,12 +6,19 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getKpis, getTrend, getAgents, getAgentWorstItem, getAllCarteiras } from '../lib/api';
+import { getKpis, getTrend, getAgents, getAgentWorstItem, getCarteirasFromAvaliacoes } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+
+  // Buscar carteiras únicas da tabela avaliacoes
+  const { data: carteiras = [] } = useQuery({
+    queryKey: ['carteiras-avaliacoes'],
+    queryFn: getCarteirasFromAvaliacoes,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
 
   // Construir objeto de filtros para a API (incluindo carteira apenas se tiver valor)
   const apiFilters = { 
@@ -20,18 +27,7 @@ const Dashboard: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
-  // Buscar carteiras disponíveis
-  const { data: carteiras = [] } = useQuery({
-    queryKey: ['carteiras'],
-    queryFn: getAllCarteiras,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-  });
 
-  // Converter carteiras para o formato do Combobox
-  const carteiraOptions = carteiras.map((carteira: any) => ({
-    value: carteira.nome,
-    label: carteira.nome
-  }));
 
   // KPIs e tendência
   const { data: kpis }   = useQuery({ queryKey: ['kpis',   apiFilters], queryFn: () => getKpis(apiFilters) });
@@ -77,7 +73,7 @@ const Dashboard: React.FC = () => {
             <div className="min-w-[180px] flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-1">Carteira</label>
               <Combobox
-                options={carteiraOptions}
+                options={carteiras}
                 value={filters.carteira || ''}
                 onChange={(value) => {
                   setCarteira(value);
