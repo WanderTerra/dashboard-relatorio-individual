@@ -185,7 +185,7 @@ const AgentDetail: React.FC = () => {
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
             <div className="flex flex-col">
@@ -194,7 +194,7 @@ const AgentDetail: React.FC = () => {
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
           </div>
@@ -213,28 +213,34 @@ const AgentDetail: React.FC = () => {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0 h-16 w-16">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            {/* Layout em 3 colunas: Ícone, Nome/ID, Métricas */}
+            <div className="flex items-center space-x-8">
+              {/* Coluna 1: Ícone */}
+              <div className="flex-shrink-0">
+                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
                   <span className="text-2xl font-bold text-white">
                     {formatAgentName(summary).charAt(0)}
                   </span>
                 </div>
               </div>
+              
+              {/* Coluna 2: Nome e ID */}
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900">
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
                   {formatAgentName(summary)}
                 </h3>
-                <p className="text-gray-600">Agente ID: {agentId}</p>
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Total de Ligações</p>
-                    <p className="text-xl font-semibold text-gray-900">{summary?.ligacoes ?? 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Média de Avaliação</p>
-                    <p className="text-xl font-semibold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
-                  </div>
+                <p className="text-gray-600 font-medium">Agente ID: {agentId}</p>
+              </div>
+              
+              {/* Coluna 3: Métricas */}
+              <div className="flex space-x-12">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
+                  <p className="text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
                 </div>
               </div>
             </div>

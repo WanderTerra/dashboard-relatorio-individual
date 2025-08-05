@@ -58,7 +58,7 @@ const Dashboard: React.FC = () => {
                 type="date"
                 value={filters.start}
                 onChange={e => setStartDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
             <div className="flex flex-col">
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
                 type="date"
                 value={filters.end}
                 onChange={e => setEndDate(e.target.value)}
-                className="h-9 border border-gray-200 rounded-xl px-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
             <div className="min-w-[180px] flex flex-col">

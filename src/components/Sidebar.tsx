@@ -38,6 +38,7 @@ const agentLinks = (agentId: string): SidebarLink[] => [
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setCollapsed: setCollapsedProp }) => {
   const [open, setOpen] = useState(false); // mobile
   const [internalCollapsed, setInternalCollapsed] = useState(true); // desktop fallback
+  const [openDropdowns, setOpenDropdowns] = useState<Set<string>>(new Set()); // controla dropdowns abertos
   const collapsed = collapsedProp !== undefined ? collapsedProp : internalCollapsed;
   const setCollapsed = setCollapsedProp !== undefined ? setCollapsedProp : setInternalCollapsed;
   const { user, logout } = useAuth();
@@ -54,6 +55,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
     : agentId
     ? agentLinks(agentId)
     : [];
+
+  // Função para controlar dropdowns
+  const toggleDropdown = (label: string) => {
+    setOpenDropdowns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(label)) {
+        newSet.delete(label);
+      } else {
+        newSet.add(label);
+      }
+      return newSet;
+    });
+  };
 
   // Sidebar width
   const sidebarWidth = collapsed ? "w-16" : "w-64";
@@ -93,10 +107,81 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
           {/* Botão de seta removido */}
         </div>
         <nav className="flex flex-col gap-2 mt-4 px-1">
-          {links.map((link) =>
-            'children' in link && link.children ? (
-              <div key={link.label} className="mb-2 transition-all duration-200">
-                <div className={`flex items-center gap-2 font-semibold px-4 py-2 ${collapsed ? 'justify-center' : ''}`}
+          {links.map((link) => {
+            const linkWithChildren = link as { label: string; icon: JSX.Element; children: SidebarLink[] };
+            const linkWithoutChildren = link as { label: string; to: string; icon: JSX.Element };
+            
+            if ('children' in link && link.children) {
+              return (
+                <div key={linkWithChildren.label} className="mb-2 transition-all duration-200">
+                  <button
+                    onClick={() => toggleDropdown(linkWithChildren.label)}
+                    className={`flex items-center gap-2 font-semibold px-4 py-2 w-full text-left ${collapsed ? 'justify-center' : ''}`}
+                    style={{ color: 'var(--color-beige)' }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+                      e.currentTarget.style.color = 'var(--color-navy-blue)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = '';
+                      e.currentTarget.style.color = 'var(--color-beige)';
+                    }}
+                  >
+                    {link.icon}
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1">{linkWithChildren.label}</span>
+                        <ChevronRight 
+                          size={16} 
+                          className={`transition-transform duration-200 ${
+                            openDropdowns.has(linkWithChildren.label) ? 'rotate-90' : ''
+                          }`}
+                        />
+                      </>
+                    )}
+                  </button>
+                  {/* Renderiza subitens com animação */}
+                  {!collapsed && (
+                    <div 
+                      className={`ml-6 overflow-hidden transition-all duration-200 ${
+                        openDropdowns.has(linkWithChildren.label) ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      {link.children.map((child, idx) => (
+                        <NavLink
+                          key={child.to ?? `child-${idx}`}
+                          to={child.to ?? '#'}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${
+                              isActive ? 'bg-opacity-20' : ''
+                            }`
+                          }
+                          style={{ color: 'var(--color-beige)' }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-gold)';
+                            e.currentTarget.style.color = 'var(--color-navy-blue)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.backgroundColor = '';
+                            e.currentTarget.style.color = 'var(--color-beige)';
+                          }}
+                        >
+                          {child.icon}
+                          <span>{child.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            } else {
+              return (
+                <NavLink
+                  key={linkWithoutChildren.to ?? linkWithoutChildren.label}
+                  to={linkWithoutChildren.to ?? '#'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${collapsed ? 'justify-center' : ''}`
+                  }
                   style={{ color: 'var(--color-beige)' }}
                   onMouseEnter={e => {
                     e.currentTarget.style.backgroundColor = 'var(--color-gold)';
@@ -106,59 +191,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                     e.currentTarget.style.backgroundColor = '';
                     e.currentTarget.style.color = 'var(--color-beige)';
                   }}
-                >
-                  {link.icon}
-                  {!collapsed && <span>{link.label}</span>}
-                </div>
-                {/* Renderiza subitens SOMENTE se o sidebar está expandido */}
-                {!collapsed && (
-                  <div className="ml-6">
-                    {link.children.map((child: SidebarLink, idx: number) => (
-                      <NavLink
-                        key={child.to ?? `child-${idx}`}
-                        to={child.to ?? '#'}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${isActive ? '' : ''}`
-                        }
-                        style={{ color: 'var(--color-beige)' }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-                          e.currentTarget.style.color = 'var(--color-navy-blue)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.backgroundColor = '';
-                          e.currentTarget.style.color = 'var(--color-beige)';
-                        }}
-                      >
-                        {child.icon}
-                        <span>{child.label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <NavLink
-                key={link.to ?? link.label}
-                to={link.to ?? '#'}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${collapsed ? 'justify-center' : ''}`
-                }
-                style={{ color: 'var(--color-beige)' }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-                  e.currentTarget.style.color = 'var(--color-navy-blue)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = '';
-                  e.currentTarget.style.color = 'var(--color-beige)';
-                }}
-              >
-                {link.icon}
-                {!collapsed && <span>{link.label}</span>}
-              </NavLink>
-            )
-          )}
+                                  >
+                    {linkWithoutChildren.icon}
+                    {!collapsed && <span>{linkWithoutChildren.label}</span>}
+                  </NavLink>
+              );
+            }
+          })}
           <button
             onClick={logout}
             className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}

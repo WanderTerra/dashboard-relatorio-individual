@@ -178,7 +178,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
           <textarea
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
-            className="w-full p-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none h-24 transition-all duration-200 shadow-sm"
+            className="w-full p-3 text-sm border border-gray-300 rounded-xl bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none h-24 transition-all duration-200 shadow-sm"
             placeholder="Digite a descrição do item"
           />
         </div>        <div className="flex justify-end space-x-3">
