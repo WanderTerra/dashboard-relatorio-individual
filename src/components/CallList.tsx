@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Calendar, FileText, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatItemName } from '../lib/format';
 import { getFeedbacksByAvaliacao } from '../lib/api';
 import type { UserInfo } from '../lib/api';
@@ -22,9 +23,48 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   const [feedbackStatus, setFeedbackStatus] = React.useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = React.useState(false);
   const [selectedAvaliacao, setSelectedAvaliacao] = React.useState<string | null>(null);
+  
+  // Estados para paginação e filtros
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'todos' | 'aprovada' | 'reprovada'>('todos');
+  const itemsPerPage = 10;
 
   // Permissão: admin ou monitor
   const isMonitor = user && (user.permissions?.includes('admin') || user.permissions?.includes('monitor'));
+
+  // Filtrar e paginar chamadas
+  const filteredCalls = React.useMemo(() => {
+    let filtered = calls;
+    
+    // Filtro por status
+    if (statusFilter !== 'todos') {
+      filtered = filtered.filter(call => 
+        call.status_avaliacao.toLowerCase() === statusFilter
+      );
+    }
+    
+    // Filtro por pesquisa (data ou pontuação)
+    if (searchTerm) {
+      filtered = filtered.filter(call => 
+        new Date(call.data_ligacao).toLocaleDateString().includes(searchTerm) ||
+        call.pontuacao.toString().includes(searchTerm)
+      );
+    }
+    
+    return filtered;
+  }, [calls, statusFilter, searchTerm]);
+
+  // Calcular paginação
+  const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCalls = filteredCalls.slice(startIndex, endIndex);
+
+  // Reset página quando filtros mudam
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   React.useEffect(() => {
     async function fetchFeedbacks() {
@@ -93,71 +133,201 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   }
 
   return (
-  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-auto">
-    <h2 className="text-lg font-semibold mb-2">Lista de Chamadas</h2>
-    <table className="min-w-full text-left">
-      <thead>
-        <tr className="border-b">
-          <th className="px-2 py-1">Data</th>
-          <th className="px-2 py-1">Pontuação</th>
-          <th className="px-2 py-1">Status</th>
-          <th className="px-2 py-1">Itens</th>
-          <th className="px-2 py-1">Transcrição</th>
-          <th className="px-2 py-1">Feedback</th>
-        </tr>
-      </thead>
-      <tbody>
-        {calls.map(c => (
-          <tr key={c.call_id} className="border-b last:border-0">            
-          <td className="px-2 py-1">{new Date(c.data_ligacao).toLocaleDateString()}</td>
-            <td className="px-2 py-1">
-              <span className={
-                c.pontuacao >= 80 ? 'text-green-600 font-medium' :
-                c.pontuacao >= 60 ? 'text-yellow-600 font-medium' :
-                'text-red-600 font-medium'
-              }>
-                {c.pontuacao.toFixed(1)}
-              </span>
-            </td>            
-            <td className="px-2 py-1">              <span className={c.status_avaliacao === 'APROVADA' ? 'text-green-600 font-medium' : 
-                             c.status_avaliacao === 'REPROVADA' ? 'text-red-600 font-medium' : 
-                             'text-gray-600'}>
-                {formatItemName(c.status_avaliacao)}
-              </span>
-            </td>            <td className="px-2 py-1">
-              <Link
-                to={`/call/${c.avaliacao_id}/items`}
-                state={{ 
-                  agentId,
-                  callData: {
-                    pontuacao: c.pontuacao,
-                    status_avaliacao: c.status_avaliacao,
-                    data_ligacao: c.data_ligacao,
-                    call_id: c.call_id,
-                    avaliacao_id: c.avaliacao_id
-                  }
-                }}
-                className="bg-[var(--color-muted-blue)] hover:bg-[var(--color-navy-blue)] text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-[var(--color-muted-blue)] font-bold text-xs"
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
+      {/* Header com filtros */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-gray-500" />
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Lista de Chamadas</h2>
+              <p className="text-sm text-gray-600">
+                {filteredCalls.length} de {calls.length} chamadas
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Pesquisa */}
+            <input
+              type="text"
+              placeholder="Pesquisar por data ou pontuação..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+            
+            {/* Filtro de status */}
+            <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-sm">
+              <button
+                onClick={() => setStatusFilter('todos')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  statusFilter === 'todos'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                &#128203; Itens
-              </Link>
-            </td>
-            <td className="px-2 py-1">
-              <Link
-                to={`/call/${c.avaliacao_id}/transcription`}
-                state={{ agentId }}
-                className="bg-[var(--color-muted-blue)] hover:bg-[var(--color-navy-blue)] text-white px-2 py-1 rounded-full shadow-sm transition-all duration-200 backdrop-blur-sm border border-[var(--color-muted-blue)] font-bold text-xs"
+                Todos
+              </button>
+              <button
+                onClick={() => setStatusFilter('aprovada')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  statusFilter === 'aprovada'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                &#128172; Transcrição
-              </Link>
-            </td>
-            <td className="px-2 py-1">
-              {feedbackStatus[c.avaliacao_id] || '...'}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                Aprovada
+              </button>
+              <button
+                onClick={() => setStatusFilter('reprovada')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  statusFilter === 'reprovada'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Reprovada
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Data
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Pontuação
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Ações
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Feedback
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {paginatedCalls.map(c => (
+              <tr key={c.call_id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {new Date(c.data_ligacao).toLocaleDateString('pt-BR')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium shadow-sm ${
+                    c.pontuacao >= 80 
+                      ? 'bg-green-100 text-green-800' 
+                      : c.pontuacao >= 60 
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {c.pontuacao.toFixed(1)}%
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium shadow-sm ${
+                    c.status_avaliacao === 'APROVADA' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {formatItemName(c.status_avaliacao)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Link
+                      to={`/call/${c.avaliacao_id}/items`}
+                      state={{ 
+                        agentId,
+                        callData: {
+                          pontuacao: c.pontuacao,
+                          status_avaliacao: c.status_avaliacao,
+                          data_ligacao: c.data_ligacao,
+                          call_id: c.call_id,
+                          avaliacao_id: c.avaliacao_id
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-sm"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Itens
+                    </Link>
+                    <Link
+                      to={`/call/${c.avaliacao_id}/transcription`}
+                      state={{ agentId }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-all duration-200 shadow-sm"
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Transcrição
+                    </Link>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {feedbackStatus[c.avaliacao_id] || '...'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Controles de paginação */}
+      {totalPages > 1 && (
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{startIndex + 1}</span> até{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredCalls.length)}</span> de{' '}
+              <span className="font-medium">{filteredCalls.length}</span> chamadas
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </button>
+              
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    
     {/* Modal de feedback */}
     {modalOpen && (
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
@@ -192,7 +362,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
         </div>
       </div>
     )}
-  </div>
+    </div>
   );
 }
 

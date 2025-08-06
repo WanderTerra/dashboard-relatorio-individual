@@ -40,7 +40,6 @@ const today = new Date().toISOString().slice(0, 10);
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { user } = useAuth();
-  const agentName = user?.full_name || user?.username || "Agente";
   if (!agentId) return <div>Agente não especificado.</div>;
 
   const { filters } = useFilters();
@@ -171,7 +170,7 @@ const AgentDetail: React.FC = () => {
   return (
     <div>
       <PageHeader 
-        title={agentName}
+        title="Detalhes do Agente"
         subtitle={`Análise detalhada do Agente ${agentId}`}
         breadcrumbs={isAgent ? [] : [
           { label: 'Dashboard', href: '/' },
