@@ -202,19 +202,19 @@ const AgentDetail: React.FC = () => {
         logoHref={isAgent ? `/agent/${agentId}` : "/"}
       />
 
-      <div className="p-6 space-y-8">
+              <div className="p-6 space-y-8 !text-gray-900">
         {/* Resumo do agente */}
         {summaryLoading ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="animate-pulse">
+            <div className="animate-pulse !text-gray-900">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
               <div className="h-8 bg-gray-200 rounded w-1/2"></div>
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
             {/* Layout em 3 colunas: Ícone, Nome/ID, Métricas */}
-            <div className="flex items-center space-x-8">
+                          <div className="flex items-center space-x-8 !text-gray-900">
               {/* Coluna 1: Ícone */}
               <div className="flex-shrink-0">
                 <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
@@ -233,25 +233,25 @@ const AgentDetail: React.FC = () => {
               </div>
               
               {/* Coluna 3: Métricas */}
-              <div className="flex space-x-12">
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
-                  <p className="text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
-                </div>
+              <div className="flex space-x-12 !text-gray-900">
+                                  <div className="text-center !text-gray-900">
+                    <p className="text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
+                    <p className="text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+                  </div>
+                  <div className="text-center !text-gray-900">
+                    <p className="text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
+                    <p className="text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
+                  </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Pior item */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Pior Item Avaliado</h2>
           {wiLoading ? (
-            <div className="animate-pulse">
+            <div className="animate-pulse !text-gray-900">
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
             </div>
           ) : worstItem ? (
@@ -278,7 +278,7 @@ const AgentDetail: React.FC = () => {
             </div>
           )}
         </div>        {/* Gráfico de Radar - Critérios do Agente */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
               <svg className="inline-block w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,7 +310,7 @@ const AgentDetail: React.FC = () => {
           )}
           
           {criteriaLoading ? (
-            <div className="animate-pulse space-y-4">
+            <div className="animate-pulse space-y-4 !text-gray-900">
               <div className="h-64 bg-gray-200 rounded"></div>
               <div className="grid grid-cols-2 gap-4">
                 {[...Array(6)].map((_, i) => (
@@ -388,7 +388,7 @@ const AgentDetail: React.FC = () => {
         </div>
 
         {/* Lista de ligações */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 !text-gray-900">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -397,8 +397,8 @@ const AgentDetail: React.FC = () => {
           </div>
           
           {callsLoading ? (
-            <div className="p-6">
-              <div className="animate-pulse space-y-4">
+            <div className="p-6 !text-gray-900">
+              <div className="animate-pulse space-y-4 !text-gray-900">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-16 bg-gray-200 rounded"></div>
                 ))}
