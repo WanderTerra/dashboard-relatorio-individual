@@ -170,9 +170,9 @@ const CarteiraCriterios: React.FC = () => {
                 <p className="text-sm font-medium text-gray-600">Total de Carteiras</p>
                 <p className="text-2xl font-bold text-gray-900">{carteiras.length}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Folder className="h-6 w-6 text-blue-600" />
-              </div>
+                          <div className="p-3 bg-blue-100 rounded-xl">
+              <Folder className="h-6 w-6 text-blue-600" />
+            </div>
             </div>
           </div>
           
@@ -182,9 +182,9 @@ const CarteiraCriterios: React.FC = () => {
                 <p className="text-sm font-medium text-gray-600">Total de Critérios</p>
                 <p className="text-2xl font-bold text-gray-900">{criterios.length}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Target className="h-6 w-6 text-green-600" />
-              </div>
+                          <div className="p-3 bg-green-100 rounded-xl">
+              <Target className="h-6 w-6 text-green-600" />
+            </div>
             </div>
           </div>
           
@@ -194,9 +194,9 @@ const CarteiraCriterios: React.FC = () => {
                 <p className="text-sm font-medium text-gray-600">Associações Ativas</p>
                 <p className="text-2xl font-bold text-gray-900">{associacoes.length}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Link2 className="h-6 w-6 text-blue-600" />
-              </div>
+                          <div className="p-3 bg-blue-100 rounded-xl">
+              <Link2 className="h-6 w-6 text-blue-600" />
+            </div>
             </div>
           </div>
         </div>
@@ -205,7 +205,7 @@ const CarteiraCriterios: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-blue-100 rounded-xl">
                 <Folder className="h-5 w-5 text-blue-600" />
               </div>
               <div>
@@ -282,10 +282,10 @@ const CarteiraCriterios: React.FC = () => {
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
               <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Folder className="h-5 w-5 text-blue-600" />
-                  </div>
+                              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <Folder className="h-5 w-5 text-blue-600" />
+                </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">{editCarteira ? "Editar Carteira" : "Nova Carteira"}</h2>
                     <p className="text-sm text-gray-600">Configure os dados da carteira</p>
@@ -350,7 +350,7 @@ const CarteiraCriterios: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
+              <div className="p-2 bg-green-100 rounded-xl">
                 <Target className="h-5 w-5 text-green-600" />
               </div>
               <div>
@@ -435,10 +435,10 @@ const CarteiraCriterios: React.FC = () => {
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
               <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Target className="h-5 w-5 text-green-600" />
-                  </div>
+                              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-xl">
+                  <Target className="h-5 w-5 text-green-600" />
+                </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">{editCriterio ? "Editar Critério" : "Novo Critério"}</h2>
                     <p className="text-sm text-gray-600">Configure os dados do critério</p>
@@ -536,7 +536,7 @@ const CarteiraCriterios: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-blue-100 rounded-xl">
                 <Link2 className="h-5 w-5 text-blue-600" />
               </div>
               <div>
