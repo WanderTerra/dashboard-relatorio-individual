@@ -27,6 +27,10 @@ const AudioUpload: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado para transcrição
+  const [transcriptionText, setTranscriptionText] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
   // Buscar carteiras disponíveis
   const { data: carteiras = [] } = useQuery({
     queryKey: ['carteiras'],
