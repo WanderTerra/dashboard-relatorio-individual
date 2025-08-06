@@ -262,7 +262,6 @@ const AudioUpload: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">Transcrição (teste local)</label>
           <textarea
             className="w-full min-h-[180px] border border-gray-300 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-vertical shadow-sm mb-2"
-            placeholder="Digite ou cole aqui a transcrição para teste..."
             value={transcriptionText}
             onChange={e => setTranscriptionText(e.target.value)}
             disabled={isTranscribing}
@@ -277,18 +276,29 @@ const AudioUpload: React.FC = () => {
               setIsTranscribing(true);
               setTranscriptionText('');
               try {
-                // Procurar o input file para pegar o File real
                 const input = fileInputRef.current;
-                if (!input || !input.files || !input.files[0]) {
-                  toast.error('Arquivo de áudio não encontrado.');
+                if (!input || !input.files || input.files.length === 0) {
+                  toast.error('Arquivo de áudio não encontrado no input.');
                   setIsTranscribing(false);
                   return;
                 }
-                const file = input.files[0];
+                // Buscar o arquivo pelo nome do primeiro da lista exibida
+                const fileName = uploadedFiles[0].name;
+                const file = Array.from(input.files).find(f => f.name === fileName) || input.files[0];
+                if (!file) {
+                  toast.error('Arquivo de áudio não encontrado no input.');
+                  setIsTranscribing(false);
+                  return;
+                }
+                console.log('Enviando arquivo para transcrição:', file);
                 const formData = new FormData();
                 formData.append('arquivo', file);
-                const res = await axios.post('/transcricao/upload', formData, {
-                  headers: { 'Content-Type': 'multipart/form-data' },
+                const token = localStorage.getItem('auth_token');
+                const res = await axios.post('/api/transcricao/upload', formData, {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
                 });
                 setTranscriptionText(res.data.transcricao.text || 'Sem texto retornado.');
               } catch (err: any) {
