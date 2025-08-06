@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllUsers, resetUserPassword, updateUser, createUser, getUserPermissions, updateUserPermissions } from '../lib/api';
-import { Users, UserPlus, Edit, Key, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Edit, Key, Shield, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import {
   Modal,
@@ -52,7 +52,7 @@ function CreateUserModalContent({
     <ModalBody>
       <ModalContent>
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-blue-100 rounded-lg">
+          <div className="p-2 bg-blue-100 rounded-xl">
             <UserPlus className="h-6 w-6 text-blue-600" />
           </div>
           <div>
@@ -158,6 +158,64 @@ export default function UsersAdmin() {
   const [editIsAdmin, setEditIsAdmin] = React.useState(false);
   const [loadingPerms, setLoadingPerms] = React.useState(false);
   const [userPermissions, setUserPermissions] = React.useState<Record<number, string[]>>({});
+  
+  // Estados para pesquisa e paginação
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [roleFilter, setRoleFilter] = React.useState<'todos' | 'admin' | 'agente'>('todos');
+  const [statusFilter, setStatusFilter] = React.useState<'todos' | 'ativo' | 'inativo'>('todos');
+  const itemsPerPage = 10;
+
+  // Filtrar usuários baseado na pesquisa, papel e status
+  const filteredUsers = React.useMemo(() => {
+    let filtered = data;
+    
+    // Filtro por texto
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Filtro por papel
+    if (roleFilter !== 'todos') {
+      filtered = filtered.filter(user => {
+        const permissions = userPermissions[user.id] || [];
+        if (roleFilter === 'admin') {
+          return permissions.includes('admin');
+        } else if (roleFilter === 'agente') {
+          return permissions.some(p => p.startsWith('agent_'));
+        }
+        return true;
+      });
+    }
+    
+    // Filtro por status
+    if (statusFilter !== 'todos') {
+      filtered = filtered.filter(user => {
+        if (statusFilter === 'ativo') {
+          return user.active;
+        } else if (statusFilter === 'inativo') {
+          return !user.active;
+        }
+        return true;
+      });
+    }
+    
+    return filtered;
+  }, [data, searchTerm, roleFilter, statusFilter, userPermissions]);
+
+  // Calcular paginação
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset página quando filtro muda
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, statusFilter]);
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: number) => resetUserPassword(userId),
@@ -264,7 +322,7 @@ export default function UsersAdmin() {
     }
   }, [data]);
 
-  // Estatísticas
+  // Estatísticas (baseadas nos dados originais, não filtrados)
   const totalUsers = data.length;
   const activeUsers = data.filter(user => user.active).length;
   const adminUsers = data.filter(user => (userPermissions[user.id] || []).includes('admin')).length;
@@ -297,48 +355,138 @@ export default function UsersAdmin() {
       <div className="p-6 space-y-6">
         {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total de Usuários</p>
                 <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="p-3 bg-blue-100 rounded-xl">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Usuários Ativos</p>
                 <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
+              <div className="p-3 bg-green-100 rounded-xl">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Administradores</p>
-                <p className="text-2xl font-bold text-purple-600">{adminUsers}</p>
+                <p className="text-2xl font-bold text-blue-600">{adminUsers}</p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Shield className="h-6 w-6 text-purple-600" />
+                              <div className="p-3 bg-blue-100 rounded-xl">
+                  <Shield className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabela de usuários */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Lista de Usuários</h3>
-            <p className="text-sm text-gray-600 mt-1">Gerencie informações e permissões dos usuários</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Lista de Usuários</h3>
+                <p className="text-sm text-gray-600 mt-1">Gerencie informações e permissões dos usuários</p>
+              </div>
+                              <div className="flex items-center gap-3">
+                  <div className="relative w-80">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Pesquisar usuários..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+                    />
+                  </div>
+                  
+                  {/* Filtro por papel */}
+                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                    <button
+                      onClick={() => setRoleFilter('todos')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                        roleFilter === 'todos'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      onClick={() => setRoleFilter('admin')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        roleFilter === 'admin'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Shield className="h-3 w-3" />
+                      Admin
+                    </button>
+                    <button
+                      onClick={() => setRoleFilter('agente')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        roleFilter === 'agente'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Users className="h-3 w-3" />
+                      Agentes
+                    </button>
+                  </div>
+                  
+                  {/* Filtro por status */}
+                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                    <button
+                      onClick={() => setStatusFilter('todos')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                        statusFilter === 'todos'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('ativo')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        statusFilter === 'ativo'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <CheckCircle className="h-3 w-3" />
+                      Ativo
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('inativo')}
+                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        statusFilter === 'inativo'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Inativo
+                    </button>
+                  </div>
+                </div>
+            </div>
           </div>
           
           {isLoading && (
@@ -375,7 +523,7 @@ export default function UsersAdmin() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {data.map((user) => (
+                  {paginatedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -414,13 +562,13 @@ export default function UsersAdmin() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-wrap gap-1">
                           {(userPermissions[user.id] || []).includes('admin') && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-xl text-xs font-medium bg-blue-100 text-blue-800">
                               <Shield className="h-3 w-3 mr-1" />
                               Admin
                             </span>
                           )}
-                          {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
-                            <span key={perm} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                                      {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
+                              <span key={perm} className="inline-flex items-center px-2 py-1 rounded-xl text-xs font-medium bg-green-100 text-green-800">
                               <Users className="h-3 w-3 mr-1" />
                               Agente
                             </span>
@@ -455,6 +603,52 @@ export default function UsersAdmin() {
               </table>
             </div>
           )}
+          
+          {/* Controles de paginação */}
+          {!isLoading && !error && totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{startIndex + 1}</span> até{' '}
+                  <span className="font-medium">{Math.min(endIndex, filteredUsers.length)}</span> de{' '}
+                  <span className="font-medium">{filteredUsers.length}</span> usuários
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Anterior
+                  </button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -464,7 +658,7 @@ export default function UsersAdmin() {
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
+                <div className="p-2 bg-blue-100 rounded-xl">
                   <Edit className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>

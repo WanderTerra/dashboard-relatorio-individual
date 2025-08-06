@@ -45,6 +45,28 @@ export default function Transcription() {
   const { user } = useAuth();
   const isAdmin = user?.permissions?.includes('admin');
 
+  // Função para processar a transcrição e separar mensagens
+  const processTranscription = (content: string) => {
+    const lines = content.split('\n').filter(line => line.trim());
+    const messages: Array<{ speaker: 'Agente' | 'Cliente'; text: string }> = [];
+    
+    lines.forEach(line => {
+      if (line.startsWith('Agente:')) {
+        messages.push({
+          speaker: 'Agente',
+          text: line.replace('Agente:', '').trim()
+        });
+      } else if (line.startsWith('Cliente:')) {
+        messages.push({
+          speaker: 'Cliente',
+          text: line.replace('Cliente:', '').trim()
+        });
+      }
+    });
+    
+    return messages;
+  };
+
   const handleDownloadClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     
@@ -193,8 +215,34 @@ export default function Transcription() {
               </div>
             )}
             
-            <div className="bg-white rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-sm border border-gray-100 leading-relaxed">
-              {data.conteudo || 'Sem transcrição disponível.'}
+            <div className="bg-gray-100 rounded-xl p-4 space-y-3 min-h-[400px]">
+              {data.conteudo ? (
+                processTranscription(data.conteudo).map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.speaker === 'Agente' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] px-4 py-2 rounded-2xl shadow-sm ${
+                        message.speaker === 'Agente'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-gray-800 border border-gray-200'
+                      }`}
+                    >
+                      <div className="text-xs font-medium mb-1 opacity-70">
+                        {message.speaker}
+                      </div>
+                      <div className="text-sm leading-relaxed">
+                        {message.text}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <p>Sem transcrição disponível.</p>
+                </div>
+              )}
             </div>
           </>
         ) : (
