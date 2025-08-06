@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .database import get_db
 from .security import verify_token, verify_admin_access
-from .routers import carteiras, criterios
+from .routers import carteiras, criterios, transcricao_scribe
 
 app = FastAPI(title="Dashboard API", version="1.0.0")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 # Incluir routers
 app.include_router(carteiras.router, prefix="/api")
 app.include_router(criterios.router, prefix="/api")
+app.include_router(transcricao_scribe.router, prefix="/api")
 
 # Modelos Pydantic
 class UserUpdateRequest(BaseModel):
