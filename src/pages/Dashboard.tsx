@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { Calendar, Filter } from 'lucide-react';
 
 import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
@@ -12,6 +13,10 @@ import { useFilters } from '../hooks/use-filters';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+  
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   // Buscar carteiras únicas da tabela avaliacoes
   const { data: carteiras = [] } = useQuery({
@@ -44,43 +49,65 @@ const Dashboard: React.FC = () => {
     })) ?? [],
   });
 
+  // Calcular paginação para agentes
+  const totalPages = Math.ceil((agents?.length || 0) / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAgents = agents?.slice(startIndex, endIndex) || [];
+
+  // Reset página quando filtros mudam
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.start, filters.end, filters.carteira]);
+
   return (
     <div>
       <PageHeader 
         title="Dashboard de Avaliação" 
         subtitle="Análise de performance e qualidade de ligações"
         actions={
-          <div className="flex flex-wrap gap-4 items-end">
-            {/* Filtros */}
-            <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-              <input
-                type="date"
-                value={filters.start}
-                onChange={e => setStartDate(e.target.value)}
-                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Filtros</span>
             </div>
-            <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-              <input
-                type="date"
-                value={filters.end}
-                onChange={e => setEndDate(e.target.value)}
-                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-            <div className="min-w-[180px] flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Carteira</label>
-              <Combobox
-                options={carteiras}
-                value={filters.carteira || ''}
-                onChange={(value) => {
-                  setCarteira(value);
-                }}
-                placeholder="Selecionar carteira"
-                emptyMessage="Nenhuma carteira encontrada"
-              />
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-col">
+                <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="h-3 w-3" />
+                  Data Início
+                </label>
+                <input
+                  type="date"
+                  value={filters.start}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="h-3 w-3" />
+                  Data Fim
+                </label>
+                <input
+                  type="date"
+                  value={filters.end}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
+              </div>
+              <div className="min-w-[180px] flex flex-col">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Carteira</label>
+                <Combobox
+                  options={carteiras}
+                  value={filters.carteira || ''}
+                  onChange={(value) => {
+                    setCarteira(value);
+                  }}
+                  placeholder="Selecionar carteira"
+                  emptyMessage="Nenhuma carteira encontrada"
+                />
+              </div>
             </div>
           </div>
         }
@@ -95,13 +122,13 @@ const Dashboard: React.FC = () => {
         />
 
         {/* Gráfico de linha */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
           <TrendLineChart data={trend ?? []} />
         </div>
 
         {/* Tabela de Agentes */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Performance por Agente</h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -125,14 +152,15 @@ const Dashboard: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pior Item
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
+                                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {agents?.map((agent: any, idx: number) => {
-                  const wi = worstItemQueries[idx];
+                {paginatedAgents?.map((agent: any, idx: number) => {
+                  const originalIndex = startIndex + idx;
+                  const wi = worstItemQueries[originalIndex];
                   let piorLabel = '—';
                   if (wi.isLoading) piorLabel = '…';
                   else if (wi.isError) piorLabel = 'Erro';
@@ -145,28 +173,35 @@ const Dashboard: React.FC = () => {
                     <tr key={agent.agent_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8">
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-blue-600">
-                                {formatAgentName(agent).charAt(0)}
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                              <span className="text-sm font-bold text-white">
+                                {formatAgentName(agent).charAt(0).toUpperCase()}
                               </span>
                             </div>
                           </div>
-                          <div className="ml-3">
+                          <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
                               {formatAgentName(agent)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              ID: {agent.agent_id}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {agent.ligacoes}
+                        <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium bg-blue-100 text-blue-800 shadow-sm">
+                          {agent.ligacoes} ligações
                         </span>
                       </td>                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
-                          <span className={`text-sm font-medium ${
-                            agent.media >= 70 ? 'text-green-600' : 'text-red-600'
+                          <span className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium shadow-sm ${
+                            agent.media >= 80 
+                              ? 'bg-green-100 text-green-800' 
+                              : agent.media >= 60 
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
                           }`}>
                             {agent.media.toFixed(1)}%
                           </span>
@@ -175,12 +210,12 @@ const Dashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {piorLabel}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <Link
                           to={`/agent/${agent.agent_id}`}
-                          className="inline-flex items-center px-3 py-2 border border-blue-300/50 text-sm leading-4 font-light rounded-full text-white bg-blue-600/70 hover:bg-blue-700/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all shadow-sm backdrop-blur-sm"
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm"
                         >
-                          Detalhar
+                          Ver Detalhes
                         </Link>
                       </td>
                     </tr>
@@ -189,6 +224,52 @@ const Dashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Controles de paginação */}
+          {agents && agents.length > 0 && totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{startIndex + 1}</span> até{' '}
+                  <span className="font-medium">{Math.min(endIndex, agents.length)}</span> de{' '}
+                  <span className="font-medium">{agents.length}</span> agentes
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Anterior
+                  </button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
