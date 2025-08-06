@@ -11,6 +11,7 @@ import { Combobox } from '../components/ui/select-simple';
 import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
 import axios from 'axios';
+import ScribeDiarizedTranscription from '../components/ScribeDiarizedTranscription';
 
 interface UploadedFile {
   id: string;
@@ -21,6 +22,8 @@ interface UploadedFile {
   error?: string;
 }
 
+
+
 const AudioUpload: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -28,8 +31,8 @@ const AudioUpload: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado para transcrição
-  const [transcriptionText, setTranscriptionText] = useState('');
+  // Estado para transcrição com Scribe
+  const [transcription, setTranscription] = useState<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Buscar carteiras disponíveis
@@ -257,69 +260,94 @@ const AudioUpload: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Caixa de texto para teste de transcrição */}
-        <div className="bg-white rounded-xl p-5 text-gray-800 whitespace-pre-wrap shadow-sm border border-gray-100 leading-relaxed">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Transcrição (teste local)</label>
-          <textarea
-            className="w-full min-h-[180px] border border-gray-300 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-vertical shadow-sm mb-2"
-            value={transcriptionText}
-            onChange={e => setTranscriptionText(e.target.value)}
-            disabled={isTranscribing}
-          />
+        {/* Transcrição com Diarização */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">
+              Transcrição com Diarização
+            </h3>
+            <div className="text-sm text-gray-500">
+              ElevenLabs Scribe • 96.7% precisão
+            </div>
+          </div>
+          
           <Button
-            className="mt-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             onClick={async () => {
-              console.log('🔴 Botão clicado!');
               if (!uploadedFiles.length) {
                 toast.error('Envie um arquivo de áudio primeiro!');
                 return;
               }
-              console.log('🔴 Iniciando transcrição...');
+              
               setIsTranscribing(true);
-              setTranscriptionText('');
+              setTranscription(null);
+              
               try {
                 const input = fileInputRef.current;
                 if (!input || !input.files || input.files.length === 0) {
                   toast.error('Arquivo de áudio não encontrado no input.');
-                  setIsTranscribing(false);
                   return;
                 }
-                // Buscar o arquivo pelo nome do primeiro da lista exibida
+                
                 const fileName = uploadedFiles[0].name;
                 const file = Array.from(input.files).find(f => f.name === fileName) || input.files[0];
                 if (!file) {
                   toast.error('Arquivo de áudio não encontrado no input.');
-                  setIsTranscribing(false);
                   return;
                 }
-                console.log('🔴 Enviando arquivo para transcrição:', file);
+                
+                console.log('🎙️ Iniciando transcrição com diarização via backend...');
+                
                 const formData = new FormData();
                 formData.append('arquivo', file);
+                
                 const token = localStorage.getItem('auth_token');
-                console.log('🔴 Token:', token ? 'Presente' : 'Ausente');
-                console.log('🔴 Fazendo requisição para:', '/api/transcricao/upload');
                 const res = await axios.post('/api/transcricao/upload', formData, {
                   headers: {
                     'Content-Type': 'multipart/form-data',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                   },
                 });
-                console.log('🔴 Resposta recebida:', res.data);
-                setTranscriptionText(res.data.transcricao.text || 'Sem texto retornado.');
+                
+                console.log('✅ Transcrição com classificação recebida:', res.data);
+                setTranscription(res.data.transcricao);
+                toast.success('Diarização e classificação concluídas!');
+                
               } catch (err: any) {
-                console.log('🔴 Erro na requisição:', err);
-                console.log('🔴 Status:', err?.response?.status);
-                console.log('🔴 Dados do erro:', err?.response?.data);
+                console.error('❌ Erro na transcrição:', err);
                 toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
               } finally {
                 setIsTranscribing(false);
               }
             }}
             disabled={isTranscribing || !uploadedFiles.length}
+            size="lg"
           >
-            {isTranscribing ? 'Transcrevendo...' : 'Fazer Transcrição'}
+            {isTranscribing ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Processando com IA...
+              </>
+            ) : (
+              <>
+                <FileAudio className="mr-2 h-5 w-5" />
+                Transcrever com Diarização
+              </>
+            )}
           </Button>
+          
+          {transcription && (
+            <div className="mt-6">
+              <ScribeDiarizedTranscription
+                transcription={transcription}
+                isLoading={isTranscribing}
+                showTimestamps={true}
+                showSpeakerStats={true}
+              />
+            </div>
+          )}
         </div>
+
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
