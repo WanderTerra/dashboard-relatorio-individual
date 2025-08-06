@@ -325,10 +325,10 @@ export default function UsersAdmin() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Administradores</p>
-                <p className="text-2xl font-bold text-purple-600">{adminUsers}</p>
+                <p className="text-2xl font-bold text-blue-600">{adminUsers}</p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Shield className="h-6 w-6 text-purple-600" />
+                              <div className="p-3 bg-blue-100 rounded-lg">
+                  <Shield className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -414,13 +414,13 @@ export default function UsersAdmin() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-wrap gap-1">
                           {(userPermissions[user.id] || []).includes('admin') && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                               <Shield className="h-3 w-3 mr-1" />
                               Admin
                             </span>
                           )}
-                          {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
-                            <span key={perm} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                                      {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
+                              <span key={perm} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
                               <Users className="h-3 w-3 mr-1" />
                               Agente
                             </span>
