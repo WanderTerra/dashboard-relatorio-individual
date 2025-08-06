@@ -1,6 +1,8 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllUsers, resetUserPassword, updateUser, createUser, getUserPermissions, updateUserPermissions } from '../lib/api';
+import { Users, UserPlus, Edit, Key, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import {
   Modal,
   ModalBody,
@@ -49,60 +51,87 @@ function CreateUserModalContent({
   return (
     <ModalBody>
       <ModalContent>
-        <h2 className="text-xl font-bold mb-4">Novo Usuário</h2>
-        <div className="mb-4">
-          <label className="block mb-1">Nome de usuário</label>
-          <input
-            className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            value={newUsername}
-            onChange={e => setNewUsername(e.target.value)}
-            disabled={creating}
-          />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <UserPlus className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Novo Usuário</h2>
+            <p className="text-sm text-gray-600">Crie um novo usuário no sistema</p>
+          </div>
         </div>
-        <div className="mb-4">
-          <label className="block mb-1">Nome completo</label>
-          <input
-            className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            value={newFullName}
-            onChange={e => setNewFullName(e.target.value)}
-            disabled={creating}
-          />
-        </div>
-        <div className="mb-4 flex items-center">
-          <input
-            type="checkbox"
-            checked={isAdmin}
-            onChange={e => setIsAdmin(e.target.checked)}
-            id="is-admin-checkbox"
-            disabled={creating}
-          />
-          <label htmlFor="is-admin-checkbox" className="ml-2">Admin</label>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Nome de usuário</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              placeholder="Digite o nome de usuário"
+              value={newUsername}
+              onChange={e => setNewUsername(e.target.value)}
+              disabled={creating}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Nome completo</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              placeholder="Digite o nome completo"
+              value={newFullName}
+              onChange={e => setNewFullName(e.target.value)}
+              disabled={creating}
+            />
+          </div>
+          
+          <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <input
+              type="checkbox"
+              checked={isAdmin}
+              onChange={e => setIsAdmin(e.target.checked)}
+              id="is-admin-checkbox"
+              disabled={creating}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="is-admin-checkbox" className="ml-3 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Conceder privilégios de administrador</span>
+            </label>
+          </div>
         </div>
       </ModalContent>
-      <ModalFooter className="gap-4">
+      <ModalFooter className="gap-3">
         <button
-          className="px-3 py-1 bg-gray-300/80 text-gray-700 border border-gray-400/30 rounded-full text-sm font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200"
           onClick={handleCancel}
           disabled={creating}
         >
           Cancelar
         </button>
         <button
-          className="bg-green-600/80 text-white text-sm px-3 py-1 rounded-full border border-green-500/30 font-light backdrop-blur-sm hover:bg-green-600/90 transition-all duration-200"
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={async () => {
             await handleCreateUser();
             setOpen(false);
           }}
           disabled={creating || !newUsername.trim() || !newFullName.trim()}
         >
-          {creating ? 'Criando...' : 'Criar'}
+          {creating ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Criando...
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Criar Usuário
+            </div>
+          )}
         </button>
       </ModalFooter>
     </ModalBody>
   );
 }
-
-
 
 export default function UsersAdmin() {
   const queryClient = useQueryClient();
@@ -152,7 +181,6 @@ export default function UsersAdmin() {
       const perms = await getUserPermissions(user.id);
       setUserPermissions(perms);
       setEditIsAdmin(perms.includes('admin'));
-      // Abrir o modal após carregar as permissões
       setEditModalOpen(true);
     } catch {
       setUserPermissions([]);
@@ -169,7 +197,6 @@ export default function UsersAdmin() {
     setSaving(true);
     try {
       await updateUser(editingUser.id, { full_name: editName, active: editActive, username: editUsername });
-      // Atualizar permissões - manter as existentes e adicionar/remover admin
       const perms = userPermissions.filter(p => p !== 'admin');
       if (editIsAdmin) perms.push('admin');
       await updateUserPermissions(editingUser.id, perms);
@@ -192,7 +219,7 @@ export default function UsersAdmin() {
       if (agentId.trim()) permissions.push(`agent_${agentId.trim()}`);
       
       const result = await createUser(newUsername, newFullName, permissions.length > 0 ? permissions : undefined);
-      setCreatedPassword('Temp@2025'); // senha padrão, ou result.temporary_password se backend retornar
+      setCreatedPassword('Temp@2025');
       setNewUsername('');
       setNewFullName('');
       setIsAdmin(false);
@@ -206,15 +233,20 @@ export default function UsersAdmin() {
     }
   };
 
+  // Estatísticas
+  const totalUsers = data.length;
+  const activeUsers = data.filter(user => user.active).length;
+  const adminUsers = data.filter(user => userPermissions.includes('admin')).length;
+
   return (
-    <div className="users-admin-page" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
-      <div className="flex items-end justify-between mb-4 gap-4 pt-2 max-w-screen-lg mx-auto">
-        <h1 className="text-2xl font-bold whitespace-nowrap" style={{ color: 'var(--color-navy-blue)' }}>
-          Administração de Usuários
-        </h1>
-        <div className="flex-shrink-0 max-w-[180px] w-full sm:w-auto pr-8">
+    <div className="min-h-screen bg-gray-50">
+      <PageHeader 
+        title="Administração de Usuários"
+        subtitle="Gerencie usuários do sistema, permissões e configurações de acesso"
+        actions={
           <Modal>
-            <ModalTrigger className="w-full px-4 py-1.5 rounded-full font-bold shadow-sm transition-all duration-200 bg-[var(--color-muted-blue)] text-white border-none hover:bg-[var(--color-navy-blue)]">
+            <ModalTrigger className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 font-medium">
+              <UserPlus className="h-4 w-4" />
               Novo Usuário
             </ModalTrigger>
             <CreateUserModalContent 
@@ -228,144 +260,262 @@ export default function UsersAdmin() {
               handleCreateUser={handleCreateUser}
             />
           </Modal>
+        }
+      />
+
+      <div className="p-6 space-y-6">
+        {/* Cards de estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total de Usuários</p>
+                <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Usuários Ativos</p>
+                <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Administradores</p>
+                <p className="text-2xl font-bold text-purple-600">{adminUsers}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Shield className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabela de usuários */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Lista de Usuários</h3>
+            <p className="text-sm text-gray-600 mt-1">Gerencie informações e permissões dos usuários</p>
+          </div>
+          
+          {isLoading && (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Carregando usuários...</p>
+            </div>
+          )}
+          
+          {error && (
+            <div className="p-8 text-center">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+              <p className="text-red-600 mt-2">Erro ao carregar usuários</p>
+            </div>
+          )}
+          
+          {!isLoading && !error && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Usuário
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Permissões
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                              <span className="text-sm font-bold text-white">
+                                {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                            <div className="text-sm text-gray-500">@{user.username}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.active 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.active ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Ativo
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Inativo
+                            </>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-wrap gap-1">
+                          {userPermissions.includes('admin') && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Admin
+                            </span>
+                          )}
+                          {userPermissions.filter(p => p.startsWith('agent_')).map(perm => (
+                            <span key={perm} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                              <Users className="h-3 w-3 mr-1" />
+                              Agente
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                                                     <button
+                             onClick={() => openEditModal(user)}
+                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
+                           >
+                             <Edit className="h-3 w-3 mr-1" />
+                             Editar
+                           </button>
+                                                     <button
+                             onClick={() => {
+                               if(window.confirm('Deseja resetar a senha deste usuário?')) {
+                                 resetPasswordMutation.mutate(user.id);
+                               }
+                             }}
+                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
+                           >
+                             <Key className="h-3 w-3 mr-1" />
+                             Resetar Senha
+                           </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-      <p className="mb-6" style={{ color: 'var(--color-navy-blue)', fontFamily: 'Tw Cen MT, Arial, Helvetica, sans-serif' }}>
-        Gerencie usuários do sistema: editar nome/status e resetar senha.
-      </p>
-      {isLoading && <div>Carregando usuários...</div>}
-      {error && <div className="text-red-600">Erro ao carregar usuários.</div>}
-      <table className="min-w-full bg-white rounded-xl shadow-sm border border-gray-100">
-        <thead>
-          <tr>
-            <th className="px-4 py-2 text-left">ID</th>
-            <th className="px-4 py-2 text-left">Usuário</th>
-            <th className="px-4 py-2 text-left">Nome</th>
-            <th className="px-4 py-2 text-left">Ativo</th>
-            <th className="px-4 py-2 text-left">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((user) => (
-            <tr key={user.id}>
-              <td className="px-4 py-2">{user.id}</td>
-              <td className="px-4 py-2">{user.username}</td>
-              <td className="px-4 py-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(165, 137, 80, 0.4)' }}>
-                    <span className="text-sm font-bold" style={{ color: 'var(--color-navy-blue)' }}>
-                      {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-base font-bold" style={{ color: 'var(--color-navy-blue)' }}>{user.full_name}</span>
-                </div>
-              </td>
-              <td className="px-4 py-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(27, 61, 89, 0.4)', color: 'var(--color-navy-blue)' }}>
-                  {user.active ? 'Sim' : 'Não'}
-                </span>
-              </td>
-              <td className="px-4 py-2 space-x-2">
-                <button
-                  className="px-3 py-1 rounded-full font-bold shadow-sm transition-all duration-200"
-                  style={{ backgroundColor: 'var(--color-muted-blue)', color: '#fff', border: 'none' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-muted-blue)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onClick={() => openEditModal(user)}
-                >Editar</button>
-                <button
-                  className="px-3 py-1 rounded-full font-bold shadow-sm transition-all duration-200"
-                  style={{ backgroundColor: 'var(--color-beige)', color: 'var(--color-navy-blue)', border: 'none' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-navy-blue)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-beige)';
-                    e.currentTarget.style.color = 'var(--color-navy-blue)';
-                  }}
-                  onClick={() => {
-                    if(window.confirm('Deseja resetar a senha deste usuário?')) {
-                      resetPasswordMutation.mutate(user.id);
-                    }
-                  }}
-                >Resetar Senha</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
       {/* Modal de edição */}
       {editModalOpen && editingUser && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 min-w-[320px]">
-            <h2 className="text-xl font-bold mb-4">Editar Usuário</h2>
-            <div className="mb-4">
-              <label className="block mb-1">Nome de usuário</label>
-              <input
-                className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                value={editUsername}
-                onChange={e => setEditUsername(e.target.value)}
-                disabled={saving}
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1">Nome completo</label>
-              <input
-                className="border border-gray-200 px-2 py-1 rounded-xl w-full shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                disabled={saving}
-              />
-            </div>
-            <div className="mb-4 flex items-center">
-              <input
-                type="checkbox"
-                checked={editActive}
-                onChange={e => setEditActive(e.target.checked)}
-                id="active-checkbox"
-                disabled={saving}
-              />
-              <label htmlFor="active-checkbox" className="ml-2">Ativo</label>
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-bold">Permissões atuais:</label>
-              <div className="text-sm text-gray-600 mb-2">
-                {userPermissions.map(perm => (
-                  <span key={perm} className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2 mb-1">
-                    {perm}
-                  </span>
-                ))}
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Edit className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Editar Usuário</h2>
+                  <p className="text-sm text-gray-600">Atualize as informações do usuário</p>
+                </div>
               </div>
             </div>
-            <div className="mb-4 flex items-center">
-              <input
-                type="checkbox"
-                checked={editIsAdmin}
-                onChange={e => setEditIsAdmin(e.target.checked)}
-                id="edit-admin-checkbox"
-                disabled={saving || loadingPerms}
-              />
-              <label htmlFor="edit-admin-checkbox" className="ml-2">Tornar Administrador</label>
+            
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nome de usuário</label>
+                <input
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={editUsername}
+                  onChange={e => setEditUsername(e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nome completo</label>
+                <input
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+              
+              <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={editActive}
+                  onChange={e => setEditActive(e.target.checked)}
+                  id="active-checkbox"
+                  disabled={saving}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="active-checkbox" className="ml-3 text-sm font-medium text-gray-700">
+                  Usuário ativo
+                </label>
+              </div>
+              
+              <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <input
+                  type="checkbox"
+                  checked={editIsAdmin}
+                  onChange={e => setEditIsAdmin(e.target.checked)}
+                  id="edit-admin-checkbox"
+                  disabled={saving || loadingPerms}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="edit-admin-checkbox" className="ml-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Privilégios de administrador</span>
+                </label>
+              </div>
             </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                className="px-3 py-1 rounded-full bg-gray-300/80 text-gray-700 border border-gray-400/30 font-light backdrop-blur-sm hover:bg-gray-300/90 transition-all duration-200"
-                onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
-                disabled={saving}
-              >Cancelar</button>
-              <button
-                className="px-3 py-1 rounded-full bg-blue-600/80 text-white font-light backdrop-blur-sm hover:bg-blue-600/90 transition-all duration-200 border border-blue-500/30"
-                onClick={handleSave}
-                disabled={saving || !editName.trim() || !editUsername.trim()}
-              >{saving ? 'Salvando...' : 'Salvar'}</button>
+            
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                             <button
+                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200"
+                 onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
+                 disabled={saving}
+               >
+                 Cancelar
+               </button>
+                             <button
+                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                 onClick={handleSave}
+                 disabled={saving || !editName.trim() || !editUsername.trim()}
+               >
+                {saving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Salvando...
+                  </div>
+                ) : (
+                  'Salvar Alterações'
+                )}
+              </button>
             </div>
           </div>
         </div>

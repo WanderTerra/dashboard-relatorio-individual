@@ -165,7 +165,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
           <h3 className="text-lg font-semibold mb-4">Aplicar Feedback</h3>
           <label className="block mb-2 text-sm font-medium">Comentário</label>
           <textarea
-            className="w-full border border-gray-200 rounded-xl p-2 mb-4 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+            className="w-full border border-gray-300 rounded-xl p-2 mb-4 shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             rows={3}
             value={comentario}
             onChange={e => setComentario(e.target.value)}
