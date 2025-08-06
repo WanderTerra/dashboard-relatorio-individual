@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Combobox } from '../components/ui/select-simple';
 import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
+import axios from 'axios';
 
 interface UploadedFile {
   id: string;
@@ -268,10 +269,12 @@ const AudioUpload: React.FC = () => {
           <Button
             className="mt-2"
             onClick={async () => {
+              console.log('🔴 Botão clicado!');
               if (!uploadedFiles.length) {
                 toast.error('Envie um arquivo de áudio primeiro!');
                 return;
               }
+              console.log('🔴 Iniciando transcrição...');
               setIsTranscribing(true);
               setTranscriptionText('');
               try {
@@ -289,18 +292,24 @@ const AudioUpload: React.FC = () => {
                   setIsTranscribing(false);
                   return;
                 }
-                console.log('Enviando arquivo para transcrição:', file);
+                console.log('🔴 Enviando arquivo para transcrição:', file);
                 const formData = new FormData();
                 formData.append('arquivo', file);
                 const token = localStorage.getItem('auth_token');
+                console.log('🔴 Token:', token ? 'Presente' : 'Ausente');
+                console.log('🔴 Fazendo requisição para:', '/api/transcricao/upload');
                 const res = await axios.post('/api/transcricao/upload', formData, {
                   headers: {
                     'Content-Type': 'multipart/form-data',
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                   },
                 });
+                console.log('🔴 Resposta recebida:', res.data);
                 setTranscriptionText(res.data.transcricao.text || 'Sem texto retornado.');
               } catch (err: any) {
+                console.log('🔴 Erro na requisição:', err);
+                console.log('🔴 Status:', err?.response?.status);
+                console.log('🔴 Dados do erro:', err?.response?.data);
                 toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
               } finally {
                 setIsTranscribing(false);
