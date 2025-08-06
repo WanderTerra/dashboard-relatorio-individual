@@ -157,7 +157,7 @@ export default function UsersAdmin() {
 
   const [editIsAdmin, setEditIsAdmin] = React.useState(false);
   const [loadingPerms, setLoadingPerms] = React.useState(false);
-  const [userPermissions, setUserPermissions] = React.useState<string[]>([]);
+  const [userPermissions, setUserPermissions] = React.useState<Record<number, string[]>>({});
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: number) => resetUserPassword(userId),
@@ -179,11 +179,11 @@ export default function UsersAdmin() {
     setLoadingPerms(true);
     try {
       const perms = await getUserPermissions(user.id);
-      setUserPermissions(perms);
+      setUserPermissions(prev => ({ ...prev, [user.id]: perms }));
       setEditIsAdmin(perms.includes('admin'));
       setEditModalOpen(true);
     } catch {
-      setUserPermissions([]);
+      setUserPermissions(prev => ({ ...prev, [user.id]: [] }));
       setEditIsAdmin(false);
       setEditModalOpen(true);
     } finally {
@@ -197,11 +197,25 @@ export default function UsersAdmin() {
     setSaving(true);
     try {
       await updateUser(editingUser.id, { full_name: editName, active: editActive, username: editUsername });
-      const perms = userPermissions.filter(p => p !== 'admin');
+      const currentPerms = userPermissions[editingUser.id] || [];
+      const perms = currentPerms.filter(p => p !== 'admin');
       if (editIsAdmin) perms.push('admin');
       await updateUserPermissions(editingUser.id, perms);
+      
+      // Atualizar o estado local com as novas permissões
+      setUserPermissions(prev => ({ ...prev, [editingUser.id]: perms }));
+      
       setEditModalOpen(false);
       setEditingUser(null);
+      
+      // Recarregar as permissões para garantir que estão atualizadas
+      try {
+        const updatedPerms = await getUserPermissions(editingUser.id);
+        setUserPermissions(prev => ({ ...prev, [editingUser.id]: updatedPerms }));
+      } catch (error) {
+        console.error('Erro ao recarregar permissões:', error);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['allUsers'] });
     } catch (e) {
       alert('Erro ao salvar alterações');
@@ -218,7 +232,8 @@ export default function UsersAdmin() {
       if (isAdmin) permissions.push('admin');
       if (agentId.trim()) permissions.push(`agent_${agentId.trim()}`);
       
-      const result = await createUser(newUsername, newFullName, permissions.length > 0 ? permissions : undefined);
+      await createUser(newUsername, newFullName, permissions.length > 0 ? permissions : undefined);
+      
       setCreatedPassword('Temp@2025');
       setNewUsername('');
       setNewFullName('');
@@ -233,10 +248,26 @@ export default function UsersAdmin() {
     }
   };
 
+  // Carregar permissões de todos os usuários quando os dados carregam
+  React.useEffect(() => {
+    if (data && data.length > 0) {
+      data.forEach(async (user) => {
+        if (!userPermissions[user.id]) {
+          try {
+            const perms = await getUserPermissions(user.id);
+            setUserPermissions(prev => ({ ...prev, [user.id]: perms }));
+          } catch {
+            setUserPermissions(prev => ({ ...prev, [user.id]: [] }));
+          }
+        }
+      });
+    }
+  }, [data]);
+
   // Estatísticas
   const totalUsers = data.length;
   const activeUsers = data.filter(user => user.active).length;
-  const adminUsers = data.filter(user => userPermissions.includes('admin')).length;
+  const adminUsers = data.filter(user => (userPermissions[user.id] || []).includes('admin')).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -382,13 +413,13 @@ export default function UsersAdmin() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-wrap gap-1">
-                          {userPermissions.includes('admin') && (
+                          {(userPermissions[user.id] || []).includes('admin') && (
                             <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
                               <Shield className="h-3 w-3 mr-1" />
                               Admin
                             </span>
                           )}
-                          {userPermissions.filter(p => p.startsWith('agent_')).map(perm => (
+                          {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
                             <span key={perm} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                               <Users className="h-3 w-3 mr-1" />
                               Agente
