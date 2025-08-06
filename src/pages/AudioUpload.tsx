@@ -10,7 +10,6 @@ import { Badge } from '../components/ui/badge';
 import { Combobox } from '../components/ui/select-simple';
 import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
-import axios from 'axios';
 
 interface UploadedFile {
   id: string;
@@ -27,10 +26,6 @@ const AudioUpload: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Estado para transcrição
-  const [transcriptionText, setTranscriptionText] = useState('');
-  const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Buscar carteiras disponíveis
   const { data: carteiras = [] } = useQuery({
@@ -312,7 +307,6 @@ const AudioUpload: React.FC = () => {
             {isTranscribing ? 'Transcrevendo...' : 'Fazer Transcrição'}
           </Button>
         </div>
-
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
