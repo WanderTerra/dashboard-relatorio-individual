@@ -299,3 +299,44 @@ export async function getCarteirasFromAvaliacoes() {
   }
   return res.json();
 }
+
+// ===== FUNÇÕES PARA AVALIAÇÃO AUTOMÁTICA =====
+
+// Interface para requisição de avaliação automática
+export interface AvaliacaoAutomaticaRequest {
+  transcricao: string;
+  carteira_id: number;
+  call_id?: string;
+  agent_id?: string;
+}
+
+// Interface para resposta da avaliação automática
+export interface AvaliacaoAutomaticaResponse {
+  id_chamada: string;
+  avaliador: string;
+  falha_critica: boolean;
+  itens: Record<string, Record<string, {
+    status: string;
+    observacao: string;
+    peso: number;
+  }>>;
+  erro_processamento?: string;
+  pontuacao_total: number;
+  pontuacao_percentual: number;
+}
+
+// Função para chamar avaliação automática
+export const avaliarTranscricaoAutomatica = (data: AvaliacaoAutomaticaRequest) =>
+  api.post('/avaliacao/automatica', data).then(r => r.data);
+
+// Função para buscar critérios de uma carteira
+export const getCriteriosCarteira = (carteiraId: number) =>
+  api.get(`/carteira/${carteiraId}/criterios`).then(r => r.data);
+
+// Função para buscar todos os critérios
+export const getCriterios = () =>
+  api.get('/criterios/').then(r => r.data);
+
+// Função para buscar itens de uma avaliação
+export const getItensAvaliacao = (avaliacaoId: string) =>
+  api.get(`/avaliacao/${avaliacaoId}/itens`).then(r => r.data);

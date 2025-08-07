@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Brain, Play } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
 import axios from 'axios';
 import ScribeDiarizedTranscription from '../components/ScribeDiarizedTranscription';
+import AvaliacaoResultados from '../components/AvaliacaoResultados';
+import { useAvaliacaoAutomatica } from '../hooks/use-avaliacao-automatica';
 
 interface UploadedFile {
   id: string;
@@ -35,12 +37,36 @@ const AudioUpload: React.FC = () => {
   const [transcription, setTranscription] = useState<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
+  // Hook para avaliação automática
+  const {
+    selectedCarteira: selectedCarteiraAvaliacao,
+    setSelectedCarteira: setSelectedCarteiraAvaliacao,
+    avaliacaoResult,
+    isAprovada,
+    criteriosCarteira,
+    isLoadingCriterios,
+    isAvaliando,
+    avaliarTranscricao,
+    limparResultado,
+    error: avaliacaoError
+  } = useAvaliacaoAutomatica();
+
   // Buscar carteiras disponíveis
   const { data: carteiras = [] } = useQuery({
     queryKey: ['carteiras'],
     queryFn: getAllCarteiras,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
+
+  // Atualizar carteira de avaliação quando a carteira de upload for selecionada
+  React.useEffect(() => {
+    if (selectedCarteira && carteiras.length > 0) {
+      const carteira = carteiras.find((c: any) => c.nome === selectedCarteira);
+      if (carteira) {
+        setSelectedCarteiraAvaliacao(carteira.id);
+      }
+    }
+  }, [selectedCarteira, carteiras, setSelectedCarteiraAvaliacao]);
 
   // Converter carteiras para o formato do Combobox
   const carteiraOptions = carteiras.map((carteira: any) => ({
@@ -313,6 +339,16 @@ const AudioUpload: React.FC = () => {
                 setTranscription(res.data.transcricao);
                 toast.success('Diarização e classificação concluídas!');
                 
+                // Executar avaliação automática após transcrição
+                if (selectedCarteira) {
+                  const carteira = carteiras.find((c: any) => c.nome === selectedCarteira);
+                  if (carteira) {
+                    console.log('🤖 Iniciando avaliação automática...');
+                    const transcricaoTexto = res.data.transcricao.text || JSON.stringify(res.data.transcricao);
+                    avaliarTranscricao(transcricaoTexto, carteira.id);
+                  }
+                }
+                
               } catch (err: any) {
                 console.error('❌ Erro na transcrição:', err);
                 toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
@@ -427,6 +463,67 @@ const AudioUpload: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resultados da Avaliação Automática */}
+        {avaliacaoResult && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-600" />
+                Resultados da Avaliação Automática
+              </CardTitle>
+              <CardDescription>
+                Avaliação realizada automaticamente após a transcrição
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AvaliacaoResultados
+                avaliacao={avaliacaoResult}
+                isLoading={isAvaliando}
+              />
+              
+              {/* Botão para limpar resultado */}
+              <div className="mt-4 flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={limparResultado}
+                  disabled={isAvaliando}
+                  size="sm"
+                >
+                  Limpar Resultado
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Status da Avaliação */}
+        {isAvaliando && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium">Avaliando transcrição com IA...</p>
+                  <p className="text-xs text-gray-500">Isso pode levar alguns segundos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Erro de Avaliação */}
+        {avaliacaoError && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">
+                  Erro na avaliação automática: {avaliacaoError?.message || 'Erro desconhecido'}
+                </p>
               </div>
             </CardContent>
           </Card>

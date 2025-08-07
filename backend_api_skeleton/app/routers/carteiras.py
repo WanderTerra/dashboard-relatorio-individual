@@ -50,4 +50,39 @@ def deletar_carteira(carteira_id: int, db: Session = Depends(get_db), current_us
     result = db.execute(text("DELETE FROM carteiras WHERE id=:id"), {"id": carteira_id})
     db.commit()
     if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Carteira não encontrada") 
+        raise HTTPException(status_code=404, detail="Carteira não encontrada")
+
+@router.get("/{carteira_id}/criterios", response_model=List[dict])
+def listar_criterios_carteira(
+    carteira_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(verify_admin_access)
+):
+    """Lista critérios associados a uma carteira específica"""
+    try:
+        # Verificar se a carteira existe
+        carteira = db.execute(
+            text("SELECT id FROM carteiras WHERE id = :carteira_id"),
+            {"carteira_id": carteira_id}
+        ).fetchone()
+        
+        if not carteira:
+            raise HTTPException(status_code=404, detail="Carteira não encontrada")
+        
+        # Buscar critérios da carteira
+        result = db.execute(
+            text("""
+                SELECT c.id, c.nome, c.descricao, c.categoria, c.ativo
+                FROM criterios c
+                INNER JOIN carteira_criterios cc ON c.id = cc.criterio_id
+                WHERE cc.carteira_id = :carteira_id AND c.ativo = 1
+                ORDER BY cc.ordem, c.nome
+            """),
+            {"carteira_id": carteira_id}
+        ).mappings().all()
+        
+        return [dict(row) for row in result]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar critérios da carteira: {str(e)}") 
