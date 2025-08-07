@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, FileText, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, FileText, MessageSquare, ChevronLeft, ChevronRight, Search, CheckCircle, XCircle } from 'lucide-react';
 import { formatItemName } from '../lib/format';
 import { getFeedbacksByAvaliacao } from '../lib/api';
 import type { UserInfo } from '../lib/api';
@@ -28,6 +28,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'todos' | 'aprovada' | 'reprovada'>('todos');
+  const [scoreFilter, setScoreFilter] = React.useState<'todos' | 'alta' | 'media' | 'baixa'>('todos');
   const itemsPerPage = 10;
 
   // Permissão: admin ou monitor
@@ -44,6 +45,20 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
       );
     }
     
+    // Filtro por pontuação
+    if (scoreFilter !== 'todos') {
+      filtered = filtered.filter(call => {
+        if (scoreFilter === 'alta') {
+          return call.pontuacao >= 80;
+        } else if (scoreFilter === 'media') {
+          return call.pontuacao >= 60 && call.pontuacao < 80;
+        } else if (scoreFilter === 'baixa') {
+          return call.pontuacao < 60;
+        }
+        return true;
+      });
+    }
+    
     // Filtro por pesquisa (data ou pontuação)
     if (searchTerm) {
       filtered = filtered.filter(call => 
@@ -53,7 +68,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
     }
     
     return filtered;
-  }, [calls, statusFilter, searchTerm]);
+  }, [calls, statusFilter, scoreFilter, searchTerm]);
 
   // Calcular paginação
   const totalPages = Math.ceil(filteredCalls.length / itemsPerPage);
@@ -64,7 +79,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   // Reset página quando filtros mudam
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, scoreFilter]);
 
   React.useEffect(() => {
     async function fetchFeedbacks() {
@@ -135,33 +150,31 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
       {/* Header com filtros */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-5 w-5 text-gray-500" />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Lista de Chamadas</h2>
-              <p className="text-sm text-gray-600">
-                {filteredCalls.length} de {calls.length} chamadas
-              </p>
-            </div>
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Lista de Chamadas</h3>
+            <p className="text-sm text-gray-600 mt-1">Gerencie e visualize as chamadas do agente</p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Pesquisa */}
-            <input
-              type="text"
-              placeholder="Pesquisar por data ou pontuação..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative w-80">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Pesquisar chamadas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+              />
+            </div>
             
-            {/* Filtro de status */}
-            <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-sm">
+            {/* Filtro por status */}
+            <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
               <button
                 onClick={() => setStatusFilter('todos')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
                   statusFilter === 'todos'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -171,23 +184,72 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
               </button>
               <button
                 onClick={() => setStatusFilter('aprovada')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
                   statusFilter === 'aprovada'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
+                <CheckCircle className="h-3 w-3" />
                 Aprovada
               </button>
               <button
                 onClick={() => setStatusFilter('reprovada')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
                   statusFilter === 'reprovada'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
+                <XCircle className="h-3 w-3" />
                 Reprovada
+              </button>
+            </div>
+            
+            {/* Filtro por pontuação */}
+            <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+              <button
+                onClick={() => setScoreFilter('todos')}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                  scoreFilter === 'todos'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setScoreFilter('alta')}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                  scoreFilter === 'alta'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                Alta
+              </button>
+              <button
+                onClick={() => setScoreFilter('media')}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                  scoreFilter === 'media'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                Média
+              </button>
+              <button
+                onClick={() => setScoreFilter('baixa')}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                  scoreFilter === 'baixa'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                Baixa
               </button>
             </div>
           </div>
