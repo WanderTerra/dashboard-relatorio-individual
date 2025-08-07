@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   RadarChart, 
@@ -8,7 +8,14 @@ import {
   PolarRadiusAxis, 
   Radar, 
   ResponsiveContainer,
-  Tooltip
+  Tooltip,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend
 } from 'recharts';
 
 import {
@@ -23,6 +30,7 @@ import PageHeader   from '../components/PageHeader';
 import { formatItemName, formatAgentName } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft, BarChart3, TrendingUp, Download } from 'lucide-react';
 
 // Funções utilitárias para LocalStorage
 const getPersistedDate = (key: string, fallback: string) =>
@@ -40,6 +48,9 @@ const today = new Date().toISOString().slice(0, 10);
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [activeChart, setActiveChart] = useState<'radar' | 'bar'>('radar');
+  
   if (!agentId) return <div>Agente não especificado.</div>;
 
   const { filters } = useFilters();
@@ -99,6 +110,37 @@ const AgentDetail: React.FC = () => {
       return getAgentCriteria(agentId, apiFilters);
     },
   });  // Helper function to format criteria data for radar chart
+  const generateMonthlyData = (callsData: any[]) => {
+    if (!callsData || callsData.length === 0) return [];
+    
+    const monthlyGroups = callsData.reduce((acc: any, call: any) => {
+      const date = new Date(call.data_ligacao);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = { month: monthLabel, monthKey: monthKey, scores: [], count: 0 };
+      }
+      
+      acc[monthKey].scores.push(call.pontuacao);
+      acc[monthKey].count++;
+      return acc;
+    }, {});
+    
+    const monthlyData = Object.values(monthlyGroups).map((group: any) => {
+      const averageScore = group.scores.reduce((sum: number, score: number) => sum + score, 0) / group.scores.length;
+      return {
+        month: group.month,
+        monthKey: group.monthKey,
+        notas: Math.round(averageScore * 10) / 10,
+        avaliacoes: group.count,
+        totalChamadas: group.count
+      };
+    });
+    
+    return monthlyData.sort((a: any, b: any) => a.monthKey.localeCompare(b.monthKey));
+  };
+
   const formatCriteriaForRadar = (criteriaData: any[]) => {
     if (!criteriaData || criteriaData.length === 0) return [];
     
@@ -196,6 +238,13 @@ const AgentDetail: React.FC = () => {
                 className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200 shadow-sm"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
           </div>
         }
         logoHref={isAgent ? `/agent/${agentId}` : "/"}
@@ -278,24 +327,7 @@ const AgentDetail: React.FC = () => {
           )}
         </div>        {/* Gráfico de Radar - Critérios do Agente */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              <svg className="inline-block w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Desempenho por Critério
-            </h2>
-            {process.env.NODE_ENV === 'development' && (
-              <button 
-                onClick={() => {
-                  console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
-                }}
-                className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
-              >
-                Debug Data
-              </button>
-            )}
-          </div>
+
           
           {/* Nota sobre dados de demonstração */}
           {criteria && criteria.length > 0 && 
@@ -319,22 +351,80 @@ const AgentDetail: React.FC = () => {
             </div>
           ) : criteria && criteria.length > 0 ? (
             <div className="space-y-6">
-              {/* Radar Chart */}
-              <div className="h-80">
+              {/* Header com opções de gráfico */}
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  <svg className="inline-block w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Desempenho por Critério
+                </h2>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                    <button 
+                      onClick={() => setActiveChart('radar')} 
+                      className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        activeChart === 'radar' 
+                          ? 'bg-white text-gray-900 shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Radar
+                    </button>
+                    <button 
+                      onClick={() => setActiveChart('bar')} 
+                      className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                        activeChart === 'bar' 
+                          ? 'bg-white text-gray-900 shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      Barras
+                    </button>
+                  </div>
+                  {process.env.NODE_ENV === 'development' && (
+                    <button 
+                      onClick={() => {
+                        console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
+                      }}
+                      className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
+                    >
+                      Debug Data
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Gráfico dinâmico */}
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                    <Radar
-                      name="Desempenho"
-                      dataKey="value"
-                      stroke="#4f46e5"
-                      fill="#4f46e5"
-                      fillOpacity={0.6}
-                    />
-                    <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                  </RadarChart>
+                  {activeChart === 'radar' ? (
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                      <Radar
+                        name="Desempenho"
+                        dataKey="value"
+                        stroke="#4f46e5"
+                        fill="#4f46e5"
+                        fillOpacity={0.6}
+                      />
+                      <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                    </RadarChart>
+                  ) : (
+                    <BarChart data={formatCriteriaForRadar(criteria)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                      <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
               </div>              {/* Critérios detalhados */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -382,6 +472,47 @@ const AgentDetail: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               <p className="mt-4 text-gray-600">Nenhum critério de avaliação encontrado para o período selecionado.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Gráfico de Comparativo Mensal */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              <TrendingUp className="inline-block w-5 h-5 mr-2 text-blue-600" />
+              Comparativo Mensal
+            </h2>
+            <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200">
+              <Download className="h-4 w-4" />
+              Exportar Tabela
+            </button>
+          </div>
+          
+          {generateMonthlyData(calls || []).length > 0 ? (
+            <>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={generateMonthlyData(calls || [])}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <Tooltip formatter={(value) => [`${value}%`, 'Média de Pontuação']} />
+                    <Legend />
+                    <Bar dataKey="notas" radius={[4, 4, 0, 0]} name="Média de Pontuação" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+            </>
+          ) : (
+            <div className="h-64 flex items-center justify-center">
+              <div className="text-center">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p className="mt-4 text-gray-600">Nenhum dado disponível para gerar o comparativo mensal.</p>
+              </div>
             </div>
           )}
         </div>
