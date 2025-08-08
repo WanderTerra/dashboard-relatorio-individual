@@ -212,45 +212,47 @@ const AgentDetail: React.FC = () => {
   return (
     <div>
       <PageHeader 
-        title="Detalhes do Agente"
-        subtitle={`Análise detalhada do Agente ${agentId}`}
+        title={isAgent ? "Minha Página" : "Detalhes do Agente"}
+        subtitle={isAgent ? "Análise detalhada do seu desempenho" : `Análise detalhada do Agente ${agentId}`}
         breadcrumbs={isAgent ? [] : [
           { label: 'Dashboard', href: '/' },
           { label: 'Detalhes do Agente', isActive: true }
         ]}
         actions={
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-end">
             <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-8 sm:h-9 border border-gray-300 rounded-xl px-2 sm:px-3 text-xs sm:text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
             <div className="flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="h-9 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="h-8 sm:h-9 border border-gray-300 rounded-xl px-2 sm:px-3 text-xs sm:text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
             </div>
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200 shadow-sm"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
-            </button>
+            {!isAgent && (
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200 shadow-sm"
+              >
+                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                Voltar
+              </button>
+            )}
           </div>
         }
         logoHref={isAgent ? `/agent/${agentId}` : "/"}
       />
 
-              <div className="p-6 space-y-8 !text-gray-900">
+              <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
         {/* Resumo do agente */}
         {summaryLoading ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -260,44 +262,44 @@ const AgentDetail: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
-            {/* Layout em 3 colunas: Ícone, Nome/ID, Métricas */}
-                          <div className="flex items-center space-x-8 !text-gray-900">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
+            {/* Layout responsivo: Ícone, Nome/ID, Métricas */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6 !text-gray-900">
               {/* Coluna 1: Ícone */}
               <div className="flex-shrink-0">
-                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                  <span className="text-2xl font-bold text-white">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                  <span className="text-xl sm:text-2xl font-bold text-white">
                     {formatAgentName(summary).charAt(0)}
                   </span>
                 </div>
               </div>
               
               {/* Coluna 2: Nome e ID */}
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 truncate">
                   {formatAgentName(summary)}
                 </h3>
-                <p className="text-gray-600 font-medium">Agente ID: {agentId}</p>
+                <p className="text-sm sm:text-base text-gray-600 font-medium">Agente ID: {agentId}</p>
               </div>
               
               {/* Coluna 3: Métricas */}
-              <div className="flex space-x-12 !text-gray-900">
-                                  <div className="text-center !text-gray-900">
-                    <p className="text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
-                    <p className="text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
-                  </div>
-                  <div className="text-center !text-gray-900">
-                    <p className="text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
-                    <p className="text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
-                  </div>
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 !text-gray-900 w-full sm:w-auto">
+                <div className="text-center sm:text-left !text-gray-900">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+                </div>
+                <div className="text-center sm:text-left !text-gray-900">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Pior item */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pior Item Avaliado</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Pior Item Avaliado</h2>
           {wiLoading ? (
             <div className="animate-pulse !text-gray-900">
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -326,7 +328,7 @@ const AgentDetail: React.FC = () => {
             </div>
           )}
         </div>        {/* Gráfico de Radar - Critérios do Agente */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
 
           
           {/* Nota sobre dados de demonstração */}
@@ -352,9 +354,9 @@ const AgentDetail: React.FC = () => {
           ) : criteria && criteria.length > 0 ? (
             <div className="space-y-6">
               {/* Header com opções de gráfico */}
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  <svg className="inline-block w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  <svg className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   Desempenho por Critério
@@ -363,27 +365,27 @@ const AgentDetail: React.FC = () => {
                   <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
                     <button 
                       onClick={() => setActiveChart('radar')} 
-                      className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
                         activeChart === 'radar' 
                           ? 'bg-white text-gray-900 shadow-sm' 
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                      Radar
+                      <span className="hidden sm:inline">Radar</span>
                     </button>
                     <button 
                       onClick={() => setActiveChart('bar')} 
-                      className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
                         activeChart === 'bar' 
                           ? 'bg-white text-gray-900 shadow-sm' 
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      <BarChart3 className="w-4 h-4" />
-                      Barras
+                      <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Barras</span>
                     </button>
                   </div>
                   {process.env.NODE_ENV === 'development' && (
@@ -400,7 +402,7 @@ const AgentDetail: React.FC = () => {
               </div>
               
               {/* Gráfico dinâmico */}
-              <div className="h-64">
+              <div className="h-48 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   {activeChart === 'radar' ? (
                     <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
@@ -427,7 +429,7 @@ const AgentDetail: React.FC = () => {
                   )}
                 </ResponsiveContainer>
               </div>              {/* Critérios detalhados */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {criteria.map((criterion: any, index: number) => {                  // Tentar múltiplos campos para encontrar o valor
                   const rawValue = criterion.pct_conforme || criterion.performance || criterion.score || criterion.percentual || 
                                   criterion.taxa_conforme || criterion.media || criterion.valor || 
@@ -477,21 +479,21 @@ const AgentDetail: React.FC = () => {
         </div>
 
         {/* Gráfico de Comparativo Mensal */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 !text-gray-900">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              <TrendingUp className="inline-block w-5 h-5 mr-2 text-blue-600" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0 mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+              <TrendingUp className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
               Comparativo Mensal
             </h2>
-            <button className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200">
-              <Download className="h-4 w-4" />
-              Exportar Tabela
+            <button className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200">
+              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Exportar Tabela</span>
             </button>
           </div>
           
           {generateMonthlyData(calls || []).length > 0 ? (
             <>
-              <div className="h-64">
+              <div className="h-48 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={generateMonthlyData(calls || [])}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -519,15 +521,15 @@ const AgentDetail: React.FC = () => {
 
         {/* Lista de ligações */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 !text-gray-900">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
-            <p className="text-sm text-gray-600 mt-1">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               Detalhes das ligações realizadas no período
             </p>
           </div>
           
           {callsLoading ? (
-            <div className="p-6 !text-gray-900">
+            <div className="p-4 sm:p-6 !text-gray-900">
               <div className="animate-pulse space-y-4 !text-gray-900">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-16 bg-gray-200 rounded"></div>

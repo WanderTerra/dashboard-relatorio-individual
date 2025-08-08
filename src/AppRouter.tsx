@@ -34,7 +34,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="flex">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-      <main className={`flex-1 ml-0 bg-gray-50 min-h-screen lg:transition-all lg:duration-200 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+      <main className={`flex-1 ml-0 bg-gray-50 min-h-screen lg:transition-all lg:duration-200 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} overflow-x-hidden`}>
         <Routes>
           <Route path="/" element={
             <ProtectedRoute>

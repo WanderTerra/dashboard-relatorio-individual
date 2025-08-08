@@ -31,14 +31,14 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 
   return (
     <div className="bg-white border-b border-gray-200">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
         {/* Breadcrumbs */}
         {finalBreadcrumbs.length > 0 && (
-          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-            <Home className="w-4 h-4" />
+          <nav className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
+            <Home className="w-3 h-3 sm:w-4 sm:h-4" />
             {finalBreadcrumbs.map((item, index) => (
               <React.Fragment key={index}>
-                {index > 0 && <ChevronRight className="w-4 h-4 text-gray-400" />}
+                {index > 0 && <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />}
                 {item.href && !item.isActive ? (
                   <Link 
                     to={item.href} 
@@ -59,30 +59,30 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         {/* Logo, Título e ações - tudo na mesma linha */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           {/* Logo e Título */}
-          <div className="flex items-center space-x-4">            <Link to={logoHref} className="flex-shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-4">            <Link to={logoHref} className="flex-shrink-0">
               <img 
                 src={logoSrc} 
                 alt="Logo da Empresa" 
-                className="h-40 w-auto"
+                className="h-24 sm:h-32 lg:h-40 w-auto"
                 onError={(e) => {
                   // Fallback para texto se a logo não carregar
                   const parent = e.currentTarget.parentElement;
                   if (parent) {
-                    parent.innerHTML = `
-                      <div class="w-40 h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-lg">LOGO</span>
-                      </div>
-                    `;
+                                      parent.innerHTML = `
+                    <div class="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                      <span class="text-white font-bold text-sm sm:text-base lg:text-lg">LOGO</span>
+                    </div>
+                  `;
                   }
                 }}
               />
             </Link>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
                 {title}
               </h1>
               {subtitle && (
-                <p className="text-gray-600 text-lg">
+                <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
                   {subtitle}
                 </p>
               )}
@@ -90,7 +90,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </div>
           
           {actions && (
-            <div className="mt-4 lg:mt-0">
+            <div className="mt-3 sm:mt-4 lg:mt-0">
               {actions}
             </div>
           )}

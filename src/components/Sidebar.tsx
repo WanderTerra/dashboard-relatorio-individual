@@ -32,7 +32,6 @@ const adminLinks: SidebarLink[] = [
 
 const agentLinks = (agentId: string): SidebarLink[] => [
   { to: `/agent/${agentId}`, label: "Minha Página", icon: <Home size={20} /> },
-  { to: "/upload", label: "Upload de Áudios", icon: <Upload size={20} /> },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setCollapsed: setCollapsedProp }) => {
