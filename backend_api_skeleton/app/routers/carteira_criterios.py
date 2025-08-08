@@ -23,11 +23,33 @@ def listar_criterios_da_carteira(
     db: Session = Depends(get_db),
     current_user: dict = Depends(verify_admin_access)
 ):
-    result = db.execute(
-        text("SELECT id, carteira_id, criterio_id, ordem, peso_especifico FROM carteira_criterios WHERE carteira_id = :carteira_id"),
-        {"carteira_id": carteira_id}
-    ).mappings().all()
-    return result
+    """Lista associações de critérios de uma carteira específica"""
+    try:
+        # Verificar se a carteira existe
+        carteira = db.execute(
+            text("SELECT id FROM carteiras WHERE id = :carteira_id"),
+            {"carteira_id": carteira_id}
+        ).fetchone()
+        
+        if not carteira:
+            raise HTTPException(status_code=404, detail="Carteira não encontrada")
+        
+        # Buscar associações da carteira (dados da tabela carteira_criterios)
+        result = db.execute(
+            text("""
+                SELECT id, carteira_id, criterio_id, ordem, peso_especifico 
+                FROM carteira_criterios 
+                WHERE carteira_id = :carteira_id
+                ORDER BY ordem, id
+            """),
+            {"carteira_id": carteira_id}
+        ).mappings().all()
+        
+        return [dict(row) for row in result]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar critérios da carteira: {str(e)}")
 
 @router.post("/", response_model=CarteiraCriterioOut, status_code=status.HTTP_201_CREATED)
 def adicionar_criterio_na_carteira(assoc: CarteiraCriterioCreate, db: Session = Depends(get_db), current_user: dict = Depends(verify_admin_access)):
