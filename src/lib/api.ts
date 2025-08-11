@@ -337,6 +337,25 @@ export const getCriteriosCarteira = (carteiraId: number) =>
 export const getCriterios = () =>
   api.get('/criterios/').then(r => r.data);
 
+// Funções para carteira_criterios
+export const getCriteriosDaCarteira = (carteiraId: number): Promise<Array<{
+  id: number;
+  carteira_id: number;
+  criterio_id: number;
+  ordem?: number;
+  peso_especifico?: number;
+}>> => api.get(`/carteira_criterios/carteira/${carteiraId}`).then(r => r.data);
+
+export const adicionarCriterioNaCarteira = (data: {
+  carteira_id: number;
+  criterio_id: number;
+  ordem?: number;
+  peso_especifico?: number;
+}) => api.post('/carteira_criterios/', data).then(r => r.data);
+
+export const removerCriterioDaCarteira = (assocId: number) =>
+  api.delete(`/carteira_criterios/${assocId}`);
+
 // Função para buscar itens de uma avaliação
 export const getItensAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/itens`).then(r => r.data);
