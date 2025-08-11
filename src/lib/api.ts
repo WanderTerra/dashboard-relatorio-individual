@@ -340,3 +340,39 @@ export const getCriterios = () =>
 // Função para buscar itens de uma avaliação
 export const getItensAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/itens`).then(r => r.data);
+
+// ===== CORREÇÕES DE TRANSCRIÇÃO =====
+export interface CorrecaoBase {
+  padrao: string;
+  substituicao: string;
+  ignore_case: boolean;
+  carteira_id?: number | null;
+  ordem: number;
+}
+
+export interface Correcao extends CorrecaoBase {
+  id: number;
+}
+
+export const listCorrecoes = (params: { carteira_id?: number | null; incluir_globais?: boolean } = {}) =>
+  api.get<Correcao[]>(`/correcoes/`, {
+    params: {
+      carteira_id: params.carteira_id ?? undefined,
+      incluir_globais: params.incluir_globais ?? true,
+    }
+  }).then(r => r.data);
+
+export const createCorrecao = (data: CorrecaoBase) =>
+  api.post<Correcao>(`/correcoes/`, data).then(r => r.data);
+
+export const updateCorrecao = (id: number, data: CorrecaoBase) =>
+  api.put<Correcao>(`/correcoes/${id}`, data).then(r => r.data);
+
+export const deleteCorrecao = (id: number) =>
+  api.delete(`/correcoes/${id}`).then(r => r.data);
+
+export const aplicarCorrecoesPreview = (texto: string, carteira_id?: number | null) =>
+  api.post<{ original: string; corrigido: string; total_regras: number }>(`/correcoes/aplicar`, {
+    texto,
+    carteira_id: carteira_id ?? null,
+  }).then(r => r.data);
