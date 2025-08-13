@@ -4,11 +4,12 @@ import Header from './components/Header';
 import MetricCard from './components/MetricCard';
 import MonthlyChart from './components/MonthlyChart';
 import AgentsList from './components/AgentsList';
+
 import { 
   Activity, 
   Phone, 
   CheckCircle, 
-  XCircle 
+  XCircle
 } from 'lucide-react';
 
 function App() {

@@ -30,7 +30,7 @@ import PageHeader   from '../components/PageHeader';
 import { formatItemName, formatAgentName } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, BarChart3, TrendingUp, Download } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp } from 'lucide-react';
 
 // Funções utilitárias para LocalStorage
 const getPersistedDate = (key: string, fallback: string) =>
@@ -49,7 +49,7 @@ const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeChart, setActiveChart] = useState<'radar' | 'bar'>('radar');
+  const [activeChart, setActiveChart] = React.useState<'radar' | 'bar'>('radar');
   
   if (!agentId) return <div>Agente não especificado.</div>;
 
@@ -129,6 +129,7 @@ const AgentDetail: React.FC = () => {
     
     const monthlyData = Object.values(monthlyGroups).map((group: any) => {
       const averageScore = group.scores.reduce((sum: number, score: number) => sum + score, 0) / group.scores.length;
+      
       return {
         month: group.month,
         monthKey: group.monthKey,
@@ -144,19 +145,10 @@ const AgentDetail: React.FC = () => {
   const formatCriteriaForRadar = (criteriaData: any[]) => {
     if (!criteriaData || criteriaData.length === 0) return [];
     
-    console.log('🔍 [RADAR DEBUG] Dados recebidos do backend:', criteriaData);
-    
     const formatted = criteriaData.map(item => {      // Tentar múltiplos campos para encontrar o valor da performance
       const value = item.pct_conforme || item.performance || item.score || item.percentual || 
                     item.taxa_conforme || item.media || item.valor || 
                     item.pontuacao || item.conformidade || 0;
-      
-      console.log('📊 [RADAR DEBUG] Item:', {
-        categoria: item.categoria || item.name || item.item,
-        valorOriginal: value,
-        tipo: typeof value,
-        campos: Object.keys(item)
-      });
       
       // Converter para número e lidar com valores decimais
       let finalValue = typeof value === 'number' ? value : parseFloat(value) || 0;
@@ -166,45 +158,36 @@ const AgentDetail: React.FC = () => {
         finalValue = finalValue * 100;
       }
       
+      // Verificar se é um critério "Não se aplica" (valor 0 ou muito baixo)
+      const isNotApplicable = finalValue === 0 || finalValue < 1;
+      
       return {
         subject: formatItemName(item.categoria || item.name || item.item),
-        value: Math.round(finalValue * 10) / 10, // Arredondar para 1 casa decimal
-        fullMark: 100
+        value: isNotApplicable ? -1 : Math.round(finalValue * 10) / 10, // -1 indica "Não se aplica"
+        fullMark: 100,
+        isNotApplicable: isNotApplicable,
+        originalData: item // Manter dados originais para referência
       };
     });
 
-    console.log('📈 [RADAR DEBUG] Dados formatados para o chart:', formatted);
-    
-    // Se todos os valores são 0, criar dados de demonstração
-    const hasValidData = formatted.some(item => item.value > 0);
-    if (!hasValidData) {
-      console.log('⚠️ [RADAR DEBUG] Todos os valores são 0, usando dados de demonstração');
-      return [
-        { subject: 'Abordagem', value: 75, fullMark: 100 },
-        { subject: 'Segurança', value: 80, fullMark: 100 },
-        { subject: 'Fraseologia', value: 65, fullMark: 100 },
-        { subject: 'Comunicação', value: 90, fullMark: 100 },
-        { subject: 'Cordialidade', value: 85, fullMark: 100 },
-        { subject: 'Empatia', value: 70, fullMark: 100 },
-        { subject: 'Escuta Ativa', value: 60, fullMark: 100 },
-        { subject: 'Clareza', value: 88, fullMark: 100 }
-      ];
-    }
-    
+    // Retornar apenas dados reais, sem dados simulados
     return formatted;
   };
   // Log de erros e dados recebidos
   React.useEffect(() => {
-    if (summaryError) console.error('Erro ao buscar resumo:', summaryError);
-    if (callsError) console.error('Erro ao buscar chamadas:', callsError);
-    if (wiError) console.error('Erro ao buscar pior item:', wiError);
-    if (criteriaError) console.error('Erro ao buscar critérios:', criteriaError);
-    
-    // Log dos dados quando chegam
-    if (criteria) {
-      console.log('✅ [CRITERIA DATA] Dados dos critérios recebidos:', criteria);
+    if (summaryError) {
+      console.error('Erro ao buscar resumo do agente:', summaryError);
     }
-  }, [summaryError, callsError, wiError, criteriaError, criteria]);
+    if (callsError) {
+      console.error('Erro ao buscar ligações do agente:', callsError);
+    }
+    if (wiError) {
+      console.error('Erro ao buscar pior item do agente:', wiError);
+    }
+    if (criteriaError) {
+      console.error('Erro ao buscar critérios do agente:', criteriaError);
+    }
+  }, [summaryError, callsError, wiError, criteriaError, summary, criteria, calls]);
 
   // Verifica se o usuário autenticado é agente (tem permissão agent_{id} e não é admin)
   const isAgent = user && user.permissions && user.permissions.includes(`agent_${agentId}`) && !user.permissions.includes('admin');
@@ -403,31 +386,42 @@ const AgentDetail: React.FC = () => {
               
               {/* Gráfico dinâmico */}
               <div className="h-48 sm:h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  {activeChart === 'radar' ? (
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar
-                        name="Desempenho"
-                        dataKey="value"
-                        stroke="#4f46e5"
-                        fill="#4f46e5"
-                        fillOpacity={0.6}
-                      />
-                      <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                    </RadarChart>
-                  ) : (
-                    <BarChart data={formatCriteriaForRadar(criteria)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                      <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                      <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                      <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  )}
-                </ResponsiveContainer>
+                {formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable).length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {activeChart === 'radar' ? (
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                        <Radar
+                          name="Desempenho"
+                          dataKey="value"
+                          stroke="#4f46e5"
+                          fill="#4f46e5"
+                          fillOpacity={0.6}
+                        />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                      </RadarChart>
+                    ) : (
+                      <BarChart data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                        <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <p className="text-gray-600">Nenhum critério aplicável para exibir nos gráficos.</p>
+                    </div>
+                  </div>
+                )}
               </div>              {/* Critérios detalhados */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {criteria.map((criterion: any, index: number) => {                  // Tentar múltiplos campos para encontrar o valor
@@ -443,6 +437,9 @@ const AgentDetail: React.FC = () => {
                     value = value * 100;
                   }
                   
+                  // Verificar se é um critério "Não se aplica"
+                  const isNotApplicable = value === 0 || value < 1;
+                  
                   return (
                     <div 
                       key={index} 
@@ -455,12 +452,14 @@ const AgentDetail: React.FC = () => {
                         </div>
                         <span 
                           className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                            value >= 70 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                            isNotApplicable
+                              ? 'bg-gray-100 text-gray-600' // Cinza para "Não se aplica"
+                              : value >= 70 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {value.toFixed(1)}%
+                          {isNotApplicable ? 'Não se aplica' : `${value.toFixed(1)}%`}
                         </span>
                       </div>
                     </div>
@@ -485,25 +484,44 @@ const AgentDetail: React.FC = () => {
               <TrendingUp className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
               Comparativo Mensal
             </h2>
-            <button className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200">
-              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Exportar Tabela</span>
-            </button>
           </div>
           
           {generateMonthlyData(calls || []).length > 0 ? (
             <>
-              <div className="h-48 sm:h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={generateMonthlyData(calls || [])}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                    <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                    <Tooltip formatter={(value) => [`${value}%`, 'Média de Pontuação']} />
-                    <Legend />
-                    <Bar dataKey="notas" radius={[4, 4, 0, 0]} name="Média de Pontuação" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="h-48 sm:h-64" id="chart-container">
+                {(() => {
+                  const chartData = generateMonthlyData(calls || []);
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart 
+                        data={chartData}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month" 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <YAxis 
+                          domain={[0, 100]} 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <Tooltip 
+                          formatter={(value) => {
+                            return [`${value}%`, 'Média de Pontuação'];
+                          }} 
+                        />
+                        <Legend />
+                        <Bar 
+                          dataKey="notas" 
+                          radius={[4, 4, 0, 0]} 
+                          name="Média de Pontuação" 
+                          fill="#3b82f6"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </div>
 
             </>
