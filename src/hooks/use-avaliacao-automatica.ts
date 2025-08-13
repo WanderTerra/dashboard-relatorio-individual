@@ -32,6 +32,17 @@ export const useAvaliacaoAutomatica = () => {
   const avaliacaoMutation = useMutation({
     mutationFn: (data: AvaliacaoAutomaticaRequest) => avaliarTranscricaoAutomatica(data),
     onSuccess: (data: AvaliacaoAutomaticaResponse) => {
+      console.log('=== MUTATION SUCCESS ===');
+      console.log('Dados recebidos da API:', data);
+      console.log('Tipo de itens:', typeof data.itens);
+      console.log('É array?', Array.isArray(data.itens));
+      console.log('Quantidade de itens:', data.itens?.length);
+      if (data.itens && data.itens.length > 0) {
+        console.log('Primeiro item:', data.itens[0]);
+        console.log('Status do primeiro item:', data.itens[0].status);
+      }
+      console.log('========================');
+      
       setAvaliacaoResult(data);
       toast({
         title: "Avaliação Concluída",

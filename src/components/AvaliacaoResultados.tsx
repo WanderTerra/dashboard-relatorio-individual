@@ -22,6 +22,23 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
 
+  // Debug: verificar estrutura dos dados
+  React.useEffect(() => {
+    if (avaliacao) {
+      console.log('=== DEBUG AVALIAÇÃO ===');
+      console.log('Estrutura completa:', avaliacao);
+      console.log('Tipo de itens:', typeof avaliacao.itens);
+      console.log('É array?', Array.isArray(avaliacao.itens));
+      console.log('Quantidade de itens:', avaliacao.itens?.length);
+      if (avaliacao.itens && avaliacao.itens.length > 0) {
+        console.log('Primeiro item:', avaliacao.itens[0]);
+        console.log('Status do primeiro item:', avaliacao.itens[0].status);
+        console.log('Tipo do status:', typeof avaliacao.itens[0].status);
+      }
+      console.log('=======================');
+    }
+  }, [avaliacao]);
+
   if (!avaliacao) {
     return (
       <Card className="w-full">
@@ -41,7 +58,9 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
+    const statusUpper = status.toUpperCase();
+    
+    switch (statusUpper) {
       case 'CONFORME':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'NAO CONFORME':
@@ -49,12 +68,15 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
       case 'NAO SE APLICA':
         return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
+        console.log('Status não reconhecido:', status);
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status.toUpperCase()) {
+    const statusUpper = status.toUpperCase();
+    
+    switch (statusUpper) {
       case 'CONFORME':
         return <CheckCircle className="h-4 w-4" />;
       case 'NAO CONFORME':
@@ -178,30 +200,49 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
         {/* Itens Avaliados */}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold">Critérios Avaliados</h3>
+          
+          {/* Debug info */}
+          <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+            <strong>Debug:</strong> {avaliacao.itens?.length || 0} itens encontrados
+          </div>
+          
           <div className="space-y-4">
-            {avaliacao.itens.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{item.criterio_nome}</div>
-                  {item.observacao && (
-                    <div className="text-xs text-gray-600 mt-1">
-                      {item.observacao}
-                    </div>
-                  )}
+            {avaliacao.itens && Array.isArray(avaliacao.itens) ? (
+              avaliacao.itens.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{item.criterio_nome}</div>
+                    {item.observacao && (
+                      <div className="text-xs text-gray-600 mt-1">
+                        {item.observacao}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className={`text-xs ${getStatusColor(item.status)}`}
+                    >
+                      <span className="mr-1">{getStatusIcon(item.status)}</span>
+                      {item.status}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      Peso: {item.peso.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    className={`text-xs ${getStatusColor(item.status)}`}
-                  >
-                    <span className="mr-1">{getStatusIcon(item.status)}</span>
-                    {item.status}
-                  </Badge>
-                  <span className="text-xs text-gray-500">
-                    Peso: {item.peso.toFixed(2)}
-                  </span>
-                </div>
+              ))
+            ) : (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">
+                  <strong>Erro:</strong> Estrutura de itens inválida. 
+                  Tipo: {typeof avaliacao.itens}, 
+                  É array: {Array.isArray(avaliacao.itens) ? 'Sim' : 'Não'}
+                </p>
+                <pre className="mt-2 text-xs overflow-auto">
+                  {JSON.stringify(avaliacao.itens, null, 2)}
+                </pre>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </CardContent>

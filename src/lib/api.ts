@@ -315,19 +315,40 @@ export interface AvaliacaoAutomaticaResponse {
   id_chamada: string;
   avaliador: string;
   falha_critica: boolean;
-  itens: Record<string, Record<string, {
+  itens: Array<{
+    criterio_id: number;
+    criterio_nome: string;
     status: string;
     observacao: string;
     peso: number;
-  }>>;
+  }>;
   erro_processamento?: string;
   pontuacao_total: number;
   pontuacao_percentual: number;
+  status_avaliacao: string;
 }
 
 // Função para chamar avaliação automática
-export const avaliarTranscricaoAutomatica = (data: AvaliacaoAutomaticaRequest) =>
-  api.post('/avaliacao/automatica', data).then(r => r.data);
+export const avaliarTranscricaoAutomatica = (data: AvaliacaoAutomaticaRequest) => {
+  console.log('=== API CALL ===');
+  console.log('Enviando dados:', data);
+  
+  return api.post('/avaliacao/automatica', data).then(r => {
+    console.log('=== API RESPONSE ===');
+    console.log('Resposta bruta:', r);
+    console.log('Dados da resposta:', r.data);
+    console.log('Tipo de itens:', typeof r.data.itens);
+    console.log('É array?', Array.isArray(r.data.itens));
+    console.log('Quantidade de itens:', r.data.itens?.length);
+    if (r.data.itens && r.data.itens.length > 0) {
+      console.log('Primeiro item:', r.data.itens[0]);
+      console.log('Status do primeiro item:', r.data.itens[0].status);
+    }
+    console.log('==================');
+    
+    return r.data;
+  });
+};
 
 // Função para buscar critérios de uma carteira
 export const getCriteriosCarteira = (carteiraId: number) =>
