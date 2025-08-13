@@ -25,6 +25,7 @@ const adminLinks: SidebarLink[] = [
     children: [
       { label: "Carteiras & Critérios", to: "/carteira-criterios", icon: <Link2 size={18} /> },
       { label: "Correções de Transcrição", to: "/correcoes", icon: <List size={18} /> },
+      { label: "Baixar Áudios", to: "/downloads", icon: <Upload size={18} /> },
     ],
   },
 ];

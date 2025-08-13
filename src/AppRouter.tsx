@@ -16,6 +16,7 @@ import Criterios from './pages/Criterios';
 import AudioUpload from './pages/AudioUpload';
 import CarteiraCriterios from './pages/CarteiraCriterios';
 import Correcoes from './pages/Correcoes';
+import Downloads from './pages/Downloads';
 
 const AppContent: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -90,6 +91,11 @@ const AppContent: React.FC = () => {
           <Route path="/correcoes" element={
             <ProtectedRoute requiredPermission="admin">
               <Correcoes />
+            </ProtectedRoute>
+          } />
+          <Route path="/downloads" element={
+            <ProtectedRoute requiredPermission="admin">
+              <Downloads />
             </ProtectedRoute>
           } />
         </Routes>

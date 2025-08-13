@@ -399,3 +399,68 @@ export const aplicarCorrecoesPreview = (texto: string, carteira_id?: number | nu
     texto,
     carteira_id: carteira_id ?? null,
   }).then(r => r.data);
+
+// ===== DOWNLOADS =====
+export interface DownloadJobCreate {
+  carteira_id: number;
+  fila_like: string;
+  data_inicio: string;
+  data_fim: string;
+  min_secs: number;
+  limite?: number;
+  delete_after_process: boolean;
+}
+
+export interface DownloadJob {
+  id: number;
+  carteira_id: number;
+  fila_like: string;
+  data_inicio: string;
+  data_fim: string;
+  min_secs: number;
+  limite?: number;
+  delete_after_process: boolean;
+  status: string;
+  total_calls: number;
+  total_baixados: number;
+  total_processados: number;
+  error_msg?: string;
+  created_at: string;
+  finished_at?: string;
+}
+
+export interface AudioFile {
+  id: number;
+  job_id: number;
+  carteira_id: number;
+  call_id: string;
+  queue_id: string;
+  start_time: string;
+  answer_time?: string;
+  hangup_time?: string;
+  call_secs: number;
+  filename: string;
+  status: string;
+  transcricao_id?: number;
+  error_msg?: string;
+  downloaded_at: string;
+}
+
+// Funções da API
+export const createDownloadJob = (data: DownloadJobCreate) =>
+  api.post<DownloadJob>('/downloads/jobs', data).then(r => r.data);
+
+export const listDownloadJobs = (params?: { status?: string; carteira_id?: number; limit?: number; offset?: number }) =>
+  api.get<DownloadJob[]>('/downloads/jobs', { params }).then(r => r.data);
+
+export const getDownloadJob = (jobId: number) =>
+  api.get<DownloadJob>(`/downloads/jobs/${jobId}`).then(r => r.data);
+
+export const cancelDownloadJob = (jobId: number) =>
+  api.post(`/downloads/jobs/${jobId}/cancel`).then(r => r.data);
+
+export const listDownloadedFiles = (params?: { job_id?: number; status?: string; carteira_id?: number; limit?: number; offset?: number }) =>
+  api.get<AudioFile[]>('/downloads/files', { params }).then(r => r.data);
+
+export const reprocessFile = (fileId: number) =>
+  api.post(`/downloads/files/${fileId}/reprocess`).then(r => r.data);
