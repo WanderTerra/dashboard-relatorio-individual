@@ -358,6 +358,10 @@ export const getCriteriosCarteira = (carteiraId: number) =>
 export const getCriterios = () =>
   api.get('/criterios/').then(r => r.data);
 
+// Função para buscar apenas as categorias únicas dos critérios
+export const getCategoriasCriterios = () =>
+  api.get('/criterios/categorias/').then(r => r.data);
+
 // Funções para carteira_criterios
 export const getCriteriosDaCarteira = (carteiraId: number): Promise<Array<{
   id: number;
