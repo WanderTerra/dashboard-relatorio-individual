@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Brain, Play } from 'lucide-react';
+import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -24,10 +24,8 @@ interface UploadedFile {
   error?: string;
 }
 
-
-
 const AudioUpload: React.FC = () => {
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
@@ -93,6 +91,12 @@ const AudioUpload: React.FC = () => {
       return;
     }
 
+    // Verificar se já existe um arquivo
+    if (uploadedFile) {
+      toast.error('Remova o arquivo atual antes de enviar outro');
+      return;
+    }
+
     const audioFiles = Array.from(files).filter(file => 
       file.type.startsWith('audio/') || file.name.toLowerCase().endsWith('.mp3') || 
       file.name.toLowerCase().endsWith('.wav') || file.name.toLowerCase().endsWith('.m4a')
@@ -103,42 +107,42 @@ const AudioUpload: React.FC = () => {
       return;
     }
 
-    const newFiles: UploadedFile[] = audioFiles.map(file => ({
+    // Pegar apenas o primeiro arquivo
+    const file = audioFiles[0];
+    const newFile: UploadedFile = {
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: file.size,
       progress: 0,
       status: 'uploading'
-    }));
+    };
 
-    setUploadedFiles(prev => [...prev, ...newFiles]);
-    simulateUpload(newFiles);
+    setUploadedFile(newFile);
+    simulateUpload(newFile);
   };
 
   // Simulate upload process
-  const simulateUpload = (files: UploadedFile[]) => {
+  const simulateUpload = (file: UploadedFile) => {
     setIsUploading(true);
     
-    files.forEach((file, index) => {
-      const interval = setInterval(() => {
-        setUploadedFiles(prev => prev.map(f => {
-          if (f.id === file.id) {
-            const newProgress = f.progress + Math.random() * 20;
-            if (newProgress >= 100) {
-              clearInterval(interval);
-              return { ...f, progress: 100, status: 'success' as const };
-            }
-            return { ...f, progress: newProgress };
-          }
-          return f;
-        }));
-      }, 200 + index * 100);
-    });
+    const interval = setInterval(() => {
+      setUploadedFile(prev => {
+        if (!prev) return null;
+        
+        const newProgress = prev.progress + Math.random() * 20;
+        if (newProgress >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          toast.success('Arquivo enviado com sucesso!');
+          return { ...prev, progress: 100, status: 'success' as const };
+        }
+        return { ...prev, progress: newProgress };
+      });
+    }, 200);
 
     // Simulate completion
     setTimeout(() => {
       setIsUploading(false);
-      toast.success(`${files.length} arquivo(s) enviado(s) com sucesso para a carteira ${selectedCarteira}!`);
     }, 3000);
   };
 
@@ -160,47 +164,107 @@ const AudioUpload: React.FC = () => {
   };
 
   // Remove file
-  const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-  };
-
-  // Clear all files
-  const clearAllFiles = () => {
-    setUploadedFiles([]);
+  const removeFile = () => {
+    setUploadedFile(null);
+    setTranscription(null);
+    limparResultado();
   };
 
   // Clear carteira selection
   const clearCarteira = () => {
     setSelectedCarteira('');
+    setUploadedFile(null);
+    setTranscription(null);
+    limparResultado();
+  };
+
+  // Transcrever arquivo
+  const handleTranscribe = async () => {
+    if (!uploadedFile) {
+      toast.error('Nenhum arquivo para transcrever');
+      return;
+    }
+    
+    setIsTranscribing(true);
+    setTranscription(null);
+    
+    try {
+      const input = fileInputRef.current;
+      if (!input || !input.files || input.files.length === 0) {
+        toast.error('Arquivo de áudio não encontrado');
+        return;
+      }
+      
+      const file = input.files[0];
+      console.log('🎙️ Iniciando transcrição...');
+      
+      const formData = new FormData();
+      formData.append('arquivo', file);
+      
+      const token = localStorage.getItem('auth_token');
+      const res = await axios.post('/api/transcricao/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      console.log('✅ Transcrição concluída:', res.data);
+      const responseData = res.data as any;
+      setTranscription(responseData.transcricao);
+      toast.success('Transcrição concluída com sucesso!');
+      
+    } catch (err: any) {
+      console.error('❌ Erro na transcrição:', err);
+      toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  // Avaliar com IA
+  const handleEvaluate = async () => {
+    if (!transcription || !selectedCarteira) {
+      toast.error('Transcrição ou carteira não disponível');
+      return;
+    }
+    
+    try {
+      const carteira = carteiras.find((c: any) => c.nome === selectedCarteira);
+      if (carteira) {
+        console.log('🤖 Iniciando avaliação automática...');
+        const transcricaoTexto = transcription.text || JSON.stringify(transcription);
+        await avaliarTranscricao(transcricaoTexto, carteira.id);
+        toast.success('Avaliação iniciada!');
+      }
+    } catch (err: any) {
+      console.error('❌ Erro na avaliação:', err);
+      toast.error('Erro ao iniciar avaliação: ' + err.message);
+    }
   };
 
   return (
     <div>
       <PageHeader 
         title="Upload de Áudios" 
-        subtitle="Envie arquivos de áudio para análise e avaliação"
+        subtitle="Envie um arquivo de áudio para transcrição e avaliação com IA"
         actions={
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={clearAllFiles}
-              disabled={uploadedFiles.length === 0}
-            >
-              Limpar Arquivos
-            </Button>
+          <div className="flex gap-3">
             <Button 
               variant="outline" 
               onClick={clearCarteira}
-              disabled={!selectedCarteira}
+              disabled={isUploading || isTranscribing || isAvaliando}
+              className="border-gray-300 hover:bg-gray-50"
             >
-              Limpar Carteira
+              Limpar Tudo
             </Button>
             <Button 
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || !selectedCarteira}
+              disabled={isUploading || !selectedCarteira || !!uploadedFile}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Selecionar Arquivos
+              Selecionar Arquivo
             </Button>
           </div>
         }
@@ -208,14 +272,13 @@ const AudioUpload: React.FC = () => {
 
       <div className="p-6 space-y-6">
         {/* Carteira Selection */}
-        <Card>
+        <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileAudio className="w-5 h-5" />
-              Seleção de Carteira
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+              📁 Seleção de Carteira
             </CardTitle>
-            <CardDescription>
-              Selecione a carteira para qual os áudios serão enviados
+            <CardDescription className="text-gray-600">
+              Escolha a carteira de destino para o arquivo de áudio
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -231,258 +294,248 @@ const AudioUpload: React.FC = () => {
                 emptyMessage="Nenhuma carteira encontrada"
               />
               {selectedCarteira && (
-                <p className="text-sm text-green-600 mt-2">
-                  ✓ Carteira selecionada: <strong>{selectedCarteira}</strong>
-                </p>
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-sm text-green-800">
+                      Carteira selecionada: <strong>{selectedCarteira}</strong>
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Upload Area */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileAudio className="w-5 h-5" />
-              Área de Upload
-            </CardTitle>
-            <CardDescription>
-              {selectedCarteira 
-                ? `Arraste e solte arquivos de áudio aqui ou clique para selecionar (Carteira: ${selectedCarteira})`
-                : 'Selecione uma carteira primeiro para fazer upload de arquivos'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-                !selectedCarteira 
-                  ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                  : isDragging 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400'
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => selectedCarteira && fileInputRef.current?.click()}
-            >
-              <Upload className={`w-12 h-12 mx-auto mb-4 ${!selectedCarteira ? 'text-gray-300' : 'text-gray-400'}`} />
-              <p className="text-lg font-medium text-gray-900 mb-2">
-                {!selectedCarteira 
-                  ? 'Selecione uma carteira primeiro'
-                  : isDragging 
-                    ? 'Solte os arquivos aqui' 
-                    : 'Clique ou arraste arquivos aqui'
-                }
-              </p>
-              <p className="text-sm text-gray-500">
-                {selectedCarteira 
-                  ? 'Formatos suportados: MP3, WAV, M4A (máximo 50MB por arquivo)'
-                  : 'Você precisa selecionar uma carteira antes de fazer upload'
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Transcrição com Diarização */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">
-              Transcrição com Diarização
-            </h3>
-            <div className="text-sm text-gray-500">
-              ElevenLabs Scribe • 96.7% precisão
-            </div>
-          </div>
-          
-          <Button
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            onClick={async () => {
-              if (!uploadedFiles.length) {
-                toast.error('Envie um arquivo de áudio primeiro!');
-                return;
-              }
-              
-              setIsTranscribing(true);
-              setTranscription(null);
-              
-              try {
-                const input = fileInputRef.current;
-                if (!input || !input.files || input.files.length === 0) {
-                  toast.error('Arquivo de áudio não encontrado no input.');
-                  return;
-                }
-                
-                const fileName = uploadedFiles[0].name;
-                const file = Array.from(input.files).find(f => f.name === fileName) || input.files[0];
-                if (!file) {
-                  toast.error('Arquivo de áudio não encontrado no input.');
-                  return;
-                }
-                
-                console.log('🎙️ Iniciando transcrição com diarização via backend...');
-                
-                const formData = new FormData();
-                formData.append('arquivo', file);
-                
-                const token = localStorage.getItem('auth_token');
-                const res = await axios.post('/api/transcricao/upload', formData, {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                  },
-                });
-                
-                console.log('✅ Transcrição com classificação recebida:', res.data);
-                setTranscription(res.data.transcricao);
-                toast.success('Diarização e classificação concluídas!');
-                
-                // Executar avaliação automática após transcrição
-                if (selectedCarteira) {
-                  const carteira = carteiras.find((c: any) => c.nome === selectedCarteira);
-                  if (carteira) {
-                    console.log('🤖 Iniciando avaliação automática...');
-                    const transcricaoTexto = res.data.transcricao.text || JSON.stringify(res.data.transcricao);
-                    avaliarTranscricao(transcricaoTexto, carteira.id);
-                  }
-                }
-                
-              } catch (err: any) {
-                console.error('❌ Erro na transcrição:', err);
-                toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
-              } finally {
-                setIsTranscribing(false);
-              }
-            }}
-            disabled={isTranscribing || !uploadedFiles.length}
-            size="lg"
-          >
-            {isTranscribing ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processando com IA...
-              </>
-            ) : (
-              <>
-                <FileAudio className="mr-2 h-5 w-5" />
-                Transcrever com Diarização
-              </>
-            )}
-          </Button>
-          
-          {transcription && (
-            <div className="mt-6">
-              <ScribeDiarizedTranscription
-                transcription={transcription}
-                isLoading={isTranscribing}
-                showTimestamps={true}
-                showSpeakerStats={true}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="audio/*,.mp3,.wav,.m4a"
-          onChange={(e) => handleFileSelect(e.target.files)}
-          className="hidden"
-        />
-
-        {/* Uploaded Files List */}
-        {uploadedFiles.length > 0 && (
-          <Card>
+        {/* Upload Area - Só aparece se não há arquivo */}
+        {!uploadedFile && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
             <CardHeader>
-              <CardTitle>Arquivos Enviados</CardTitle>
-              <CardDescription>
-                {uploadedFiles.length} arquivo(s) selecionado(s)
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                🎵 Upload de Arquivo
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                {selectedCarteira 
+                  ? 'Arraste e solte um arquivo de áudio aqui ou clique para selecionar'
+                  : 'Selecione uma carteira primeiro para fazer upload'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {uploadedFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <FileAudio className="w-5 h-5 text-gray-500" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatFileSize(file.size)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {/* Status Icon */}
-                      {file.status === 'uploading' && (
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                      )}
-                      {file.status === 'success' && (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      )}
-                      {file.status === 'error' && (
-                        <AlertCircle className="w-4 h-4 text-red-500" />
-                      )}
-
-                      {/* Progress Bar */}
-                      <div className="w-24">
-                        <Progress value={file.progress} className="h-2" />
-                      </div>
-
-                      {/* Status Badge */}
-                      <Badge 
-                        variant={
-                          file.status === 'success' ? 'default' :
-                          file.status === 'error' ? 'destructive' : 'secondary'
-                        }
-                        className="text-xs"
-                      >
-                        {file.status === 'uploading' ? 'Enviando' :
-                         file.status === 'success' ? 'Concluído' : 'Erro'}
-                      </Badge>
-
-                      {/* Remove Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(file.id)}
-                        disabled={file.status === 'uploading'}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+                  !selectedCarteira 
+                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
+                    : isDragging 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => selectedCarteira && fileInputRef.current?.click()}
+              >
+                <Music className={`w-12 h-12 mx-auto mb-4 ${!selectedCarteira ? 'text-gray-300' : 'text-gray-400'}`} />
+                <p className="text-lg font-medium text-gray-900 mb-2">
+                  {!selectedCarteira 
+                    ? 'Selecione uma carteira primeiro'
+                    : isDragging 
+                      ? 'Solte o arquivo aqui' 
+                      : 'Clique ou arraste um arquivo aqui'
+                  }
+                </p>
+                <p className="text-sm text-gray-500">
+                  {selectedCarteira 
+                    ? 'Formatos: MP3, WAV, M4A'
+                    : 'Você precisa selecionar uma carteira antes de fazer upload'
+                  }
+                </p>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Resultados da Avaliação Automática */}
-        {avaliacaoResult && (
-          <Card>
+        {/* Arquivo Enviado */}
+        {uploadedFile && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-purple-600" />
-                Resultados da Avaliação Automática
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                📁 Arquivo Enviado
               </CardTitle>
-              <CardDescription>
-                Avaliação realizada automaticamente após a transcrição
+              <CardDescription className="text-gray-600">
+                Arquivo pronto para transcrição
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="flex items-center gap-3 flex-1">
+                  <FileAudio className="w-5 h-5 text-gray-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {uploadedFile.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(uploadedFile.size)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Status Icon */}
+                  {uploadedFile.status === 'uploading' && (
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  )}
+                  {uploadedFile.status === 'success' && (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  )}
+                  {uploadedFile.status === 'error' && (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+
+                  {/* Progress Bar */}
+                  <div className="w-24">
+                    <Progress value={uploadedFile.progress} className="h-2" />
+                  </div>
+
+                  {/* Status Badge */}
+                  <Badge 
+                    variant={
+                      uploadedFile.status === 'success' ? 'default' :
+                      uploadedFile.status === 'error' ? 'destructive' : 'secondary'
+                    }
+                    className="text-xs"
+                  >
+                    {uploadedFile.status === 'uploading' ? 'Enviando' :
+                     uploadedFile.status === 'success' ? 'Concluído' : 'Erro'}
+                  </Badge>
+
+                  {/* Remove Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeFile}
+                    disabled={uploadedFile.status === 'uploading'}
+                    className="hover:bg-red-50 hover:text-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Botão Transcrever */}
+              {uploadedFile.status === 'success' && !transcription && (
+                <div className="mt-4">
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
+                    onClick={handleTranscribe}
+                    disabled={isTranscribing}
+                    size="lg"
+                  >
+                    {isTranscribing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Transcrevendo...
+                      </>
+                    ) : (
+                      <>
+                        🎙️ Transcrever Arquivo
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Área de Carregamento */}
+        {isTranscribing && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Transcrevendo arquivo...</p>
+                  <p className="text-xs text-blue-600">Isso pode levar alguns segundos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Transcrição */}
+        {transcription && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                📝 Transcrição
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Transcrição do arquivo de áudio
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScribeDiarizedTranscription
+                transcription={transcription}
+                isLoading={false}
+                showTimestamps={true}
+                showSpeakerStats={true}
+              />
+              
+              {/* Botão Avaliar com IA */}
+              <div className="mt-4">
+                <Button
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white h-12 text-base font-medium"
+                  onClick={handleEvaluate}
+                  disabled={isAvaliando}
+                  size="lg"
+                >
+                  {isAvaliando ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Avaliando com IA...
+                    </>
+                  ) : (
+                    <>
+                      🤖 Avaliar com IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Status da Avaliação */}
+        {isAvaliando && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-purple-800">Avaliando transcrição com IA...</p>
+                  <p className="text-xs text-purple-600">Isso pode levar alguns segundos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resultados da Avaliação */}
+        {avaliacaoResult && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                🎯 Resultados da Avaliação
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Avaliação realizada automaticamente com IA
               </CardDescription>
             </CardHeader>
             <CardContent>
               <AvaliacaoResultados
                 avaliacao={avaliacaoResult}
+                carteiraId={selectedCarteiraAvaliacao || undefined}
                 isLoading={isAvaliando}
               />
               
@@ -493,7 +546,9 @@ const AudioUpload: React.FC = () => {
                   onClick={limparResultado}
                   disabled={isAvaliando}
                   size="sm"
+                  className="border-gray-300 hover:bg-gray-50"
                 >
+                  <X className="w-4 h-4 mr-2" />
                   Limpar Resultado
                 </Button>
               </div>
@@ -501,64 +556,30 @@ const AudioUpload: React.FC = () => {
           </Card>
         )}
 
-        {/* Status da Avaliação */}
-        {isAvaliando && (
-          <Card>
+        {/* Erro de Avaliação */}
+        {avaliacaoError && (
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                <div>
-                  <p className="text-sm font-medium">Avaliando transcrição com IA...</p>
-                  <p className="text-xs text-gray-500">Isso pode levar alguns segundos</p>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <p className="text-red-700 text-sm">
+                    Erro na avaliação automática: {avaliacaoError?.message || 'Erro desconhecido'}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Erro de Avaliação */}
-        {avaliacaoError && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">
-                  Erro na avaliação automática: {avaliacaoError?.message || 'Erro desconhecido'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Instruções</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 text-sm text-gray-600">
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p><strong>Primeiro:</strong> Selecione a carteira para qual os áudios serão enviados</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Certifique-se de que os arquivos de áudio estão em boa qualidade</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Formatos suportados: MP3, WAV, M4A</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Tamanho máximo por arquivo: 50MB</p>
-              </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p>Os arquivos serão processados automaticamente após o upload</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*,.mp3,.wav,.m4a"
+          onChange={(e) => handleFileSelect(e.target.files)}
+          className="hidden"
+        />
       </div>
     </div>
   );

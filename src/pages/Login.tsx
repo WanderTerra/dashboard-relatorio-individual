@@ -241,9 +241,7 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
 
   const showErrorToast = (message: string) => {
     console.log('🔴 showErrorToast chamada com:', message);
-    setToastMessage(message);
-    setShowToast(true);
-    console.log('🔴 Estados atualizados - showToast:', true, 'toastMessage:', message);
+    setError(message); // Usar setError em vez de toast
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

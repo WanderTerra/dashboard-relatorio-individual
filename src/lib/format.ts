@@ -1,15 +1,36 @@
 // Mapeamento de nomes técnicos para nomes amigáveis
 export const itemNameMap: Record<string, string> = {
-  // Itens de avaliação
+  // Itens de avaliação - variações principais
   "fraseologia_explica_motivo": "Explicação do Motivo",
+  "explicacao_motivo": "Explicação do Motivo",
+  "explicacao_do_motivo": "Explicação do Motivo",
   "seguranca_info_corretas": "Confirmações de Segurança",
+  "confirmacoes_seguranca": "Confirmações de Segurança",
+  "confirmacao_seguranca": "Confirmação de Segurança",
   "cordialidade_respeito": "Cordialidade e Respeito",
+  "cordialidade_e_respeito": "Cordialidade e Respeito",
   "empatia_genuina": "Empatia com Cliente",
+  "empatia_com_cliente": "Empatia com Cliente",
+  "empatia_cliente": "Empatia com Cliente",
   "escuta_sem_interromper": "Escuta Ativa",
-  "clareza_direta": "Clareza na Comunicação", 
+  "escuta_ativa": "Escuta Ativa",
+  "clareza_direta": "Clareza na Comunicação",
+  "clareza_comunicacao": "Clareza na Comunicação",
+  "clareza_na_comunicacao": "Clareza na Comunicação",
   "comunicacao_tom_adequado": "Tom de Voz Adequado",
+  "tom_de_voz_adequado": "Tom de Voz Adequado",
+  "tom_voz_adequado": "Tom de Voz Adequado",
   "oferta_valores_corretos": "Apresentação de Valores",
+  "apresentacao_de_valores": "Apresentação de Valores",
+  "apresentacao_valores": "Apresentação de Valores",
   "confirmacao_aceite": "Confirmação de Aceitação",
+  "confirmacao_aceitacao": "Confirmação de Aceitação",
+  "confirmacao_de_aceitacao": "Confirmação de Aceitação",
+  
+  // Critérios adicionais
+  "abordagem_atendeu": "Abordagem Atendeu",
+  "encerramento_agradece": "Encerramento Agradece",
+  "reforco_prazo": "Reforço Prazo",
   
   // Outros critérios
   "saudacao_padrao": "Saudação Padrão", 
@@ -36,9 +57,12 @@ export const itemNameMap: Record<string, string> = {
 export function formatItemName(technicalName: string): string {
   if (!technicalName) return "";
   
+  // Normalizar o nome técnico (lowercase, remover espaços extras)
+  const normalizedName = technicalName.toLowerCase().trim();
+  
   // Se existir no mapa, retorna o valor mapeado
-  if (itemNameMap[technicalName]) {
-    return itemNameMap[technicalName];
+  if (itemNameMap[normalizedName]) {
+    return itemNameMap[normalizedName];
   }
   
   // Se não existir no mapa, formata o nome substituindo underscores por espaços
@@ -47,6 +71,185 @@ export function formatItemName(technicalName: string): string {
     .split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
+}
+
+// Função para padronizar a estrutura de critérios
+export function standardizeCriteria(criterion: any): {
+  id: string;
+  name: string;
+  normalizedName: string;
+  value: number;
+  isNotApplicable: boolean;
+  rawData: any;
+} {
+  // Tentar múltiplos campos para encontrar o nome do critério
+  const rawName = criterion.categoria || criterion.name || criterion.item || criterion.nome || '';
+  const normalizedName = normalizeCriteriaName(rawName);
+  
+  // Tentar múltiplos campos para encontrar o valor
+  const rawValue = criterion.pct_conforme || criterion.performance || criterion.score || criterion.percentual || 
+                  criterion.taxa_conforme || criterion.media || criterion.valor || 
+                  criterion.pontuacao || criterion.conformidade || 0;
+  
+  // Converter para número e lidar com valores decimais
+  let value = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue) || 0;
+  
+  // Se o valor parece ser decimal (entre 0 e 1), converter para percentual
+  if (value > 0 && value <= 1) {
+    value = value * 100;
+  }
+  
+  // Verificar se é um critério "Não se aplica"
+  const isNotApplicable = value === 0 || value < 1;
+  
+  // Gerar ID único baseado no nome normalizado
+  const id = `criterion_${normalizedName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  return {
+    id,
+    name: rawName,
+    normalizedName,
+    value,
+    isNotApplicable,
+    rawData: criterion
+  };
+}
+
+// Função para analisar critérios e identificar potenciais duplicatas
+export function analyzeCriteriaDuplicates(criteria: any[]): {
+  total: number;
+  unique: number;
+  duplicates: number;
+  duplicateGroups: Array<{
+    normalizedName: string;
+    items: Array<{ originalName: string; index: number; criterion: any }>;
+  }>;
+} {
+  if (!criteria || criteria.length === 0) {
+    return { total: 0, unique: 0, duplicates: 0, duplicateGroups: [] };
+  }
+  
+  const nameGroups = new Map<string, Array<{ originalName: string; index: number; criterion: any }>>();
+  
+  criteria.forEach((criterion, index) => {
+    const rawName = criterion.categoria || criterion.name || criterion.item || criterion.nome || '';
+    const normalizedName = normalizeCriteriaName(rawName);
+    
+    if (!normalizedName) return;
+    
+    if (!nameGroups.has(normalizedName)) {
+      nameGroups.set(normalizedName, []);
+    }
+    
+    nameGroups.get(normalizedName)!.push({
+      originalName: rawName,
+      index,
+      criterion
+    });
+  });
+  
+  const duplicateGroups = Array.from(nameGroups.entries())
+    .filter(([_, items]) => items.length > 1)
+    .map(([normalizedName, items]) => ({
+      normalizedName,
+      items
+    }));
+  
+  const total = criteria.length;
+  const unique = nameGroups.size;
+  const duplicates = total - unique;
+  
+  return {
+    total,
+    unique,
+    duplicates,
+    duplicateGroups
+  };
+}
+
+// Função para deduplicar critérios baseado no nome normalizado
+export function deduplicateCriteria(criteria: any[]): any[] {
+  if (!criteria || criteria.length === 0) return [];
+  
+  // Primeiro, analisar os dados para identificar duplicatas
+  const analysis = analyzeCriteriaDuplicates(criteria);
+  
+  if (analysis.duplicates > 0) {
+    console.group(`🔍 Análise de Duplicatas - ${analysis.total} critérios`);
+    console.log(`📊 Total: ${analysis.total}, Únicos: ${analysis.unique}, Duplicatas: ${analysis.duplicates}`);
+    
+    analysis.duplicateGroups.forEach(group => {
+      console.group(`🔄 Grupo de duplicatas: "${group.normalizedName}"`);
+      group.items.forEach(item => {
+        console.log(`  - "${item.originalName}" (índice ${item.index})`);
+      });
+      console.groupEnd();
+    });
+    console.groupEnd();
+  }
+  
+  const seen = new Map<string, any>();
+  const deduplicated: any[] = [];
+  
+  criteria.forEach((criterion, index) => {
+    // Tentar múltiplos campos para encontrar o nome do critério
+    const rawName = criterion.categoria || criterion.name || criterion.item || criterion.nome || '';
+    const normalizedName = normalizeCriteriaName(rawName);
+    
+    // Se o nome estiver vazio, pular
+    if (!normalizedName) {
+      console.warn(`Critério sem nome válido encontrado (índice ${index}):`, criterion);
+      return;
+    }
+    
+    // Se já vimos este critério, pular
+    if (seen.has(normalizedName)) {
+      const existing = seen.get(normalizedName);
+      console.warn(`Critério duplicado removido: "${rawName}" (índice ${index}) - mantido: "${existing.originalName}" (índice ${existing.index})`);
+      return;
+    }
+    
+    // Marcar como visto e adicionar à lista deduplicada
+    seen.set(normalizedName, { 
+      criterion, 
+      originalName: rawName,
+      index 
+    });
+    
+    // Adicionar o critério com informações de deduplicação
+    deduplicated.push({
+      ...criterion,
+      _deduplicationInfo: {
+        originalIndex: index,
+        normalizedName,
+        isDuplicate: false,
+        duplicateCount: analysis.duplicateGroups.find(g => g.normalizedName === normalizedName)?.items.length || 1
+      }
+    });
+  });
+  
+  console.log(`✅ Deduplicação concluída: ${criteria.length} → ${deduplicated.length} critérios únicos`);
+  
+  // Log detalhado dos critérios removidos
+  if (criteria.length !== deduplicated.length) {
+    const removedCount = criteria.length - deduplicated.length;
+    console.log(`⚠️ ${removedCount} critérios duplicados foram removidos automaticamente`);
+  }
+  
+  return deduplicated;
+}
+
+// Função para normalizar o nome de um critério para comparação
+export function normalizeCriteriaName(name: string): string {
+  if (!name) return "";
+  
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[_\s]+/g, '_') // Normalizar espaços e underscores
+    .replace(/[^a-z0-9_]/g, '') // Remover caracteres especiais
+    .replace(/^(criterio|criterios|item|itens)_/i, '') // Remover prefixos comuns
+    .replace(/_(criterio|criterios|item|itens)$/i, ''); // Remover sufixos comuns
 }
 
 // Função para formatar o nome do agente

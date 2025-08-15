@@ -27,7 +27,7 @@ import {
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
 import PageHeader   from '../components/PageHeader';
-import { formatItemName, formatAgentName } from '../lib/format';
+import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, BarChart3, TrendingUp } from 'lucide-react';
@@ -145,30 +145,32 @@ const AgentDetail: React.FC = () => {
   const formatCriteriaForRadar = (criteriaData: any[]) => {
     if (!criteriaData || criteriaData.length === 0) return [];
     
-    const formatted = criteriaData.map(item => {      // Tentar múltiplos campos para encontrar o valor da performance
-      const value = item.pct_conforme || item.performance || item.score || item.percentual || 
-                    item.taxa_conforme || item.media || item.valor || 
-                    item.pontuacao || item.conformidade || 0;
-      
-      // Converter para número e lidar com valores decimais
-      let finalValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-      
-      // Se o valor parece ser decimal (entre 0 e 1), converter para percentual
-      if (finalValue > 0 && finalValue <= 1) {
-        finalValue = finalValue * 100;
-      }
-      
-      // Verificar se é um critério "Não se aplica" (valor 0 ou muito baixo)
-      const isNotApplicable = finalValue === 0 || finalValue < 1;
+    // Primeiro, deduplicar os critérios
+    const deduplicatedCriteria = deduplicateCriteria(criteriaData);
+    
+    const formatted = deduplicatedCriteria.map(item => {
+      // Usar a função padronizada para consistência
+      const standardized = standardizeCriteria(item);
       
       return {
-        subject: formatItemName(item.categoria || item.name || item.item),
-        value: isNotApplicable ? -1 : Math.round(finalValue * 10) / 10, // -1 indica "Não se aplica"
+        subject: formatItemName(standardized.name),
+        value: standardized.isNotApplicable ? -1 : Math.round(standardized.value * 10) / 10, // -1 indica "Não se aplica"
         fullMark: 100,
-        isNotApplicable: isNotApplicable,
-        originalData: item // Manter dados originais para referência
+        isNotApplicable: standardized.isNotApplicable,
+        originalData: item, // Manter dados originais para referência
+        normalizedName: standardized.normalizedName // Adicionar nome normalizado para debug
       };
     });
+
+    // Log para debug
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 Dados formatados para radar:', {
+        original: criteriaData.length,
+        deduplicated: deduplicatedCriteria.length,
+        formatted: formatted.length,
+        applicable: formatted.filter(item => !item.isNotApplicable).length
+      });
+    }
 
     // Retornar apenas dados reais, sem dados simulados
     return formatted;
@@ -335,138 +337,156 @@ const AgentDetail: React.FC = () => {
               </div>
             </div>
           ) : criteria && criteria.length > 0 ? (
-            <div className="space-y-6">
-              {/* Header com opções de gráfico */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  <svg className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  Desempenho por Critério
-                </h2>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
-                    <button 
-                      onClick={() => setActiveChart('radar')} 
-                      className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
-                        activeChart === 'radar' 
-                          ? 'bg-white text-gray-900 shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      <span className="hidden sm:inline">Radar</span>
-                    </button>
-                    <button 
-                      onClick={() => setActiveChart('bar')} 
-                      className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
-                        activeChart === 'bar' 
-                          ? 'bg-white text-gray-900 shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden sm:inline">Barras</span>
-                    </button>
-                  </div>
-                  {process.env.NODE_ENV === 'development' && (
-                    <button 
-                      onClick={() => {
-                        console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
-                      }}
-                      className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
-                    >
-                      Debug Data
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              {/* Gráfico dinâmico */}
-              <div className="h-48 sm:h-64">
-                {formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable).length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    {activeChart === 'radar' ? (
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                        <Radar
-                          name="Desempenho"
-                          dataKey="value"
-                          stroke="#4f46e5"
-                          fill="#4f46e5"
-                          fillOpacity={0.6}
-                        />
-                        <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                      </RadarChart>
-                    ) : (
-                      <BarChart data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                        <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    )}
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      <p className="text-gray-600">Nenhum critério aplicável para exibir nos gráficos.</p>
-                    </div>
-                  </div>
-                )}
-              </div>              {/* Critérios detalhados */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {criteria.map((criterion: any, index: number) => {                  // Tentar múltiplos campos para encontrar o valor
-                  const rawValue = criterion.pct_conforme || criterion.performance || criterion.score || criterion.percentual || 
-                                  criterion.taxa_conforme || criterion.media || criterion.valor || 
-                                  criterion.pontuacao || criterion.conformidade || 0;
-                  
-                  // Converter para número e lidar com valores decimais
-                  let value = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue) || 0;
-                  
-                  // Se o valor parece ser decimal (entre 0 e 1), converter para percentual
-                  if (value > 0 && value <= 1) {
-                    value = value * 100;
-                  }
-                  
-                  // Verificar se é um critério "Não se aplica"
-                  const isNotApplicable = value === 0 || value < 1;
-                  
-                  return (
-                    <div 
-                      key={index} 
-                      className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">                          <h3 className="text-sm font-medium text-gray-900">
-                            {formatItemName(criterion.categoria || criterion.name || criterion.item)}
-                          </h3>
-                        </div>
-                        <span 
-                          className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                            isNotApplicable
-                              ? 'bg-gray-100 text-gray-600' // Cinza para "Não se aplica"
-                              : value >= 70 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {isNotApplicable ? 'Não se aplica' : `${value.toFixed(1)}%`}
+            <>
+              {/* Informação sobre duplicatas */}
+              {(() => {
+                const analysis = analyzeCriteriaDuplicates(criteria);
+                return analysis.duplicates > 0 ? (
+                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p className="text-sm text-orange-800">
+                      ⚠️ <strong>Critérios duplicados detectados:</strong> 
+                      {analysis.duplicateGroups.map((group, index) => (
+                        <span key={index}>
+                          "{group.normalizedName}" ({group.items.length}x){index < analysis.duplicateGroups.length - 1 ? ', ' : ''}
                         </span>
+                      ))}
+                      <br />
+                      <span className="text-xs">
+                        Total: {analysis.total} critérios recebidos, {analysis.unique} únicos exibidos.
+                        {analysis.duplicates} duplicatas foram removidas automaticamente.
+                      </span>
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+              <div className="space-y-6">
+                {/* Header com opções de gráfico */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                    <svg className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Desempenho por Critério
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                      <button 
+                        onClick={() => setActiveChart('radar')} 
+                        className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                          activeChart === 'radar' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span className="hidden sm:inline">Radar</span>
+                      </button>
+                      <button 
+                        onClick={() => setActiveChart('bar')} 
+                        className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                          activeChart === 'bar' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Barras</span>
+                      </button>
+                    </div>
+                    {process.env.NODE_ENV === 'development' && (
+                      <button 
+                        onClick={() => {
+                          console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
+                        }}
+                        className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
+                      >
+                        Debug Data
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Gráfico dinâmico */}
+                <div className="h-48 sm:h-64">
+                  {formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable).length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      {activeChart === 'radar' ? (
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                          <Radar
+                            name="Desempenho"
+                            dataKey="value"
+                            stroke="#4f46e5"
+                            fill="#4f46e5"
+                            fillOpacity={0.6}
+                          />
+                          <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                        </RadarChart>
+                      ) : (
+                        <BarChart data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                          <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      )}
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <p className="text-gray-600">Nenhum critério aplicável para exibir nos gráficos.</p>
                       </div>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+                
+                {/* Critérios detalhados */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  {deduplicateCriteria(criteria).map((criterion: any, index: number) => {
+                    const standardized = standardizeCriteria(criterion);
+                    
+                    return (
+                      <div 
+                        key={standardized.id} 
+                        className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-gray-900">
+                              {formatItemName(standardized.name)}
+                            </h3>
+                            {criterion._deduplicationInfo?.duplicateCount > 1 && (
+                              <p className="text-xs text-orange-600 mt-1">
+                                ⚠️ Critério duplicado ({criterion._deduplicationInfo.duplicateCount}x)
+                              </p>
+                            )}
+                          </div>
+                          <span 
+                            className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                              standardized.isNotApplicable
+                                ? 'bg-gray-100 text-gray-600' // Cinza para "Não se aplica"
+                                : standardized.value >= 70 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {standardized.isNotApplicable ? 'Não se aplica' : `${standardized.value.toFixed(1)}%`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </>
           ) : (
             <div className="bg-white border border-gray-100 rounded-xl p-8 text-center shadow-sm">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

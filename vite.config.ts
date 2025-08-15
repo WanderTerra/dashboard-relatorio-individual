@@ -14,6 +14,10 @@ export default ({ mode }: { mode: string }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    optimizeDeps: {
+      include: ['use-callback-ref'],
+      exclude: [],
+    },
     server: {
       host: true,
       port: 5174,

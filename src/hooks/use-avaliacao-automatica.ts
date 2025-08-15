@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   avaliarTranscricaoAutomatica, 
@@ -49,7 +49,7 @@ export const useAvaliacaoAutomatica = () => {
     },
   });
 
-  const avaliarTranscricao = async (
+  const avaliarTranscricao = useCallback(async (
     transcricao: string, 
     carteiraId: number, 
     callId?: string, 
@@ -81,11 +81,13 @@ export const useAvaliacaoAutomatica = () => {
     };
 
     avaliacaoMutation.mutate(requestData);
-  };
+  }, [avaliacaoMutation, toast]);
 
-  const limparResultado = () => {
+  const limparResultado = useCallback(() => {
     setAvaliacaoResult(null);
-  };
+    // Limpar também o estado da mutação
+    avaliacaoMutation.reset();
+  }, [avaliacaoMutation]);
 
   const isAprovada = avaliacaoResult ? avaliacaoResult.pontuacao_percentual >= 70 : false;
 

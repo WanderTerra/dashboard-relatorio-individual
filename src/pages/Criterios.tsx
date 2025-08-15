@@ -65,7 +65,7 @@ const Criterios: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox" && e.target instanceof HTMLInputElement) {
-      setForm((prev) => ({ ...prev, [name]: e.target.checked }));
+      setForm((prev) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
     } else if (name === "peso") {
       setForm((prev) => ({ ...prev, peso: Number(value) }));
     } else {

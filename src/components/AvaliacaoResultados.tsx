@@ -143,16 +143,8 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
           <h3 className="text-lg font-semibold">Detalhes da Avaliação</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-medium">Avaliador:</span>
-              <span className="ml-2">{avaliacao.avaliador}</span>
-            </div>
-            <div>
               <span className="font-medium">ID da Chamada:</span>
               <span className="ml-2">{avaliacao.id_chamada}</span>
-            </div>
-            <div>
-              <span className="font-medium">Pontuação Total:</span>
-              <span className="ml-2">{avaliacao.pontuacao_total.toFixed(2)}</span>
             </div>
             <div>
               <span className="font-medium">Falha Crítica:</span>
