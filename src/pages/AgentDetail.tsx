@@ -148,31 +148,52 @@ const AgentDetail: React.FC = () => {
     // Primeiro, deduplicar os critérios
     const deduplicatedCriteria = deduplicateCriteria(criteriaData);
     
-    const formatted = deduplicatedCriteria.map(item => {
-      // Usar a função padronizada para consistência
+    // Agrupar critérios por categoria
+    const categoriesMap = new Map();
+    
+    deduplicatedCriteria.forEach(item => {
       const standardized = standardizeCriteria(item);
       
-      return {
-        subject: formatItemName(standardized.name),
-        value: standardized.isNotApplicable ? -1 : Math.round(standardized.value * 10) / 10, // -1 indica "Não se aplica"
-        fullMark: 100,
-        isNotApplicable: standardized.isNotApplicable,
-        originalData: item, // Manter dados originais para referência
-        normalizedName: standardized.normalizedName // Adicionar nome normalizado para debug
-      };
+      // Pular critérios que não se aplicam
+      if (standardized.isNotApplicable) return;
+      
+      const category = standardized.name.split(' - ')[0] || 'Sem Categoria'; // Pegar primeira parte como categoria
+      
+      if (!categoriesMap.has(category)) {
+        categoriesMap.set(category, {
+          values: [],
+          count: 0
+        });
+      }
+      
+      categoriesMap.get(category).values.push(standardized.value);
+      categoriesMap.get(category).count++;
     });
+    
+          // Calcular média de cada categoria
+      const formatted = Array.from(categoriesMap.entries()).map(([category, data]) => {
+        const averageValue = data.values.reduce((sum: number, val: number) => sum + val, 0) / data.values.length;
+        
+        return {
+          subject: category,
+          value: Math.round(averageValue * 10) / 10,
+          fullMark: 100,
+          count: data.count,
+          originalData: data.values
+        };
+      });
 
     // Log para debug
     if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Dados formatados para radar:', {
+      console.log('📊 Dados formatados por categoria para radar:', {
         original: criteriaData.length,
         deduplicated: deduplicatedCriteria.length,
-        formatted: formatted.length,
-        applicable: formatted.filter(item => !item.isNotApplicable).length
+        categories: formatted.length,
+        categoriesData: formatted.map(f => ({ category: f.subject, count: f.count, avg: f.value }))
       });
     }
 
-    // Retornar apenas dados reais, sem dados simulados
+    // Retornar dados agrupados por categoria
     return formatted;
   };
   // Log de erros e dados recebidos
@@ -234,7 +255,7 @@ const AgentDetail: React.FC = () => {
             )}
           </div>
         }
-        logoHref={isAgent ? `/agent/${agentId}` : "/"}
+
       />
 
               <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
@@ -366,7 +387,7 @@ const AgentDetail: React.FC = () => {
                     <svg className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    Desempenho por Critério
+                    Desempenho por Categoria
                   </h2>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
@@ -410,10 +431,10 @@ const AgentDetail: React.FC = () => {
                 
                 {/* Gráfico dinâmico */}
                 <div className="h-48 sm:h-64">
-                  {formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable).length > 0 ? (
+                  {formatCriteriaForRadar(criteria).length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       {activeChart === 'radar' ? (
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
                           <PolarGrid />
                           <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
                           <PolarRadiusAxis angle={30} domain={[0, 100]} />
@@ -427,7 +448,7 @@ const AgentDetail: React.FC = () => {
                           <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
                         </RadarChart>
                       ) : (
-                        <BarChart data={formatCriteriaForRadar(criteria).filter(item => !item.isNotApplicable)}>
+                        <BarChart data={formatCriteriaForRadar(criteria)}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
                           <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
@@ -442,7 +463,7 @@ const AgentDetail: React.FC = () => {
                         <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
-                        <p className="text-gray-600">Nenhum critério aplicável para exibir nos gráficos.</p>
+                        <p className="text-gray-600">Nenhuma categoria disponível para exibir nos gráficos.</p>
                       </div>
                     </div>
                   )}

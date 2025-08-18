@@ -126,7 +126,6 @@ const CarteiraCriterios: React.FC = () => {
     toast({
       title: "🔄 Ordem resetada!",
       description: "Categorias voltaram à ordem padrão.",
-      duration: 3000,
     });
   };
 
@@ -181,7 +180,6 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "🔄 Ordem resetada!",
         description: `Critérios da categoria "${categoria}" voltaram à ordem padrão.`,
-        duration: 3000,
       });
     } else {
       // Resetar ordem de todas as categorias
@@ -189,7 +187,6 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "🔄 Ordem resetada!",
         description: "Todos os critérios voltaram à ordem padrão.",
-        duration: 3000,
       });
     }
   };
@@ -253,14 +250,12 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "✅ Dados atualizados!",
         description: "Todas as informações foram atualizadas com sucesso.",
-        duration: 3000,
       });
     } catch (err) {
       console.error("❌ Erro ao atualizar dados:", err);
       toast({
         title: "❌ Erro ao atualizar",
         description: "Não foi possível atualizar todas as informações.",
-        duration: 5000,
       });
     }
     setLoading(false);
@@ -282,11 +277,11 @@ const CarteiraCriterios: React.FC = () => {
   const fetchCategorias = async () => {
     try {
       setLoadingCategorias(true);
-      const res = await api.get("/criterios/categorias/");
+      const res = await api.get("/criterios/categorias");  // ← Removida a barra no final
       
-      if (res.data && Array.isArray(res.data)) {
-        console.log("✅ Categorias carregadas do banco:", res.data);
-        setCategoriasBanco(res.data);
+      if (res.data && res.data.categorias && Array.isArray(res.data.categorias)) {
+        console.log("✅ Categorias carregadas do banco:", res.data.categorias);
+        setCategoriasBanco(res.data.categorias);
       } else {
         console.log("⚠️ Endpoint de categorias não retornou array, usando fallback");
         // Fallback: extrair categorias dos critérios existentes
