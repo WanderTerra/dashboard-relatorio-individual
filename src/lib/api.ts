@@ -360,6 +360,22 @@ export const adicionarCriterioNaCarteira = (data: {
 export const removerCriterioDaCarteira = (assocId: number) =>
   api.delete(`/carteira_criterios/${assocId}`);
 
+// Função para buscar dados específicos de uma carteira para análise P.O.R.T.E.S
+export const getCarteiraPortesData = (carteiraId: number, filters: Filters) =>
+  api.get(`/carteira/${carteiraId}/portes`, { params: filters }).then(r => r.data);
+
+// Função para buscar dados reais das avaliações para análise P.O.R.T.E.S
+export const getAvaliacoesPortesData = (filters: Filters) =>
+  api.get('/avaliacoes/portes', { params: filters }).then(r => r.data);
+
+// Função para buscar critérios mais avaliados com notas específicas
+export const getCriteriosNotas = (filters: Filters) =>
+  api.get('/criterios/notas', { params: filters }).then(r => r.data);
+
+// Função para buscar evolução dos agentes
+export const getEvolucaoAgentes = (filters: Filters) =>
+  api.get('/agentes/evolucao', { params: filters }).then(r => r.data);
+
 // Função para buscar itens de uma avaliação
 export const getItensAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/itens`).then(r => r.data);

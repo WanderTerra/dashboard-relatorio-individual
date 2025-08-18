@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Link, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload, Link2, MessageSquare } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload, Link2, MessageSquare, Target } from "lucide-react";
+import logoSidebar from "../assets/logo_sidebar.png";
+import logoSidebar2 from "../assets/logo_sidebar2.png";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -17,6 +19,7 @@ type SidebarLink =
 const adminLinks: SidebarLink[] = [
   { label: "Dashboard", to: "/", icon: <Home size={20} /> },
   { label: "Agentes", to: "/agents", icon: <Users size={20} /> },
+  { label: "Feedback", to: "/feedback", icon: <Target size={20} /> },
   { label: "Usuários", to: "/users", icon: <UserCog size={20} /> },
   { label: "Upload de Áudios", to: "/upload", icon: <Upload size={20} /> },
   {
@@ -84,65 +87,81 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
 
       {/* Sidebar Desktop/Tablet */}
       <aside
-        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full shadow-lg z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth}`}
-        style={{ backgroundColor: 'var(--color-navy-blue)' }}
+        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full shadow-xl z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth} backdrop-blur-md`}
+        style={{ 
+          background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%)'
+        }}
         onMouseEnter={() => collapsed && setCollapsed(false)}
         onMouseLeave={() => !collapsed && setCollapsed(true)}
       >
-        <div className={`flex items-center justify-between px-2 py-4 border-b ${collapsed ? 'justify-center' : ''}`}>
-          {/* Avatar e nome do usuário */}
-          <div className={`flex items-center gap-2 transition-all duration-200 ${collapsed ? 'justify-center w-full' : ''}`} style={{ color: 'var(--color-beige)' }}>
-            {/* Avatar com iniciais */}
-            <div className="flex items-center justify-center rounded-full text-white font-bold text-lg w-10 h-10 uppercase select-none"
-              style={{ backgroundColor: 'var(--color-gold)' }}>
-              {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0,2) : <UserCog size={24} />}
-            </div>
-            {/* Nome do usuário (só quando expandido) */}
-            <span className={`text-base font-bold transition-all duration-200 ${collapsed ? 'hidden' : 'block'}`}
-              style={{ color: 'var(--color-beige)' }}>
-              {user?.full_name}
-            </span>
-          </div>
-          {/* Botão de seta removido */}
+        {/* Header do Sidebar - Logo */}
+        <div className={`flex items-center justify-center border-b border-slate-200/60 ${collapsed ? 'px-2 py-6' : 'px-4 py-8'}`}>
+          {collapsed ? (
+            <img 
+              src={logoSidebar} 
+              alt="Monitoria Dashboard" 
+              className="h-16 w-auto transition-all duration-200 object-contain"
+            />
+          ) : (
+            <img 
+              src={logoSidebar2} 
+              alt="Monitoria Dashboard" 
+              className="h-16 w-auto transition-all duration-200 object-contain"
+            />
+          )}
         </div>
-        <nav className="flex flex-col gap-2 mt-4 px-1">
+        
+        {/* Navegação Principal */}
+        <nav className="flex flex-col gap-1 mt-4 px-1 flex-1 group">
           {links.map((link) => {
             const linkWithChildren = link as { label: string; icon: JSX.Element; children: SidebarLink[] };
             const linkWithoutChildren = link as { label: string; to: string; icon: JSX.Element };
             
             if ('children' in link && link.children) {
               return (
-                <div key={linkWithChildren.label} className="mb-2 transition-all duration-200">
+                <div key={linkWithChildren.label} className="mb-1 transition-all duration-200 relative">
                   <button
                     onClick={() => toggleDropdown(linkWithChildren.label)}
-                    className={`flex items-center gap-2 font-semibold px-4 py-2 w-full text-left ${collapsed ? 'justify-center' : ''}`}
-                    style={{ color: 'var(--color-beige)' }}
+                    className="flex items-center gap-3 font-medium px-3 py-2.5 w-full text-left rounded-lg transition-all duration-200"
+                    style={{ color: '#374151' }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-                      e.currentTarget.style.color = 'var(--color-navy-blue)';
+                      e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                      e.currentTarget.style.color = '#1f2937';
+                      e.currentTarget.style.transform = 'translateX(4px)';
                     }}
                     onMouseLeave={e => {
                       e.currentTarget.style.backgroundColor = '';
-                      e.currentTarget.style.color = 'var(--color-beige)';
+                      e.currentTarget.style.color = '#374151';
+                      e.currentTarget.style.transform = 'translateX(0)';
                     }}
                   >
-                    {link.icon}
+                    <div className="flex-shrink-0 w-6 flex justify-center">
+                      {link.icon}
+                    </div>
                     {!collapsed && (
                       <>
                         <span className="flex-1">{linkWithChildren.label}</span>
                         <ChevronRight 
                           size={16} 
-                          className={`transition-transform duration-200 ${
+                          className={`transition-transform duration-200 flex-shrink-0 ${
                             openDropdowns.has(linkWithChildren.label) ? 'rotate-90' : ''
                           }`}
                         />
                       </>
                     )}
                   </button>
+                  
+                  {/* Tooltip quando colapsado */}
+                  {collapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {linkWithChildren.label}
+                    </div>
+                  )}
+                  
                   {/* Renderiza subitens com animação */}
                   {!collapsed && (
                     <div 
-                      className={`ml-6 overflow-hidden transition-all duration-200 ${
+                      className={`ml-4 overflow-hidden transition-all duration-200 ${
                         openDropdowns.has(linkWithChildren.label) ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                       }`}
                     >
@@ -151,21 +170,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                           key={child.to ?? `child-${idx}`}
                           to={child.to ?? '#'}
                           className={({ isActive }) =>
-                            `flex items-center gap-2 px-2 py-1 rounded transition-colors text-sm ${
-                              isActive ? 'bg-opacity-20' : ''
+                            `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
+                              isActive 
+                                ? 'bg-slate-200/80 text-slate-900' 
+                                : 'hover:bg-slate-100/60'
                             }`
                           }
-                          style={{ color: 'var(--color-beige)' }}
+                          style={{ color: '#4b5563' }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-                            e.currentTarget.style.color = 'var(--color-navy-blue)';
+                            e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                            e.currentTarget.style.color = '#1f2937';
+                            e.currentTarget.style.transform = 'translateX(4px)';
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.backgroundColor = '';
-                            e.currentTarget.style.color = 'var(--color-beige)';
+                            e.currentTarget.style.color = '#4b5563';
+                            e.currentTarget.style.transform = 'translateX(0)';
                           }}
                         >
-                          {child.icon}
+                          <div className="flex-shrink-0 w-6 flex justify-center">
+                            {child.icon}
+                          </div>
                           <span>{child.label}</span>
                         </NavLink>
                       ))}
@@ -175,46 +200,83 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
               );
             } else {
               return (
-                <NavLink
-                  key={linkWithoutChildren.to ?? linkWithoutChildren.label}
-                  to={linkWithoutChildren.to ?? '#'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-4 py-2 rounded transition-colors font-semibold ${collapsed ? 'justify-center' : ''}`
-                  }
-                  style={{ color: 'var(--color-beige)' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-                    e.currentTarget.style.color = 'var(--color-navy-blue)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = '';
-                    e.currentTarget.style.color = 'var(--color-beige)';
-                  }}
-                                  >
-                    {linkWithoutChildren.icon}
+                <div key={linkWithoutChildren.to ?? linkWithoutChildren.label} className="relative">
+                  <NavLink
+                    to={linkWithoutChildren.to ?? '#'}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium"
+                    style={{ color: '#374151' }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                      e.currentTarget.style.color = '#1f2937';
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = '';
+                      e.currentTarget.style.color = '#374151';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <div className="flex-shrink-0 w-6 flex justify-center">
+                      {linkWithoutChildren.icon}
+                    </div>
                     {!collapsed && <span>{linkWithoutChildren.label}</span>}
                   </NavLink>
+                  
+                  {/* Tooltip quando colapsado */}
+                  {collapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                      {linkWithoutChildren.label}
+                    </div>
+                  )}
+                </div>
               );
             }
           })}
-          <button
-            onClick={logout}
-            className={`flex items-center gap-3 px-2 py-2 rounded-lg font-medium transition-colors mt-4 ${collapsed ? 'justify-center' : ''}`}
-            title="Sair"
-            style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-navy-blue)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--color-muted-blue)';
-              e.currentTarget.style.color = 'var(--color-beige)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'var(--color-gold)';
-              e.currentTarget.style.color = 'var(--color-navy-blue)';
-            }}
-          >
-            <LogOut size={20} color="var(--color-navy-blue)" />
-            <span className={`transition-all duration-200 ${collapsed ? 'hidden' : 'inline'}`}>Sair</span>
-          </button>
         </nav>
+        
+        {/* Seção de Perfil e Logout - Parte Inferior */}
+        <div className={`mt-auto border-t border-slate-200/60 ${collapsed ? 'p-2' : 'p-4'}`}>
+          {/* Layout Horizontal: Perfil + Botão de Sair */}
+          <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+            {/* Perfil do Usuário - Só mostra quando expandido */}
+            {!collapsed && (
+              <div className="flex items-center gap-3">
+                {/* Avatar com iniciais */}
+                <div className="flex items-center justify-center rounded-full text-white font-bold text-sm w-10 h-10 uppercase select-none flex-shrink-0 shadow-lg transition-all duration-200"
+                  style={{ backgroundColor: '#3b82f6' }}>
+                  {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0,2) : <UserCog size={18} />}
+                </div>
+                {/* Nome do usuário */}
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-semibold truncate" style={{ color: '#1f2937' }}>
+                    {user?.full_name || 'Usuário'}
+                  </span>
+                  <span className="text-xs text-gray-600 truncate">
+                    {user?.username || 'usuário'}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {/* Botão de Logout - Sempre visível */}
+            <button
+              onClick={logout}
+              className="flex items-center justify-center p-2 rounded-lg font-medium transition-all duration-200 hover:bg-red-50 hover:bg-opacity-10"
+              title="Sair"
+              style={{ color: '#ef4444' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.color = '#dc2626';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+            >
+              <LogOut size={collapsed ? 22 : 20} />
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Sidebar Mobile (overlay) */}

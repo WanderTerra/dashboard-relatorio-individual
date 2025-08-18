@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import logoSrc from '../assets/logo.png';
 
 interface BreadcrumbItem {
   label: string;
@@ -14,7 +13,6 @@ interface PageHeaderProps {
   subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
-  logoHref?: string;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({ 
@@ -22,7 +20,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle, 
   breadcrumbs = [], 
   actions,
-  logoHref = '/',
 }) => {
   const location = useLocation();
 
@@ -56,27 +53,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </nav>
         )}
         
-        {/* Logo, Título e ações - tudo na mesma linha */}
+        {/* Título e ações - tudo na mesma linha */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          {/* Logo e Título */}
-          <div className="flex items-center space-x-2 sm:space-x-4">            <Link to={logoHref} className="flex-shrink-0">
-              <img 
-                src={logoSrc} 
-                alt="Logo da Empresa" 
-                className="h-24 sm:h-32 lg:h-40 w-auto"
-                onError={(e) => {
-                  // Fallback para texto se a logo não carregar
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                                      parent.innerHTML = `
-                    <div class="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <span class="text-white font-bold text-sm sm:text-base lg:text-lg">LOGO</span>
-                    </div>
-                  `;
-                  }
-                }}
-              />
-            </Link>
+          {/* Título */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
                 {title}
