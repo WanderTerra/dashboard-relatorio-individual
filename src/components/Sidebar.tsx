@@ -71,8 +71,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
     });
   };
 
+  // Fecha dropdowns quando sidebar colapsa
+  React.useEffect(() => {
+    if (collapsed) {
+      setOpenDropdowns(new Set());
+    }
+  }, [collapsed]);
+
   // Sidebar width
-  const sidebarWidth = collapsed ? "w-16" : "w-64";
+  const sidebarWidth = collapsed ? "w-16" : "w-72";
 
   return (
     <>
@@ -87,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
 
       {/* Sidebar Desktop/Tablet */}
       <aside
-        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full shadow-xl z-40 transition-all duration-200 lg:flex flex-col ${sidebarWidth} backdrop-blur-md`}
+        className={`hidden lg:fixed lg:top-0 lg:left-0 lg:h-full shadow-xl z-40 transition-all duration-300 ease-in-out lg:flex flex-col ${sidebarWidth} backdrop-blur-md`}
         style={{ 
           background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%)'
         }}
@@ -95,18 +102,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
         onMouseLeave={() => !collapsed && setCollapsed(true)}
       >
         {/* Header do Sidebar - Logo */}
-        <div className={`flex items-center justify-center border-b border-slate-200/60 ${collapsed ? 'px-2 py-6' : 'px-4 py-8'}`}>
+        <div className={`flex items-center justify-center border-b border-slate-200/60 transition-all duration-300 ease-in-out ${collapsed ? 'px-2 py-6' : 'px-4 py-8'}`}>
           {collapsed ? (
             <img 
               src={logoSidebar} 
               alt="Monitoria Dashboard" 
-              className="h-16 w-auto transition-all duration-200 object-contain"
+              className="h-16 w-auto transition-all duration-300 ease-in-out object-contain"
             />
           ) : (
             <img 
               src={logoSidebar2} 
               alt="Monitoria Dashboard" 
-              className="h-16 w-auto transition-all duration-200 object-contain"
+              className="h-16 w-auto transition-all duration-300 ease-in-out object-contain"
             />
           )}
         </div>
@@ -119,15 +126,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
             
             if ('children' in link && link.children) {
               return (
-                <div key={linkWithChildren.label} className="mb-1 transition-all duration-200 relative">
+                <div key={linkWithChildren.label} className="mb-1 transition-all duration-300 ease-in-out relative">
                   <button
                     onClick={() => toggleDropdown(linkWithChildren.label)}
-                    className="flex items-center gap-3 font-medium px-3 py-2.5 w-full text-left rounded-lg transition-all duration-200"
+                    className={`flex items-center gap-3 font-medium rounded-lg transition-all duration-300 ease-in-out ${
+                      collapsed ? 'px-2 py-3 w-full justify-center' : 'px-3 py-2.5 w-full text-left'
+                    }`}
                     style={{ color: '#374151' }}
                     onMouseEnter={e => {
                       e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
                       e.currentTarget.style.color = '#1f2937';
-                      e.currentTarget.style.transform = 'translateX(4px)';
+                      if (!collapsed) {
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }
                     }}
                     onMouseLeave={e => {
                       e.currentTarget.style.backgroundColor = '';
@@ -135,15 +146,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                       e.currentTarget.style.transform = 'translateX(0)';
                     }}
                   >
-                    <div className="flex-shrink-0 w-6 flex justify-center">
+                    <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-full flex justify-center' : 'w-6 flex justify-center'}`}>
                       {link.icon}
                     </div>
                     {!collapsed && (
                       <>
-                        <span className="flex-1">{linkWithChildren.label}</span>
+                        <span className="flex-1 transition-all duration-300 ease-in-out whitespace-nowrap">{linkWithChildren.label}</span>
                         <ChevronRight 
                           size={16} 
-                          className={`transition-transform duration-200 flex-shrink-0 ${
+                          className={`transition-all duration-300 ease-in-out flex-shrink-0 ${
                             openDropdowns.has(linkWithChildren.label) ? 'rotate-90' : ''
                           }`}
                         />
@@ -153,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                   
                   {/* Tooltip quando colapsado */}
                   {collapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap z-50">
                       {linkWithChildren.label}
                     </div>
                   )}
@@ -161,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                   {/* Renderiza subitens com animação */}
                   {!collapsed && (
                     <div 
-                      className={`ml-4 overflow-hidden transition-all duration-200 ${
+                      className={`ml-4 overflow-hidden transition-all duration-300 ease-in-out ${
                         openDropdowns.has(linkWithChildren.label) ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                       }`}
                     >
@@ -170,7 +181,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                           key={child.to ?? `child-${idx}`}
                           to={child.to ?? '#'}
                           className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
+                            `flex items-center gap-3 rounded-lg transition-all duration-300 ease-in-out text-sm ${
+                              collapsed ? 'px-2 py-2 w-full justify-center' : 'px-3 py-2'
+                            } ${
                               isActive 
                                 ? 'bg-slate-200/80 text-slate-900' 
                                 : 'hover:bg-slate-100/60'
@@ -180,7 +193,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                           onMouseEnter={e => {
                             e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
                             e.currentTarget.style.color = '#1f2937';
-                            e.currentTarget.style.transform = 'translateX(4px)';
+                            if (!collapsed) {
+                              e.currentTarget.style.transform = 'translateX(4px)';
+                            }
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.backgroundColor = '';
@@ -188,10 +203,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                             e.currentTarget.style.transform = 'translateX(0)';
                           }}
                         >
-                          <div className="flex-shrink-0 w-6 flex justify-center">
+                          <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-full flex justify-center' : 'w-6 flex justify-center'}`}>
                             {child.icon}
                           </div>
-                          <span>{child.label}</span>
+                          <span className="transition-all duration-300 ease-in-out whitespace-nowrap">{child.label}</span>
                         </NavLink>
                       ))}
                     </div>
@@ -203,12 +218,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                 <div key={linkWithoutChildren.to ?? linkWithoutChildren.label} className="relative">
                   <NavLink
                     to={linkWithoutChildren.to ?? '#'}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium"
+                    className={`flex items-center gap-3 rounded-lg transition-all duration-300 ease-in-out font-medium ${
+                      collapsed ? 'px-2 py-3 w-full justify-center' : 'px-3 py-2.5'
+                    }`}
                     style={{ color: '#374151' }}
                     onMouseEnter={e => {
                       e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
                       e.currentTarget.style.color = '#1f2937';
-                      e.currentTarget.style.transform = 'translateX(4px)';
+                      if (!collapsed) {
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }
                     }}
                     onMouseLeave={e => {
                       e.currentTarget.style.backgroundColor = '';
@@ -216,15 +235,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
                       e.currentTarget.style.transform = 'translateX(0)';
                     }}
                   >
-                    <div className="flex-shrink-0 w-6 flex justify-center">
+                    <div className={`flex-shrink-0 transition-all duration-300 ease-in-out ${collapsed ? 'w-full flex justify-center' : 'w-6 flex justify-center'}`}>
                       {linkWithoutChildren.icon}
                     </div>
-                    {!collapsed && <span>{linkWithoutChildren.label}</span>}
+                    {!collapsed && <span className="transition-all duration-300 ease-in-out whitespace-nowrap">{linkWithoutChildren.label}</span>}
                   </NavLink>
                   
                   {/* Tooltip quando colapsado */}
                   {collapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap z-50">
                       {linkWithoutChildren.label}
                     </div>
                   )}
@@ -235,23 +254,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
         </nav>
         
         {/* Seção de Perfil e Logout - Parte Inferior */}
-        <div className={`mt-auto border-t border-slate-200/60 ${collapsed ? 'p-2' : 'p-4'}`}>
+        <div className={`mt-auto border-t border-slate-200/60 transition-all duration-300 ease-in-out ${collapsed ? 'p-2' : 'p-4'}`}>
           {/* Layout Horizontal: Perfil + Botão de Sair */}
-          <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className={`flex items-center transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : 'justify-between'}`}>
             {/* Perfil do Usuário - Só mostra quando expandido */}
             {!collapsed && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 transition-all duration-300 ease-in-out">
                 {/* Avatar com iniciais */}
-                <div className="flex items-center justify-center rounded-full text-white font-bold text-sm w-10 h-10 uppercase select-none flex-shrink-0 shadow-lg transition-all duration-200"
+                <div className="flex items-center justify-center rounded-full text-white font-bold text-sm w-10 h-10 uppercase select-none flex-shrink-0 shadow-lg transition-all duration-300 ease-in-out"
                   style={{ backgroundColor: '#3b82f6' }}>
                   {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').slice(0,2) : <UserCog size={18} />}
                 </div>
                 {/* Nome do usuário */}
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold truncate" style={{ color: '#1f2937' }}>
+                <div className="flex flex-col min-w-0 transition-all duration-300 ease-in-out">
+                  <span className="text-sm font-semibold truncate whitespace-nowrap" style={{ color: '#1f2937' }}>
                     {user?.full_name || 'Usuário'}
                   </span>
-                  <span className="text-xs text-gray-600 truncate">
+                  <span className="text-xs text-gray-600 truncate whitespace-nowrap">
                     {user?.username || 'usuário'}
                   </span>
                 </div>
@@ -261,7 +280,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
             {/* Botão de Logout - Sempre visível */}
             <button
               onClick={logout}
-              className="flex items-center justify-center p-2 rounded-lg font-medium transition-all duration-200 hover:bg-red-50 hover:bg-opacity-10"
+              className={`flex items-center justify-center p-2 rounded-lg font-medium transition-all duration-300 ease-in-out hover:bg-red-50 hover:bg-opacity-10 ${
+                collapsed ? 'w-full' : ''
+              }`}
               title="Sair"
               style={{ color: '#ef4444' }}
               onMouseEnter={e => {
