@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   AlertTriangle, 
@@ -75,10 +75,50 @@ const Feedback: React.FC = () => {
     carteira: filters.carteira
   };
 
-  // Buscar dados reais
+  // Buscar feedbacks reais da tabela feedbacks
+  const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
+    queryKey: ['feedbacks', apiFilters],
+    queryFn: () => {
+      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks');
+      return fetch('/api/feedbacks')
+        .then(res => {
+          console.log('[DEBUG] Frontend: Resposta do /feedbacks:', res.status, res.statusText);
+          return res.json();
+        })
+        .then(data => {
+          console.log('[DEBUG] Frontend: Dados recebidos:', data);
+          return data;
+        })
+        .catch(err => {
+          console.error('[DEBUG] Frontend: Erro ao buscar feedbacks:', err);
+          throw err;
+        });
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 3,
+    retryDelay: 1000,
+    refetchOnWindowFocus: false
+  });
+
+  // Buscar agentes para estatísticas (mantido para compatibilidade)
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
-    queryKey: ['agents', apiFilters],
-    queryFn: () => getAgents(apiFilters),
+    queryKey: ['feedbacks-agents', apiFilters],
+    queryFn: () => {
+      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks/agents');
+      return fetch(`/api/feedbacks/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
+        .then(res => {
+          console.log('[DEBUG] Frontend: Resposta do /feedbacks/agents:', res.status, res.statusText);
+          return res.json();
+        })
+        .then(data => {
+          console.log('[DEBUG] Frontend: Dados de agentes recebidos:', data);
+          return data;
+        })
+        .catch(err => {
+          console.error('[DEBUG] Frontend: Erro ao buscar agentes:', err);
+          throw err;
+        });
+    },
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 1000,
@@ -94,96 +134,130 @@ const Feedback: React.FC = () => {
     refetchOnWindowFocus: false
   });
 
-  // Gerar feedback baseado em dados reais
+  // Usar feedbacks reais se disponíveis, senão gerar baseado nos agentes
   const feedbackData = useMemo(() => {
-    if (!agents || agents.length === 0) return [];
-
-    const feedback: FeedbackItem[] = [];
+    console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents });
     
-    // Identificar agentes com notas baixas (performance < 70%)
-    const agentesComNotasBaixas = agents
-      .filter((agent: any) => {
-        const media = agent.media || 0;
-        return media < 70;
-      })
-      .sort((a: any, b: any) => (a.media || 0) - (b.media || 0));
-
-    // Critérios específicos baseados em problemas comuns
-    const criteriosCriticos = [
-      'Argumentação e Persuasão',
-      'Gestão de Objeções', 
-      'Tempo de Resposta',
-      'Adesão ao Script',
-      'Empatia com Cliente',
-      'Clareza na Comunicação',
-      'Resolução de Problemas',
-      'Follow-up e Acompanhamento',
-      'Abordagem Atendeu',
-      'Explicação do Motivo'
-    ];
-
-    // Gerar feedback focado nos agentes com notas baixas
-    agentesComNotasBaixas.forEach((agent: any) => {
-      const performanceMedia = agent.media || 0;
+    if (feedbacks && feedbacks.length > 0) {
+      // Usar feedbacks reais da tabela
+      console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
+      return feedbacks.map((fb: any) => ({
+        id: fb.id,
+        callId: fb.avaliacao_id,
+        avaliacaoId: fb.avaliacao_id,
+        agenteId: fb.agent_id,
+        agenteNome: fb.nome_agente,
+        criterio: 'Feedback de Monitoria',
+        performanceAtual: 0, // Não temos performance nos feedbacks reais
+        observacao: fb.comentario,
+        status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
+        dataCriacao: fb.criado_em,
+        origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+        comentario: fb.comentario
+      }));
+    } else if (agents && agents.length > 0) {
+      // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
+      console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
+      const feedback: FeedbackItem[] = [];
       
-      // Determinar quantos critérios precisam de feedback baseado na performance
-      let numCriterios = 3;
-      if (performanceMedia < 30) numCriterios = 6;
-      else if (performanceMedia < 50) numCriterios = 5;
-      else if (performanceMedia < 70) numCriterios = 4;
+      // Identificar agentes com notas baixas (performance < 70%)
+      const agentesComNotasBaixas = agents
+        .filter((agent: any) => {
+          const media = agent.media || 0;
+          return media < 70;
+        })
+        .sort((a: any, b: any) => (a.media || 0) - (b.media || 0));
 
-      // Selecionar critérios específicos para este agente
-      const criteriosSelecionados = criteriosCriticos
-        .sort(() => Math.random() - 0.5)
-        .slice(0, numCriterios);
+      // Critérios específicos baseados em problemas comuns
+      const criteriosCriticos = [
+        'Argumentação e Persuasão',
+        'Gestão de Objeções', 
+        'Tempo de Resposta',
+        'Adesão ao Script',
+        'Empatia com Cliente',
+        'Clareza na Comunicação',
+        'Resolução de Problemas',
+        'Follow-up e Acompanhamento',
+        'Abordagem Atendeu',
+        'Explicação do Motivo'
+      ];
 
-      criteriosSelecionados.forEach((criterio, index) => {
-        let performanceAtual = performanceMedia;
+      // Gerar feedback focado nos agentes com notas baixas
+      agentesComNotasBaixas.forEach((agent: any) => {
+        const performanceMedia = agent.media || 0;
         
-        // Adicionar variação realística baseada no critério
-        if (criterio === 'Empatia com Cliente') {
-          performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 20);
-        } else if (criterio === 'Abordagem Atendeu') {
-          performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 15);
-        } else if (criterio === 'Explicação do Motivo') {
-          performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 25);
-        } else {
-          performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 30);
-        }
-        
-        // Só adicionar se for um feedback relevante (performance baixa)
-        if (performanceAtual < 70) {
-          feedback.push({
-            id: `${agent.id || 'agente'}-${index}`,
-            agenteId: agent.id || 'agente',
-            agenteNome: agent.nome || 'Agente',
-            criterio,
-            performanceAtual: Math.round(performanceAtual),
-            observacao: `Performance atual: ${Math.round(performanceAtual)}%. Necessita melhoria para atingir meta de 80%.`,
-            status: 'pendente',
-            dataCriacao: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            origem: 'ia',
-            comentario: `🎯 **CRITÉRIO:** ${criterio}\n\n📊 **PERFORMANCE ATUAL:** ${Math.round(performanceAtual)}%\n\n🎯 **META:** 80%\n\n💡 **RECOMENDAÇÕES:**\n• Pratique técnicas de ${criterio.toLowerCase()}\n• Solicite treinamento específico\n• Peça feedback de colegas mais experientes\n\n📈 **PRÓXIMOS PASSOS:**\n1. Identifique pontos de melhoria\n2. Estabeleça metas semanais\n3. Acompanhe progresso mensalmente`,
-            callId: `call-${Math.floor(Math.random() * 1000)}`,
-            avaliacaoId: `av-${Math.floor(Math.random() * 1000)}`
-          });
-        }
+        // Determinar quantos critérios precisam de feedback baseado na performance
+        let numCriterios = 3;
+        if (performanceMedia < 30) numCriterios = 6;
+        else if (performanceMedia < 50) numCriterios = 5;
+        else if (performanceMedia < 70) numCriterios = 4;
+
+        // Selecionar critérios específicos para este agente
+        const criteriosSelecionados = criteriosCriticos
+          .sort(() => Math.random() - 0.5)
+          .slice(0, numCriterios);
+
+        criteriosSelecionados.forEach((criterio, index) => {
+          let performanceAtual = performanceMedia;
+          
+          // Adicionar variação realística baseada no critério
+          if (criterio === 'Empatia com Cliente') {
+            performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 20);
+          } else if (criterio === 'Abordagem Atendeu') {
+            performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 15);
+          } else if (criterio === 'Explicação do Motivo') {
+            performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 25);
+          } else {
+            performanceAtual = Math.max(0, performanceMedia + (Math.random() - 0.5) * 30);
+          }
+          
+          // Só adicionar se for um feedback relevante (performance baixa)
+          if (performanceAtual < 70) {
+            feedback.push({
+              id: `${agent.id || 'agente'}-${index}`,
+              agenteId: agent.id || 'agente',
+              agenteNome: agent.nome || 'Agente',
+              criterio,
+              performanceAtual: Math.round(performanceAtual),
+              observacao: `Performance atual: ${Math.round(performanceAtual)}%. Necessita melhoria para atingir meta de 80%.`,
+              status: 'pendente',
+              dataCriacao: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              origem: 'ia',
+              comentario: `🎯 **CRITÉRIO:** ${criterio}\n\n📊 **PERFORMANCE ATUAL:** ${Math.round(performanceAtual)}%\n\n🎯 **META:** 80%\n\n💡 **RECOMENDAÇÕES:**\n• Pratique técnicas de ${criterio.toLowerCase()}\n• Solicite treinamento específico\n• Peça feedback de colegas mais experientes\n\n📈 **PRÓXIMOS PASSOS:**\n1. Identifique pontos de melhoria\n2. Estabeleça metas semanais\n3. Acompanhe progresso mensalmente`,
+              callId: `call-${Math.floor(Math.random() * 1000)}`,
+              avaliacaoId: `av-${Math.floor(Math.random() * 1000)}`
+            });
+          }
+        });
       });
-    });
+      
+      return feedback;
+    }
     
-    return feedback;
-  }, [agents, trend]);
+    console.log('[DEBUG] Frontend: Nenhum dado disponível para feedbacks');
+    return [];
+  }, [feedbacks, agents, trend]);
+
+  // Debug dos dados
+  useEffect(() => {
+    console.log('[DEBUG] Frontend: Estado dos feedbacks:', {
+      feedbacks,
+      feedbacksLoading,
+      feedbacksError,
+      feedbacksParaExibir: feedbackData?.length || 0
+    });
+  }, [feedbacks, feedbacksLoading, feedbacksError, feedbackData]);
 
   // Filtrar feedback
   const filteredFeedback = useMemo(() => {
     let filtered = feedbackData;
 
     if (statusFilter !== 'todos') {
-      filtered = filtered.filter(item => item.status === statusFilter);
+      filtered = filtered.filter((item: FeedbackItem) => item.status === statusFilter);
     }
 
     if (searchTerm) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter((item: FeedbackItem) => 
         item.criterio.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.agenteNome.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -195,10 +269,10 @@ const Feedback: React.FC = () => {
   // Estatísticas
   const stats = useMemo(() => {
     const total = feedbackData.length;
-    const pendente = feedbackData.filter(f => f.status === 'pendente').length;
-    const aplicado = feedbackData.filter(f => f.status === 'aplicado').length;
-    const aceito = feedbackData.filter(f => f.status === 'aceito').length;
-    const revisao = feedbackData.filter(f => f.status === 'revisao').length;
+    const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
+    const aplicado = feedbackData.filter((f: FeedbackItem) => f.status === 'aplicado').length;
+    const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
+    const revisao = feedbackData.filter((f: FeedbackItem) => f.status === 'revisao').length;
 
     return { total, pendente, aplicado, aceito, revisao };
   }, [feedbackData]);
@@ -261,6 +335,39 @@ const Feedback: React.FC = () => {
 
   const isMonitor = true; // Aqui você implementaria a lógica de role/permissão
 
+  // Filtros de status
+  const handleStatusFilterChange = (newStatus: string) => {
+    console.log('[DEBUG] Frontend: Status filter mudou para:', newStatus);
+    setStatusFilter(newStatus as any);
+  };
+
+  // Filtros de busca
+  const handleSearchChange = (searchTerm: string) => {
+    console.log('[DEBUG] Frontend: Search filter mudou para:', searchTerm);
+    setSearchTerm(searchTerm);
+  };
+
+  // Filtros de data
+  const handleDateChange = (startDate: string, endDate: string) => {
+    console.log('[DEBUG] Frontend: Date filter mudou para:', startDate, 'até', endDate);
+    setStartDate(startDate);
+    setEndDate(endDate);
+  };
+
+  // Aplicar filtros
+  const applyFilters = () => {
+    console.log('[DEBUG] Frontend: Aplicando filtros:', { filters, statusFilter, searchTerm });
+    // Forçar refetch dos dados com novos filtros
+    refetchAgents();
+    refetchFeedbacks();
+  };
+
+  // Efeito para aplicar filtros automaticamente
+  useEffect(() => {
+    console.log('[DEBUG] Frontend: Filtros mudaram, aplicando automaticamente:', { filters, statusFilter, searchTerm });
+    applyFilters();
+  }, [filters.start, filters.end, filters.carteira, statusFilter, searchTerm]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
@@ -292,7 +399,7 @@ const Feedback: React.FC = () => {
                 <input
                   type="date"
                   value={filters.start}
-                  onChange={e => setStartDate(e.target.value)}
+                  onChange={e => handleDateChange(e.target.value, filters.end)}
                   className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
@@ -304,7 +411,7 @@ const Feedback: React.FC = () => {
                 <input
                   type="date"
                   value={filters.end}
-                  onChange={e => setEndDate(e.target.value)}
+                  onChange={e => handleDateChange(filters.start, e.target.value)}
                   className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
@@ -315,7 +422,7 @@ const Feedback: React.FC = () => {
                 <label className="text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value as any)}
+                  onChange={e => handleStatusFilterChange(e.target.value)}
                   className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="todos">Todos</option>
@@ -333,7 +440,7 @@ const Feedback: React.FC = () => {
                     type="text"
                     placeholder="Agente ou critério..."
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    onChange={e => handleSearchChange(e.target.value)}
                     className="h-10 pl-10 pr-4 border border-gray-300 rounded-xl text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   />
                 </div>
@@ -343,6 +450,7 @@ const Feedback: React.FC = () => {
                   onClick={() => {
                     refetchAgents();
                     refetchTrend();
+                    refetchFeedbacks();
                   }}
                   className="h-10 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
@@ -425,7 +533,7 @@ const Feedback: React.FC = () => {
           </div>
 
           {/* Loading State */}
-          {(agentsLoading || trendLoading) && (
+          {(agentsLoading || trendLoading || feedbacksLoading) && (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-500">Carregando feedbacks...</p>
@@ -433,7 +541,7 @@ const Feedback: React.FC = () => {
           )}
 
           {/* Error State */}
-          {(agentsError || trendError) && (
+          {(agentsError || trendError || feedbacksError) && (
             <div className="text-center py-12">
               <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <p className="text-red-500">Erro ao carregar dados. Tente novamente.</p>
@@ -450,19 +558,25 @@ const Feedback: React.FC = () => {
                 >
                   Tentar Novamente - Trend
                 </button>
+                <button
+                  onClick={() => refetchFeedbacks()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Tentar Novamente - Feedbacks
+                </button>
               </div>
             </div>
           )}
 
           {/* No Data State */}
-          {!agentsLoading && !trendLoading && !agentsError && !trendError && filteredFeedback.length === 0 ? (
+          {!agentsLoading && !trendLoading && !feedbacksLoading && !agentsError && !trendError && !feedbacksError && filteredFeedback.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">Nenhum feedback encontrado para os filtros selecionados.</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {filteredFeedback.map((feedback) => (
+              {filteredFeedback.map((feedback: FeedbackItem) => (
                 <div key={feedback.id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     {/* Informações do Feedback */}
