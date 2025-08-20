@@ -41,8 +41,16 @@ export const downloadAudio     = (callId: string)     => api.get(`/call/${callId
 // Nova função para buscar informações do caller (telefone)
 export const getCallerInfo     = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/caller`).then(r => r.data);
 
-// Função para atualizar um item de avaliação
-export const updateItem = (avaliacaoId: string, categoria: string, resultado: string, descricao: string) => {
+// Função para atualizar um item de avaliação usando o novo endpoint item-id (recomendado)
+export const updateItem = (avaliacaoId: string, itemId: string, resultado: string, descricao: string) => {
+  return api.put(`/call/${avaliacaoId}/item-id/${itemId}`, {
+    resultado,
+    descricao
+  }).then(r => r.data);
+};
+
+// Função para atualizar um item de avaliação usando categoria (legacy - mantida para compatibilidade)
+export const updateItemByCategoria = (avaliacaoId: string, categoria: string, resultado: string, descricao: string) => {
   return api.put(`/call/${avaliacaoId}/item/${encodeURIComponent(categoria)}`, {
     categoria,
     resultado,
@@ -196,6 +204,14 @@ if (storedToken) {
 export const getFeedbacksByAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/feedbacks`).then(r => r.data);
 
+// Função para salvar feedbacks automaticamente
+export const salvarFeedbacksAutomaticos = (avaliacaoId: string, feedbacks: Array<{
+  agent_id: string;
+  comentario: string;
+  status: string;
+  origem: 'IA' | 'MONITOR';
+}>) => api.post(`/avaliacao/${avaliacaoId}/feedbacks/automaticos`, { feedbacks }).then(r => r.data);
+
 // Função para buscar uma avaliação individual pelo ID
 export const getAvaliacaoById = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}`).then(r => r.data);
@@ -323,6 +339,12 @@ export interface AvaliacaoAutomaticaResponse {
   erro_processamento?: string;
   pontuacao_total: number;
   pontuacao_percentual: number;
+  feedbacks: Array<{
+    agent_id: string;
+    comentario: string;
+    status: string;
+    origem: 'IA' | 'MONITOR';
+  }>;
 }
 
 // Função para chamar avaliação automática

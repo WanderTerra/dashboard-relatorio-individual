@@ -10,6 +10,7 @@ import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Item {
+  id: string;
   categoria:  string;
   descricao:  string;
   resultado:  'CONFORME' | 'NAO CONFORME' | 'NAO SE APLICA';
@@ -41,6 +42,10 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryKey: ['callItems', avaliacaoId],
     queryFn : () => getCallItems(avaliacaoId!),
   });
+
+
+
+
 
   // Buscar informações do agente para obter o nome
   const { data: agentInfo } = useQuery({
@@ -138,6 +143,12 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
   // Abrir modal de edição para um item específico
   const handleEditItem = (item: Item) => {
+    // Verificar se o item tem ID antes de abrir o modal
+    if (!item.id) {
+      console.error('❌ Item sem ID:', item);
+      return;
+    }
+    console.log('✅ Item selecionado com ID:', item.id);
     setSelectedItem(item);
     setIsModalOpen(true);
   };
@@ -220,13 +231,6 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                 Voltar
               </Link>
             </div>
-          }
-          logoHref={
-            isAdmin
-              ? '/'
-              : agentId
-                ? `/agent/${agentId}`
-                : '/'
           }
         />
 
@@ -456,12 +460,13 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
           )}
 
           {/* Modal de edição */}
-          {isAdmin && selectedItem && (
+          {isAdmin && selectedItem && selectedItem.id && (
             <ItemEditModal
               isOpen={isModalOpen}
               onClose={handleCloseModal}
               item={selectedItem}
               avaliacaoId={avaliacaoId!}
+              itemId={selectedItem.id}
             />
           )}
         </div>

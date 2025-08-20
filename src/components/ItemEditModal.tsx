@@ -10,14 +10,16 @@ interface ItemEditModalProps {
   isOpen: boolean;
   onClose: (itemEdited?: boolean, categoria?: string) => void;
   item: {
+    id: string;
     categoria: string;
     descricao: string;
     resultado: string;
   };
   avaliacaoId: string;
+  itemId: string;
 }
 
-const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, avaliacaoId }) => {
+const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, avaliacaoId, itemId }) => {
   const [selectedStatus, setSelectedStatus] = useState(item.resultado);
   const [descricao, setDescricao] = useState(item.descricao);
   const [originalStatus] = useState(item.resultado);
@@ -41,7 +43,10 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
 
   // Usar React Query para gerenciar a mutação de atualização
   const updateMutation = useMutation({
-    mutationFn: () => updateItem(avaliacaoId, item.categoria, selectedStatus, descricao),
+    mutationFn: () => {
+      // Usar o novo endpoint com itemId
+      return updateItem(avaliacaoId, itemId, selectedStatus, descricao);
+    },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['callItems', avaliacaoId] });
       const previousItems = queryClient.getQueryData(['callItems', avaliacaoId]);
