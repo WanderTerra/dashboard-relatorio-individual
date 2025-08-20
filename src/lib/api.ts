@@ -30,6 +30,7 @@ export interface CallRow {
 export const getKpis           = (f: Filters)        => api.get('/kpis',    { params: f }).then(r => r.data);
 export const getTrend          = (f: Filters)        => api.get('/trend',   { params: f }).then(r => r.data);
 export const getAgents         = (f: Filters)        => api.get('/agents',  { params: f }).then(r => r.data);
+export const getMonthlyComparison = (f: Filters)     => api.get('/monthly-comparison', { params: f }).then(r => r.data);
 export const getAgentSummary   = (id: string, f: Filters) => api.get(`/agent/${id}/summary`, { params: f }).then(r => r.data);
 export const getAgentCalls     = (id: string, f: Filters) => api.get(`/agent/${id}/calls`,   { params: f }).then(r => r.data);
 export const getCallItems      = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/items`).then(r => r.data);

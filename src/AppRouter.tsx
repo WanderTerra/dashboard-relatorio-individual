@@ -9,7 +9,7 @@ import Transcription from './pages/Transcription'
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
-import AgentsAdmin from './pages/AgentsAdmin';
+import Agents from './pages/Agents';
 import UsersAdmin from './pages/UsersAdmin';
 import Carteiras from './pages/Carteiras';
 import Criterios from './pages/Criterios';
@@ -61,7 +61,7 @@ const AppContent: React.FC = () => {
           } />
           <Route path="/agents" element={
             <ProtectedRoute requiredPermission="admin">
-              <AgentsAdmin />
+              <Agents />
             </ProtectedRoute>
           } />
           <Route path="/users" element={
