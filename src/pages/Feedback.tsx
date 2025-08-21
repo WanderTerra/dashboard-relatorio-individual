@@ -75,14 +75,14 @@ const Feedback: React.FC = () => {
     carteira: filters.carteira
   };
 
-  // Buscar feedbacks reais da tabela feedbacks
+  // Buscar feedbacks com pontuações das avaliações
   const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
-    queryKey: ['feedbacks', apiFilters],
+    queryKey: ['feedbacks-with-scores', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks');
-      return fetch('/api/feedbacks')
+      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks/with-scores');
+      return fetch('/api/feedbacks/with-scores')
         .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /feedbacks:', res.status, res.statusText);
+          console.log('[DEBUG] Frontend: Resposta do /feedbacks/with-scores:', res.status, res.statusText);
           return res.json();
         })
         .then(data => {
@@ -90,7 +90,7 @@ const Feedback: React.FC = () => {
           return data;
         })
         .catch(err => {
-          console.error('[DEBUG] Frontend: Erro ao buscar feedbacks:', err);
+          console.error('[DEBUG] Frontend: Erro ao buscar feedbacks com pontuações:', err);
           throw err;
         });
     },
@@ -99,6 +99,10 @@ const Feedback: React.FC = () => {
     retryDelay: 1000,
     refetchOnWindowFocus: false
   });
+
+
+
+
 
   // Buscar agentes para estatísticas (mantido para compatibilidade)
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
@@ -141,20 +145,26 @@ const Feedback: React.FC = () => {
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
       console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
-      return feedbacks.map((fb: any) => ({
-        id: fb.id,
-        callId: fb.avaliacao_id,
-        avaliacaoId: fb.avaliacao_id,
-        agenteId: fb.agent_id,
-        agenteNome: fb.nome_agente,
-        criterio: 'Feedback de Monitoria',
-        performanceAtual: 0, // Não temos performance nos feedbacks reais
-        observacao: fb.comentario,
-        status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
-        dataCriacao: fb.criado_em,
-        origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
-        comentario: fb.comentario
-      }));
+      return feedbacks.map((fb: any) => {
+        // A pontuação já vem do backend via JOIN com a tabela avaliacoes
+        const performanceAtual = fb.performance_atual || 0;
+        console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
+        
+        return {
+          id: fb.id,
+          callId: fb.avaliacao_id,
+          avaliacaoId: fb.avaliacao_id,
+          agenteId: fb.agent_id,
+          agenteNome: fb.nome_agente,
+          criterio: 'Feedback de Monitoria',
+          performanceAtual: performanceAtual,
+          observacao: fb.comentario,
+          status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
+          dataCriacao: fb.criado_em,
+          origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+          comentario: fb.comentario
+        };
+      });
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
       console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
@@ -244,9 +254,12 @@ const Feedback: React.FC = () => {
       feedbacks,
       feedbacksLoading,
       feedbacksError,
-      feedbacksParaExibir: feedbackData?.length || 0
+      feedbacksParaExibir: feedbackData?.length || 0,
+      agents: agents?.length || 0,
+      agentsLoading,
+      agentsError
     });
-  }, [feedbacks, feedbacksLoading, feedbacksError, feedbackData]);
+  }, [feedbacks, feedbacksLoading, feedbacksError, feedbackData, agents, agentsLoading, agentsError]);
 
   // Filtrar feedback
   const filteredFeedback = useMemo(() => {
@@ -446,17 +459,18 @@ const Feedback: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col justify-end">
-                <button
-                  onClick={() => {
-                    refetchAgents();
-                    refetchTrend();
-                    refetchFeedbacks();
-                  }}
-                  className="h-10 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Atualizar
-                </button>
+                                 <button
+                   onClick={() => {
+                     refetchAgents();
+                     refetchTrend();
+                     refetchFeedbacks();
+                   }}
+                   className="h-10 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                 >
+                   <RefreshCw className="h-4 w-4" />
+                   Atualizar
+                 </button>
+                 
               </div>
             </div>
           </div>
@@ -532,16 +546,16 @@ const Feedback: React.FC = () => {
             </p>
           </div>
 
-          {/* Loading State */}
-          {(agentsLoading || trendLoading || feedbacksLoading) && (
+                                           {/* Loading State */}
+           {(agentsLoading || trendLoading || feedbacksLoading) && (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-500">Carregando feedbacks...</p>
             </div>
           )}
 
-          {/* Error State */}
-          {(agentsError || trendError || feedbacksError) && (
+                                           {/* Error State */}
+           {(agentsError || trendError || feedbacksError) && (
             <div className="text-center py-12">
               <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <p className="text-red-500">Erro ao carregar dados. Tente novamente.</p>
@@ -568,8 +582,8 @@ const Feedback: React.FC = () => {
             </div>
           )}
 
-          {/* No Data State */}
-          {!agentsLoading && !trendLoading && !feedbacksLoading && !agentsError && !trendError && !feedbacksError && filteredFeedback.length === 0 ? (
+                                           {/* No Data State */}
+           {!agentsLoading && !trendLoading && !feedbacksLoading && !agentsError && !trendError && !feedbacksError && filteredFeedback.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">Nenhum feedback encontrado para os filtros selecionados.</p>
@@ -594,7 +608,7 @@ const Feedback: React.FC = () => {
                     {/* Performance e Status */}
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Performance</p>
+                        <p className="text-sm text-gray-600">Performance da Avaliação</p>
                         <p className={`text-lg font-bold px-3 py-1 rounded-full ${getPerformanceColor(feedback.performanceAtual)}`}>
                           {feedback.performanceAtual}%
                         </p>
@@ -673,7 +687,7 @@ const Feedback: React.FC = () => {
                   <p className="text-lg text-gray-900">{selectedFeedback.criterio}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Performance</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Performance da Avaliação</label>
                   <p className={`text-lg font-bold px-3 py-1 rounded-full inline-block ${getPerformanceColor(selectedFeedback.performanceAtual)}`}>
                     {selectedFeedback.performanceAtual}%
                   </p>
