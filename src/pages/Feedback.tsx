@@ -61,13 +61,9 @@ const Feedback: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({
-    criterio: '',
-    observacao: '',
-    acao: '',
-    agenteId: '',
-    agenteNome: ''
-  });
+  // Estado para edição
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState<{ id: string; comentario: string; status: string }>({ id: '', comentario: '', status: 'ENVIADO' });
 
   // Filtros para API - com fallback para datas padrão
   const apiFilters = {
@@ -339,9 +335,45 @@ const Feedback: React.FC = () => {
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
-    // Aqui você implementaria a lógica para editar o feedback
-    console.log('Editando feedback:', feedback.id);
-    alert('Funcionalidade de edição será implementada!');
+    // Preenche o formulário com os dados atuais
+    setEditForm({
+      id: feedback.id,
+      comentario: feedback.comentario || feedback.observacao || '',
+      // Converter status visual -> status backend
+      status:
+        feedback.status === 'pendente' ? 'ENVIADO' :
+        feedback.status === 'aplicado' ? 'APLICADO' :
+        feedback.status === 'aceito' ? 'ACEITO' : 'REVISAO',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSalvarEdicao = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/feedbacks/${editForm.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ comentario: editForm.comentario, status: editForm.status }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Falha ao atualizar feedback: ${res.status} ${t}`);
+      }
+      setShowEditModal(false);
+      // Atualiza listagem
+      refetchFeedbacks();
+    } catch (err) {
+      console.error('[DEBUG] Erro ao salvar edição de feedback:', err);
+      alert('Não foi possível salvar as alterações.');
+    }
+  };
+
+  const handleCancelarEdicao = () => {
+    setShowEditModal(false);
   };
 
   const handleCriarFeedback = () => {
@@ -780,6 +812,63 @@ const Feedback: React.FC = () => {
                     </button>
                   </>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Feedback */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Editar Feedback</h3>
+              <button onClick={handleCancelarEdicao} className="text-gray-400 hover:text-gray-600">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ENVIADO">Pendente</option>
+                  <option value="APLICADO">Aplicado</option>
+                  <option value="ACEITO">Aceito</option>
+                  <option value="REVISAO">Em Revisão</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comentário</label>
+                <textarea
+                  value={editForm.comentario}
+                  onChange={(e) => setEditForm((f) => ({ ...f, comentario: e.target.value }))}
+                  rows={6}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Escreva o comentário do feedback..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={handleCancelarEdicao}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSalvarEdicao}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Salvar
+                </button>
               </div>
             </div>
           </div>
