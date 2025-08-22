@@ -28,6 +28,7 @@ import {
 import { getAgents, getTrend } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
+import { formatAgentName } from '../lib/format';
 
 interface Agente {
   id: string;
@@ -150,13 +151,16 @@ const Feedback: React.FC = () => {
         const performanceAtual = fb.performance_atual || 0;
         console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
         
+        // Normalizar nome do agente como na página Agents
+        const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
+        
         return {
           id: fb.id,
           callId: fb.avaliacao_id,
           avaliacaoId: fb.avaliacao_id,
           agenteId: fb.agent_id,
-          agenteNome: fb.nome_agente,
-          criterio: 'Feedback de Monitoria',
+          agenteNome: nomeNormalizado,
+          criterio: fb.criterio_nome || 'Critério não especificado',
           performanceAtual: performanceAtual,
           observacao: fb.comentario,
           status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
