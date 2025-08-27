@@ -163,6 +163,14 @@ const Feedback: React.FC = () => {
         
         // Normalizar nome do agente como na página Agents
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
+        // Mapear status visual considerando aceite vindo do backend
+        const statusVisual = (fb?.aceite === 1 || fb?.status === 'ACEITO')
+          ? 'aceito'
+          : (fb?.status === 'APLICADO')
+            ? 'aplicado'
+            : (fb?.status === 'REVISAO')
+              ? 'revisao'
+              : 'pendente';
         
         return {
           id: String(fb.id),
@@ -173,7 +181,7 @@ const Feedback: React.FC = () => {
           criterio: fb.criterio_nome || 'Critério não especificado',
           performanceAtual: performanceAtual,
           observacao: fb.comentario,
-          status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
+          status: statusVisual,
           dataCriacao: fb.criado_em,
           origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
           comentario: fb.comentario
