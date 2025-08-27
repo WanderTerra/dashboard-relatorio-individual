@@ -142,7 +142,7 @@ const Feedback: React.FC = () => {
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
       console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
-      return feedbacks.map((fb: any) => {
+      const mapped = feedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
         const performanceAtual = fb.performance_atual || 0;
         console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
@@ -151,7 +151,7 @@ const Feedback: React.FC = () => {
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
         
         return {
-          id: fb.id,
+          id: String(fb.id),
           callId: fb.avaliacao_id,
           avaliacaoId: fb.avaliacao_id,
           agenteId: fb.agent_id,
@@ -165,6 +165,24 @@ const Feedback: React.FC = () => {
           comentario: fb.comentario
         };
       });
+
+      // Agrupar por id de feedback para evitar repetição visual
+      const grouped = new Map<string, FeedbackItem>();
+      for (const item of mapped) {
+        const key = item.id;
+        const existing = grouped.get(key);
+        if (!existing) {
+          grouped.set(key, item);
+        } else {
+          const prev = new Date(existing.dataCriacao || 0).getTime();
+          const cur = new Date(item.dataCriacao || 0).getTime();
+          if (cur >= prev) grouped.set(key, item);
+        }
+      }
+
+      return Array.from(grouped.values()).sort(
+        (a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime()
+      );
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
       console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
@@ -276,7 +294,21 @@ const Feedback: React.FC = () => {
       );
     }
 
-    return filtered;
+    // Deduplicar por id do feedback (mantém o mais recente por id)
+    const byId = new Map<string, FeedbackItem>();
+    for (const item of filtered) {
+      const key = item.id;
+      const existing = byId.get(key);
+      if (!existing) {
+        byId.set(key, item);
+      } else {
+        const prev = new Date(existing.dataCriacao || 0).getTime();
+        const cur = new Date(item.dataCriacao || 0).getTime();
+        if (cur >= prev) byId.set(key, item);
+      }
+    }
+
+    return Array.from(byId.values());
   }, [feedbackData, statusFilter, searchTerm]);
 
   // Estatísticas
