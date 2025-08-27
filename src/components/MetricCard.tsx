@@ -1,52 +1,132 @@
 import React from 'react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface MetricCardProps {
-  title: string;
-  value: number;
   icon: React.ReactNode;
-  suffix?: string;
-  description: string;
-  trend?: 'up' | 'down' | 'neutral';
-  trendColor?: string;
+  value: string | number;
+  label: string;
+  trend?: {
+    value: number;
+    period: string;
+  };
+  color?: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'indigo';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
-  title,
-  value,
   icon,
-  suffix = '',
-  description,
+  value,
+  label,
   trend,
-  trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-600'
+  color = 'blue',
+  size = 'md',
+  loading = false
 }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="text-lg font-medium text-gray-700">{title}</h3>
-          <div className="flex items-baseline mt-2">
-            <span className="text-3xl font-bold text-gray-900">{value}</span>
-            {suffix && <span className="ml-1 text-xl text-gray-500">{suffix}</span>}
-            
-            {trend && (
-              <span className={`ml-3 flex items-center ${trendColor}`}>
-                {trend === 'up' ? (
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                ) : trend === 'down' ? (
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                ) : null}
-              </span>
-            )}
+  const getColorClasses = (color: string) => {
+    const colors = {
+      blue: 'from-blue-500 to-blue-600',
+      green: 'from-green-500 to-green-600',
+      orange: 'from-orange-500 to-orange-600',
+      red: 'from-red-500 to-red-600',
+      purple: 'from-purple-500 to-purple-600',
+      indigo: 'from-indigo-500 to-indigo-600'
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
+  };
+
+  const getSizeClasses = (size: string) => {
+    const sizes = {
+      sm: 'p-3',
+      md: 'p-4',
+      lg: 'p-6'
+    };
+    return sizes[size as keyof typeof sizes] || sizes.md;
+  };
+
+  const getIconSize = (size: string) => {
+    const sizes = {
+      sm: 'h-4 w-4',
+      md: 'h-5 w-5',
+      lg: 'h-6 w-6'
+    };
+    return sizes[size as keyof typeof sizes] || sizes.md;
+  };
+
+  const getValueSize = (size: string) => {
+    const sizes = {
+      sm: 'text-lg',
+      md: 'text-xl',
+      lg: 'text-2xl'
+    };
+    return sizes[size as keyof typeof sizes] || sizes.md;
+  };
+
+  const getLabelSize = (size: string) => {
+    const sizes = {
+      sm: 'text-xs',
+      md: 'text-sm',
+      lg: 'text-base'
+    };
+    return sizes[size as keyof typeof sizes] || sizes.md;
+  };
+
+  if (loading) {
+    return (
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${getSizeClasses(size)}`}>
+        <div className="animate-pulse">
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+            <div className="h-4 w-16 bg-gray-200 rounded"></div>
           </div>
-          <p className="mt-2 text-sm text-gray-600">{description}</p>
+          <div className="h-6 bg-gray-200 rounded w-20 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
         </div>
-        <div className="p-3 bg-gray-100 rounded-full">
-          {icon}
+      </div>
+    );
+  }
+
+  const renderTrend = () => {
+    if (!trend) return null;
+
+    const isPositive = trend.value > 0;
+    const isNegative = trend.value < 0;
+    const isNeutral = trend.value === 0;
+
+    return (
+      <div className={`flex items-center gap-1 text-xs font-medium ${
+        isPositive ? 'text-green-600' : 
+        isNegative ? 'text-red-600' : 
+        'text-gray-500'
+      }`}>
+        {isPositive && <TrendingUp className="h-3 w-3" />}
+        {isNegative && <TrendingDown className="h-3 w-3" />}
+        {isNeutral && <Minus className="h-3 w-3" />}
+        <span>
+          {isPositive ? '+' : ''}{trend.value}%
+        </span>
+        <span className="text-gray-400">vs {trend.period}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${getSizeClasses(size)} hover:shadow-md transition-all duration-300`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className={`p-2 bg-gradient-to-r ${getColorClasses(color)} rounded-lg shadow-sm`}>
+          <div className={`text-white ${getIconSize(size)}`}>
+            {icon}
+          </div>
         </div>
+        {trend && renderTrend()}
+      </div>
+      
+      <div className={`font-bold text-gray-900 ${getValueSize(size)} mb-1`}>
+        {value}
+      </div>
+      
+      <div className={`text-gray-600 font-medium ${getLabelSize(size)}`}>
+        {label}
       </div>
     </div>
   );
