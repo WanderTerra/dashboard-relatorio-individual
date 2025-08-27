@@ -5,6 +5,7 @@ export interface Filters {
   start: string;    // ISO YYYY-MM-DD
   end: string;      // ISO YYYY-MM-DD
   carteira?: string;
+  activeOnly?: boolean; // Filtrar apenas agentes ativos
 }
 
 // Chaves para localStorage

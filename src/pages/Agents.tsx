@@ -1,16 +1,19 @@
 import React from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Filter } from 'lucide-react';
 
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getAgents, getAgentWorstItem, getCarteirasFromAvaliacoes } from '../lib/api';
+import { getActiveAgents, getAgentWorstItem, getCarteirasFromAvaliacoes } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 
 const Agents: React.FC = () => {
+  const queryClient = useQueryClient();
+  
   // Estados para filtros específicos da página Agents
   const [selectedCarteira, setSelectedCarteira] = React.useState<string>('');
+  const [showOnlyActive, setShowOnlyActive] = React.useState<boolean>(true);
   
   // Estados para paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -30,13 +33,18 @@ const Agents: React.FC = () => {
   const apiFilters = { 
     start: '2024-01-01', // Data padrão para evitar erro 422
     end: '2025-12-31',   // Data padrão para evitar erro 422
+    activeOnly: showOnlyActive, // Usar o estado do toggle
     ...(selectedCarteira ? { carteira: selectedCarteira } : {}) 
   };
 
-  // Buscar agentes
-  const { data: agents } = useQuery({ 
-    queryKey: ['agents', apiFilters], 
-    queryFn: () => getAgents(apiFilters) 
+  // Buscar agentes ativos
+  const { data: agents, isLoading, error } = useQuery({ 
+    queryKey: ['active-agents', apiFilters], 
+    queryFn: () => {
+      return getActiveAgents(apiFilters);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    enabled: true, // Sempre habilitado
   });
 
   // Para cada agente, dispara uma query para obter o pior item
@@ -74,7 +82,13 @@ const Agents: React.FC = () => {
   // Reset página quando filtros mudam
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCarteira, agentSearch]);
+  }, [selectedCarteira, agentSearch, showOnlyActive]);
+
+  // Forçar invalidação da query quando os filtros mudam
+  React.useEffect(() => {
+    // Invalidar a query para forçar nova execução
+    queryClient.invalidateQueries({ queryKey: ['active-agents'] });
+  }, [showOnlyActive, selectedCarteira, queryClient]);
 
   return (
     <div>
@@ -100,12 +114,66 @@ const Agents: React.FC = () => {
                   emptyMessage="Nenhuma carteira encontrada"
                 />
               </div>
+              
+              {/* Toggle para mostrar apenas agentes ativos */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyActive}
+                    onChange={(e) => {
+                      setShowOnlyActive(e.target.checked);
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Agentes ativos
+                  </span>
+                </label>
+              </div>
             </div>
+            
+            {/* Contador de resultados */}
+            {agentSearch && (
+              <div className="mt-3 text-sm text-gray-600">
+                {filteredAgents.length === 0 ? (
+                  <span className="text-red-600">Nenhum agente encontrado para "{agentSearch}"</span>
+                ) : (
+                  <span className="text-blue-600">
+                    {filteredAgents.length} agente{filteredAgents.length !== 1 ? 's' : ''} encontrado{filteredAgents.length !== 1 ? 's' : ''} para "{agentSearch}"
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {/* Informação sobre filtro de agentes ativos */}
+            {showOnlyActive && (
+              <div className="mt-3 text-sm text-gray-600">
+              </div>
+            )}
           </div>
         }
       />
 
       <div className="p-6">
+        {/* Indicadores de Status */}
+        {isLoading && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-blue-800">Carregando agentes ativos...</span>
+            </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-red-800">❌ Erro ao carregar agentes: {error.message}</span>
+            </div>
+          </div>
+        )}
+        
         {/* Tabela de Agentes */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -143,22 +211,10 @@ const Agents: React.FC = () => {
                 )}
               </div>
             </div>
-            
-            {/* Contador de resultados */}
-            {agentSearch && (
-              <div className="mt-3 text-sm text-gray-600">
-                {filteredAgents.length === 0 ? (
-                  <span className="text-red-600">Nenhum agente encontrado para "{agentSearch}"</span>
-                ) : (
-                  <span className="text-blue-600">
-                    {filteredAgents.length} agente{filteredAgents.length !== 1 ? 's' : ''} encontrado{filteredAgents.length !== 1 ? 's' : ''} para "{agentSearch}"
-                  </span>
-                )}
-              </div>
-            )}
           </div>
           
           <div className="overflow-x-auto">
+            
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -259,6 +315,11 @@ const Agents: React.FC = () => {
                   {agentSearch && (
                     <span className="text-blue-600 ml-2">
                       (filtrado de {agents?.length || 0} total)
+                    </span>
+                  )}
+                  {showOnlyActive && (
+                    <span className="text-green-600 ml-2">
+                      (ativos)
                     </span>
                   )}
                 </div>

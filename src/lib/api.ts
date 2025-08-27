@@ -229,35 +229,149 @@ export async function getAllAgents() {
 
 // Lista todos os usuários do sistema (admin)
 export async function getAllUsers() {
-  const res = await fetch(`/admin/users`, {
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-  });
-  if (!res.ok) throw new Error('Erro ao buscar usuários');
-  return res.json();
+  const res = await api.get('/admin/users');
+  return res.data;
+}
+
+// Lista apenas usuários ativos do sistema
+export async function getActiveUsers() {
+  try {
+    const res = await api.get('/admin/users');
+    
+    // Filtrar apenas usuários ativos - ser mais flexível com o campo
+    const activeUsers = res.data.filter((user: any) => {
+      // Verificar se o campo active existe e é verdadeiro
+      const isActive = user.active === true || user.active === 1 || user.active === 'true';
+      return isActive;
+    });
+    
+    return activeUsers;
+  } catch (error) {
+    console.error('❌ Erro em getActiveUsers:', error);
+    throw error;
+  }
+}
+
+// Busca agentes ativos (combinando dados de usuários e performance)
+export async function getActiveAgents(filters: any) {
+  try {
+    // Se activeOnly for false ou undefined, retornar todos os agentes
+    if (filters.activeOnly === false) {
+      return await getAgents(filters);
+    }
+    
+    // Filtrar apenas agentes ativos
+    let activeUsers;
+    try {
+      activeUsers = await getActiveUsers();
+    } catch (userError) {
+      console.error('❌ Erro ao buscar usuários ativos:', userError);
+      return await getAgents(filters);
+    }
+    
+    // Se não há usuários ativos, retornar lista vazia
+    if (!activeUsers || activeUsers.length === 0) {
+      return [];
+    }
+    
+    // Buscar dados de performance dos agentes
+    let agentsData;
+    try {
+      agentsData = await getAgents(filters);
+    } catch (agentError) {
+      console.error('❌ Erro ao buscar dados de performance:', agentError);
+      return [];
+    }
+    
+    // Se não há dados de performance, retornar lista vazia
+    if (!agentsData || agentsData.length === 0) {
+      return [];
+    }
+    
+    // Combinar e filtrar apenas agentes que são usuários ativos
+    const activeUserIds = new Set([
+      ...activeUsers.map((user: any) => user.username),
+      ...activeUsers.map((user: any) => user.id?.toString()),
+      ...activeUsers.map((user: any) => user.agent_id?.toString())
+    ]);
+    
+    // Filtrar agentes ativos com dados válidos
+    const activeAgents = agentsData.filter((agent: any) => {
+      const agentId = agent.agent_id?.toString();
+      const ligacoes = agent.ligacoes || 0;
+      
+      // PRIMEIRO: Verificar se o agente tem dados válidos
+      if (ligacoes === 0 || ligacoes === null || ligacoes === undefined) {
+        return false;
+      }
+      
+      // SEGUNDO: Tentar diferentes estratégias de match
+      let isActive = false;
+      
+      // 1. Match direto por agent_id
+      if (activeUserIds.has(agentId)) {
+        isActive = true;
+      } else {
+        // 2. Tentar encontrar usuário com username que contenha o agent_id
+        const matchingUser = activeUsers.find((user: any) => {
+          return user.username && user.username.includes(agentId);
+        });
+        
+        if (matchingUser) {
+          isActive = true;
+        } else {
+          // 3. Tentar match por nome (case insensitive)
+          const agentName = agent.agent_name || agent.nome;
+          const matchingUserByName = activeUsers.find((user: any) => {
+            const userName = user.full_name?.toLowerCase() || '';
+            const agentNameLower = agentName?.toLowerCase() || '';
+            return userName.includes(agentNameLower) || agentNameLower.includes(userName);
+          });
+          
+          if (matchingUserByName) {
+            isActive = true;
+          } else {
+            // 4. Tentar match por username que seja similar ao agent_id
+            const matchingUserBySimilarId = activeUsers.find((user: any) => {
+              if (user.username && user.username.includes('agent.')) {
+                const userAgentId = user.username.replace('agent.', '');
+                return userAgentId === agentId;
+              }
+              return false;
+            });
+            
+            if (matchingUserBySimilarId) {
+              isActive = true;
+            }
+          }
+        }
+      }
+      
+      return isActive;
+    });
+    
+    return activeAgents;
+  } catch (error) {
+    console.error('❌ Erro geral em getActiveAgents:', error);
+    try {
+      return await getAgents(filters);
+    } catch (fallbackError) {
+      console.error('❌ Erro no fallback também:', fallbackError);
+      return [];
+    }
+  }
 }
 
 // Reseta a senha do usuário para o valor padrão (admin)
 export async function resetUserPassword(userId: number) {
-  const res = await fetch(`/admin/users/${userId}/reset-password`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-  });
-  if (!res.ok) throw new Error('Erro ao resetar senha');
-  return res.json();
+  const res = await api.post(`/admin/users/${userId}/reset-password`);
+  return res.data;
 }
 
 // Atualiza dados do usuário (admin)
 export async function updateUser(userId: number, data: { full_name: string; active: boolean; username: string }) {
-  const res = await fetch(`/admin/users/${userId}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Erro ao atualizar usuário');
-  return res.json();
+  const res = await api.put(`/admin/users/${userId}`, data);
+  return res.data;
 }
 
 export async function createUser(username: string, full_name: string, permissions?: string[]) {
