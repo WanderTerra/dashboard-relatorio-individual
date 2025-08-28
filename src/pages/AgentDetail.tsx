@@ -62,6 +62,7 @@ const AgentDetail: React.FC = () => {
   const [endDate, setEndDate] = useState(() =>
     getPersistedDate('agent_filter_end', today)
   );
+  const [activeTab, setActiveTab] = useState<'overview' | 'feedback'>('overview');
 
   useEffect(() => {
     setPersistedDate('agent_filter_start', startDate);
@@ -109,7 +110,34 @@ const AgentDetail: React.FC = () => {
     queryFn: () => {
       return getAgentCriteria(agentId, apiFilters);
     },
-  });  // Helper function to format criteria data for radar chart
+  });
+
+  // Feedbacks do agente
+  const { data: agentFeedbacks, isLoading: feedbacksLoading, error: feedbacksError } = useQuery({
+    queryKey: ['agentFeedbacks', agentId, apiFilters, user?.id],
+    queryFn: () => {
+      return fetch('/api/feedbacks/with-scores')
+        .then(res => res.json())
+        .then(data => {
+          // Filtrar apenas feedbacks deste agente específico
+          const filteredFeedbacks = data.filter((fb: any) => {
+            // Se for um agente, sempre filtrar pelo ID do usuário logado
+            // Se for admin/monitor, filtrar pelo ID da página
+            const targetAgentId = isAgent ? user?.id?.toString() : agentId;
+            
+            // Comparar pelo ID do agente na tabela de feedbacks
+            const matchById = fb.agent_id === targetAgentId;
+            
+            return matchById;
+          });
+          
+          return filteredFeedbacks;
+        });
+    },
+    enabled: activeTab === 'feedback' && !!user, // Só busca quando a aba feedback estiver ativa e usuário estiver logado
+  });
+
+  // Helper function to format criteria data for radar chart
   const generateMonthlyData = (callsData: any[]) => {
     if (!callsData || callsData.length === 0) return [];
     
@@ -196,6 +224,35 @@ const AgentDetail: React.FC = () => {
     // Retornar dados agrupados por categoria
     return formatted;
   };
+
+  // Funções auxiliares para feedbacks
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pendente': return 'text-yellow-600';
+      case 'aplicado': return 'text-green-600';
+      case 'aceito': return 'text-blue-600';
+      case 'revisao': return 'text-orange-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getPerformanceColor = (performance: number) => {
+    if (performance >= 80) return 'text-green-600';
+    if (performance >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getOrigemIcon = (origem: string) => {
+    switch (origem?.toLowerCase()) {
+      case 'ia':
+        return '🤖';
+      case 'monitor':
+        return '👨‍💼';
+      default:
+        return '❓';
+    }
+  };
+
   // Log de erros e dados recebidos
   React.useEffect(() => {
     if (summaryError) {
@@ -212,8 +269,13 @@ const AgentDetail: React.FC = () => {
     }
   }, [summaryError, callsError, wiError, criteriaError, summary, criteria, calls]);
 
-  // Verifica se o usuário autenticado é agente (tem permissão agent_{id} e não é admin)
-  const isAgent = user && user.permissions && user.permissions.includes(`agent_${agentId}`) && !user.permissions.includes('admin');
+  // Verifica se o usuário autenticado é o próprio agente da página
+  const isAgent = user && user.id && (
+    user.id.toString() === agentId || 
+    user.id === parseInt(agentId)
+  );
+  
+
 
   return (
     <div>
@@ -258,9 +320,45 @@ const AgentDetail: React.FC = () => {
 
       />
 
-              <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
-        {/* Resumo do agente */}
-        {summaryLoading ? (
+      {/* Sistema de Abas */}
+      {isAgent && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  activeTab === 'overview'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Visão Geral
+              </button>
+              <button
+                onClick={() => setActiveTab('feedback')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  activeTab === 'feedback'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Feedbacks
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
+      
+
+      
+
+
+      {/* Conteúdo da Aba Visão Geral */}
+      {activeTab === 'overview' && (
+        <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
+          {/* Resumo do agente */}
+          {summaryLoading ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="animate-pulse !text-gray-900">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
@@ -288,52 +386,56 @@ const AgentDetail: React.FC = () => {
                 <p className="text-sm sm:text-base text-gray-600 font-medium">Agente ID: {agentId}</p>
               </div>
               
-              {/* Coluna 3: Métricas */}
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 !text-gray-900 w-full sm:w-auto">
-                <div className="text-center sm:text-left !text-gray-900">
-                  <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+              {/* Coluna 3: Métricas - Apenas para administradores */}
+              {!isAgent && (
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 !text-gray-900 w-full sm:w-auto">
+                  <div className="text-center sm:text-left !text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+                  </div>
+                  <div className="text-center sm:text-left !text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
+                    <p className="text-xl sm:text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
+                  </div>
                 </div>
-                <div className="text-center sm:text-left !text-gray-900">
-                  <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
-                  <p className="text-xl sm:text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Pior item */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Pior Item Avaliado</h2>
-          {wiLoading ? (
-            <div className="animate-pulse !text-gray-900">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </div>
-          ) : worstItem ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    {formatItemName(worstItem.categoria)}
-                  </h3>
-                  <p className="text-sm text-red-700 mt-1">
-                    Taxa de não conformidade: <span className="font-semibold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
-                  </p>
+        {/* Pior item - Apenas para administradores */}
+        {!isAgent && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Pior Item Avaliado</h2>
+            {wiLoading ? (
+              <div className="animate-pulse !text-gray-900">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ) : worstItem ? (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      {formatItemName(worstItem.categoria)}
+                    </h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      Taxa de não conformidade: <span className="text-sm font-semibold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-              <p className="text-gray-600">Sem dados de avaliação disponíveis para o período selecionado.</p>
-            </div>
-          )}
-        </div>        {/* Gráfico de Radar - Critérios do Agente */}
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                <p className="text-gray-600">Sem dados de avaliação disponíveis para o período selecionado.</p>
+              </div>
+            )}
+          </div>
+        )}        {/* Gráfico de Radar - Critérios do Agente */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
 
           
@@ -578,28 +680,182 @@ const AgentDetail: React.FC = () => {
           )}
         </div>
 
-        {/* Lista de ligações */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 !text-gray-900">
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Detalhes das ligações realizadas no período
-            </p>
+        {/* Lista de ligações - Apenas para administradores */}
+        {!isAgent && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 !text-gray-900">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Detalhes das ligações realizadas no período
+              </p>
+            </div>
+            
+            {callsLoading ? (
+              <div className="p-4 sm:p-6 !text-gray-900">
+                <div className="animate-pulse space-y-4 !text-gray-900">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <CallList calls={calls ?? []} user={user} />
+            )}
           </div>
-          
-          {callsLoading ? (
-            <div className="p-4 sm:p-6 !text-gray-900">
-              <div className="animate-pulse space-y-4 !text-gray-900">
+        )}
+      </div>
+      )}
+
+      {/* Conteúdo da Aba Feedbacks */}
+      {activeTab === 'feedback' && (
+        <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
+          {/* Verificação de Segurança */}
+          {!isAgent && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">Acesso Restrito</h3>
+                  <p className="text-sm text-red-700">Apenas o próprio agente pode visualizar seus feedbacks pessoais.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Header dos Feedbacks */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {isAgent ? 'Meus Feedbacks' : 'Feedbacks do Agente'}
+                </h2>
+                <p className="text-gray-600">
+                  {isAgent ? 'Visualize e gerencie seus feedbacks pessoais' : 'Feedbacks deste agente específico'}
+                </p>
+              </div>
+              {!isAgent && (
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {agentFeedbacks?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-500">Total de Feedbacks</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Lista de Feedbacks */}
+          {!isAgent ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Acesso Restrito</h3>
+              <p className="text-gray-600">
+                Apenas o próprio agente pode visualizar seus feedbacks pessoais.
+              </p>
+            </div>
+          ) : feedbacksLoading ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="animate-pulse space-y-4">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
                 ))}
               </div>
             </div>
+          ) : feedbacksError ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="text-center text-red-600">
+                <p>Erro ao carregar feedbacks. Tente novamente.</p>
+              </div>
+            </div>
+          ) : agentFeedbacks && agentFeedbacks.length > 0 ? (
+            <div className="space-y-4">
+
+              
+              {agentFeedbacks.map((feedback: any) => (
+                <div key={feedback.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-lg">{getOrigemIcon(feedback.origem)}</span>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {feedback.criterio_nome || 'Critério não especificado'}
+                        </h3>
+                      </div>
+                      <p className="text-gray-600 mb-3">
+                        {feedback.comentario || 'Nenhum comentário disponível'}
+                      </p>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Performance:</span>
+                          <span className={`font-semibold ${getPerformanceColor(feedback.performance_atual || 0)}`}>
+                            {feedback.performance_atual || 0}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Status:</span>
+                          <span className={`font-semibold ${getStatusColor(feedback.status)}`}>
+                            {feedback.status === 'ENVIADO' ? 'Pendente' : feedback.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Origem:</span>
+                          <span className="font-semibold text-gray-700">
+                            {feedback.origem === 'monitoria' ? 'Monitor' : 'IA'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">Data:</span>
+                          <span className="font-semibold text-gray-700">
+                            {new Date(feedback.criado_em).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Ações do Feedback */}
+                    {feedback.status === 'ENVIADO' && (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={() => alert('Funcionalidade de aceitar feedback será implementada!')}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                        >
+                          Aceitar
+                        </button>
+                        <button
+                          onClick={() => alert('Funcionalidade de rejeitar feedback será implementada!')}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                        >
+                          Rejeitar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <CallList calls={calls ?? []} user={user} />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum feedback encontrado</h3>
+              <p className="text-gray-600">
+                Você ainda não recebeu feedbacks. Continue se esforçando e os feedbacks aparecerão aqui quando disponíveis.
+              </p>
+            </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

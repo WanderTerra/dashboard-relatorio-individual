@@ -20,6 +20,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermi
 
   // Se é agente e está tentando acessar o dashboard, redirecionar para sua página
   if (isAgent && location.pathname === '/') {
+    console.log('[DEBUG] ProtectedRoute - Redirecionando do dashboard:', {
+      userId: user.id,
+      userName: user.full_name,
+      userAgentId: agentId,
+      from: '/',
+      to: `/agent/${agentId}`
+    });
     return <Navigate to={`/agent/${agentId}`} replace />;
   }
 
@@ -27,6 +34,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermi
   if (isAgent && location.pathname.startsWith('/agent/')) {
     const pathAgentId = location.pathname.split('/')[2];
     if (pathAgentId !== agentId) {
+      console.log('[DEBUG] ProtectedRoute - Redirecionando agente:', {
+        userId: user.id,
+        userName: user.full_name,
+        pathAgentId,
+        userAgentId: agentId,
+        from: location.pathname,
+        to: `/agent/${agentId}`
+      });
       return <Navigate to={`/agent/${agentId}`} replace />;
     }
   }

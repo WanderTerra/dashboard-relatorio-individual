@@ -1,13 +1,13 @@
 import * as React from 'react';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music } from 'lucide-react';
+import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music, User } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
-import { Combobox } from '../components/ui/select-simple';
+import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
 import { getAllCarteiras } from '../lib/api';
 import axios from 'axios';
@@ -29,6 +29,7 @@ const AudioUpload: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
+  const [selectedAgent, setSelectedAgent] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para transcrição com Scribe
@@ -56,6 +57,69 @@ const AudioUpload: React.FC = () => {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
+  // Buscar usuários ativos da tabela users (excluindo administradores)
+  const { data: agents = [], isLoading: agentsLoading, error: agentsError } = useQuery({
+    queryKey: ['active-users-agents-no-admin'],
+    queryFn: async () => {
+      try {
+        // Usar a função getActiveUsers que busca usuários ativos da tabela users
+        const { getActiveUsers, getUserPermissions } = await import('../lib/api');
+        const response = await getActiveUsers();
+        console.log('✅ Usuários ativos da tabela users:', response);
+        
+        // Verificar se a resposta tem a estrutura esperada
+        let users = [];
+        if (response && Array.isArray(response)) {
+          users = response;
+        } else if (response && response.users && Array.isArray(response.users)) {
+          users = response.users;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          users = response.data;
+        } else {
+          console.warn('⚠️ Estrutura de resposta inesperada:', response);
+          return [];
+        }
+        
+        // Filtrar usuários que NÃO são administradores
+        const nonAdminUsers = [];
+        for (const user of users) {
+          try {
+            const userPermissions = await getUserPermissions(user.id);
+            console.log(`🔍 Usuário ${user.full_name} (ID: ${user.id}) - Permissões:`, userPermissions);
+            
+            // Verificar se o usuário tem permissões administrativas
+            const isAdmin = userPermissions.some(permission => 
+              permission.toLowerCase().includes('admin') ||
+              permission.toLowerCase().includes('administrador') ||
+              permission.toLowerCase().includes('system') ||
+              permission.toLowerCase().includes('sistema')
+            );
+            
+            if (!isAdmin) {
+              nonAdminUsers.push(user);
+              console.log(`✅ Usuário ${user.full_name} adicionado (não é admin)`);
+            } else {
+              console.log(`❌ Usuário ${user.full_name} filtrado (é admin)`);
+            }
+          } catch (permissionError) {
+            console.warn(`⚠️ Erro ao buscar permissões do usuário ${user.id}:`, permissionError);
+            // Se não conseguir verificar permissões, incluir o usuário por segurança
+            nonAdminUsers.push(user);
+          }
+        }
+        
+        console.log('✅ Usuários não-administradores filtrados:', nonAdminUsers);
+        return nonAdminUsers;
+        
+      } catch (error) {
+        console.error('❌ Erro ao buscar usuários ativos da tabela users:', error);
+        return [];
+      }
+    },
+    enabled: true, // Sempre habilitado, não depende da carteira
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
   // Atualizar carteira de avaliação quando a carteira de upload for selecionada
   React.useEffect(() => {
     if (selectedCarteira && carteiras.length > 0) {
@@ -64,6 +128,7 @@ const AudioUpload: React.FC = () => {
         setSelectedCarteiraAvaliacao(carteira.id);
       }
     }
+    // Não limpar mais o agente, pois os agentes não dependem da carteira
   }, [selectedCarteira, carteiras, setSelectedCarteiraAvaliacao]);
 
   // Converter carteiras para o formato do Combobox
@@ -88,6 +153,12 @@ const AudioUpload: React.FC = () => {
     // Verificar se uma carteira foi selecionada
     if (!selectedCarteira) {
       toast.error('Por favor, selecione uma carteira antes de fazer upload');
+      return;
+    }
+
+    // Verificar se um usuário foi selecionado
+    if (!selectedAgent) {
+      toast.error('Por favor, selecione um usuário antes de fazer upload');
       return;
     }
 
@@ -173,6 +244,7 @@ const AudioUpload: React.FC = () => {
   // Clear carteira selection
   const clearCarteira = () => {
     setSelectedCarteira('');
+    setSelectedAgent('');
     setUploadedFile(null);
     setTranscription(null);
     limparResultado();
@@ -254,14 +326,15 @@ const AudioUpload: React.FC = () => {
               variant="outline" 
               onClick={clearCarteira}
               disabled={isUploading || isTranscribing || isAvaliando}
-              className="border-gray-300 hover:bg-gray-50"
+              className="border-gray-300 hover:bg-gray-50 transition-all duration-200"
             >
+              <X className="w-4 h-4 mr-2" />
               Limpar Tudo
             </Button>
             <Button 
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || !selectedCarteira || !!uploadedFile}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isUploading || !selectedCarteira || !selectedAgent || !!uploadedFile}
+              className="bg-slate-600 hover:bg-slate-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
             >
               <Upload className="w-4 h-4 mr-2" />
               Selecionar Arquivo
@@ -270,84 +343,198 @@ const AudioUpload: React.FC = () => {
         }
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-8 bg-gradient-to-br from-gray-50 via-white to-slate-50 min-h-screen">
         {/* Carteira Selection */}
-        <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-              📁 Seleção de Carteira
+        <Card className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-slate-100 pb-4">
+            <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-800">
+              <div className="p-2 bg-slate-100 rounded-lg">
+                <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                </svg>
+              </div>
+              Seleção de Carteira
             </CardTitle>
             <CardDescription className="text-gray-600">
               Escolha a carteira de destino para o arquivo de áudio
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Carteira *
-              </label>
-              <Combobox
-                options={carteiraOptions}
-                value={selectedCarteira}
-                onChange={(value) => setSelectedCarteira(value)}
-                placeholder="Selecionar carteira"
-                emptyMessage="Nenhuma carteira encontrada"
-              />
-              {selectedCarteira && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <p className="text-sm text-green-800">
-                      Carteira selecionada: <strong>{selectedCarteira}</strong>
-                    </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Seleção de Carteira */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Carteira *
+                </label>
+                <Combobox
+                  options={carteiraOptions}
+                  value={selectedCarteira}
+                  onChange={(value) => setSelectedCarteira(value)}
+                  placeholder="Selecionar carteira"
+                  emptyMessage="Nenhuma carteira encontrada"
+                />
+                {selectedCarteira && (
+                  <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-slate-200 rounded-lg">
+                        <CheckCircle className="w-4 h-4 text-slate-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-600">Carteira Selecionada</p>
+                        <p className="text-sm font-semibold text-slate-800">{selectedCarteira}</p>
+                      </div>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Seleção de Usuário/Agente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Agente *
+                </label>
+                <div className="relative">
+                  <Combobox
+                    options={agents.map((agent: any) => {
+                      const option = {
+                        value: agent.id.toString(),
+                        label: agent.full_name || agent.username || `Usuário ${agent.id}`
+                      };
+                      console.log('🔍 Opção criada:', option);
+                      return option;
+                    })}
+                    value={selectedAgent}
+                    onChange={(value) => {
+                      console.log('🎯 Agente selecionado:', value);
+                      setSelectedAgent(value);
+                    }}
+                    placeholder={agentsLoading ? "Carregando usuários..." : !selectedCarteira ? "Selecione uma carteira primeiro" : "Selecionar usuário"}
+                    emptyMessage={agentsError ? "Erro ao carregar usuários" : "Nenhum usuário encontrado"}
+                  />
                 </div>
-              )}
+
+                {/* Mostrar erro se houver */}
+                {agentsError && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-red-100 rounded-lg">
+                        <AlertCircle className="w-3 h-3 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-red-700">
+                          Erro ao carregar usuários
+                        </p>
+                        <p className="text-xs text-red-600">
+                          {agentsError.message || 'Erro desconhecido'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Mostrar loading se estiver carregando */}
+                {agentsLoading && (
+                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-gray-200 rounded-lg">
+                        <Loader2 className="w-3 h-3 animate-spin text-gray-600" />
+                      </div>
+                      <p className="text-xs font-medium text-gray-700">
+                        Carregando usuários...
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedAgent && (
+                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-gray-200 rounded-lg">
+                        <CheckCircle className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-600">
+                          Usuário Selecionado
+                        </p>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {(() => {
+                            const selectedUser = agents.find((a: any) => a.id.toString() === selectedAgent);
+                            if (selectedUser) {
+                              return selectedUser.full_name || selectedUser.username || `Usuário ${selectedAgent}`;
+                            }
+                            return `Usuário ${selectedAgent}`;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Upload Area - Só aparece se não há arquivo */}
         {!uploadedFile && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                🎵 Upload de Arquivo
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-slate-100 pb-4">
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-800">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                </div>
+                Upload de Arquivo
               </CardTitle>
               <CardDescription className="text-gray-600">
-                {selectedCarteira 
+                {selectedCarteira && selectedAgent
                   ? 'Arraste e solte um arquivo de áudio aqui ou clique para selecionar'
-                  : 'Selecione uma carteira primeiro para fazer upload'
+                  : !selectedCarteira
+                    ? 'Selecione uma carteira primeiro para fazer upload'
+                    : 'Selecione um usuário para fazer upload'
                 }
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
-                  !selectedCarteira 
+                className={`border-2 border-dashed rounded-lg p-10 text-center transition-all duration-200 ${
+                  !selectedCarteira || !selectedAgent
                     ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
                     : isDragging 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                      ? 'border-slate-400 bg-slate-100 shadow-sm' 
+                      : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                onClick={() => selectedCarteira && fileInputRef.current?.click()}
+                onClick={() => selectedCarteira && selectedAgent && fileInputRef.current?.click()}
               >
-                <Music className={`w-12 h-12 mx-auto mb-4 ${!selectedCarteira ? 'text-gray-300' : 'text-gray-400'}`} />
+                <div className={`w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  !selectedCarteira || !selectedAgent
+                    ? 'bg-gray-200 text-gray-400' 
+                    : isDragging 
+                      ? 'bg-slate-300 text-slate-600' 
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}>
+                  <Music className="w-8 h-8" />
+                </div>
                 <p className="text-lg font-medium text-gray-900 mb-2">
                   {!selectedCarteira 
                     ? 'Selecione uma carteira primeiro'
-                    : isDragging 
-                      ? 'Solte o arquivo aqui' 
-                      : 'Clique ou arraste um arquivo aqui'
+                    : !selectedAgent
+                      ? 'Selecione um usuário para fazer upload'
+                      : isDragging 
+                        ? 'Solte o arquivo aqui' 
+                        : 'Clique ou arraste um arquivo aqui'
                   }
                 </p>
-                <p className="text-sm text-gray-500">
-                  {selectedCarteira 
-                    ? 'Formatos: MP3, WAV, M4A'
-                    : 'Você precisa selecionar uma carteira antes de fazer upload'
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  {selectedCarteira && selectedAgent
+                    ? 'Formatos aceitos: MP3, WAV, M4A'
+                    : !selectedCarteira
+                      ? 'Você precisa selecionar uma carteira antes de fazer upload'
+                      : 'Usuários ativos (não-administradores) são carregados da tabela users'
                   }
                 </p>
               </div>
@@ -357,24 +544,31 @@ const AudioUpload: React.FC = () => {
 
         {/* Arquivo Enviado */}
         {uploadedFile && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                📁 Arquivo Enviado
+          <Card className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-slate-100 pb-4">
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-800">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Arquivo Enviado
               </CardTitle>
               <CardDescription className="text-gray-600">
                 Arquivo pronto para transcrição
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <div className="flex items-center gap-3 flex-1">
-                  <FileAudio className="w-5 h-5 text-gray-500" />
+              <div className="flex items-center justify-between p-5 border border-slate-200 rounded-lg bg-slate-50">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="p-3 bg-slate-200 rounded-lg">
+                    <FileAudio className="w-6 h-6 text-slate-600" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-base font-semibold text-gray-900 truncate">
                       {uploadedFile.name}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm text-slate-600 font-medium">
                       {formatFileSize(uploadedFile.size)}
                     </p>
                   </div>
@@ -426,19 +620,22 @@ const AudioUpload: React.FC = () => {
               {uploadedFile.status === 'success' && !transcription && (
                 <div className="mt-4">
                   <Button
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] rounded-xl"
                     onClick={handleTranscribe}
                     disabled={isTranscribing}
                     size="lg"
                   >
                     {isTranscribing ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                         Transcrevendo...
                       </>
                     ) : (
                       <>
-                        🎙️ Transcrever Arquivo
+                        <div className="mr-3 p-1 bg-white/20 rounded-lg">
+                          🎙️
+                        </div>
+                        Transcrever Arquivo
                       </>
                     )}
                   </Button>
@@ -450,13 +647,15 @@ const AudioUpload: React.FC = () => {
 
         {/* Área de Carregamento */}
         {isTranscribing && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <Card className="bg-gradient-to-r from-white to-blue-50 rounded-2xl shadow-lg border border-blue-100 hover:shadow-xl transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200 shadow-sm">
+                <div className="p-3 bg-blue-200 rounded-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-700" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-blue-800">Transcrevendo arquivo...</p>
-                  <p className="text-xs text-blue-600">Isso pode levar alguns segundos</p>
+                  <p className="text-base font-semibold text-blue-800">Transcrevendo arquivo...</p>
+                  <p className="text-sm text-blue-600">Isso pode levar alguns segundos</p>
                 </div>
               </div>
             </CardContent>
@@ -465,12 +664,15 @@ const AudioUpload: React.FC = () => {
 
         {/* Transcrição */}
         {transcription && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                📝 Transcrição
+          <Card className="bg-gradient-to-r from-white to-indigo-50 rounded-2xl shadow-lg border border-indigo-100 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-2xl">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold text-white">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  📝
+                </div>
+                Transcrição
               </CardTitle>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-indigo-100 text-base">
                 Transcrição do arquivo de áudio
               </CardDescription>
             </CardHeader>
@@ -485,19 +687,22 @@ const AudioUpload: React.FC = () => {
               {/* Botão Avaliar com IA */}
               <div className="mt-4">
                 <Button
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white h-12 text-base font-medium"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] rounded-xl"
                   onClick={handleEvaluate}
                   disabled={isAvaliando}
                   size="lg"
                 >
                   {isAvaliando ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                       Avaliando com IA...
                     </>
                   ) : (
                     <>
-                      🤖 Avaliar com IA
+                      <div className="mr-3 p-1 bg-white/20 rounded-lg">
+                        🤖
+                      </div>
+                      Avaliar com IA
                     </>
                   )}
                 </Button>
@@ -508,13 +713,15 @@ const AudioUpload: React.FC = () => {
 
         {/* Status da Avaliação */}
         {isAvaliando && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <Card className="bg-gradient-to-r from-white to-purple-50 rounded-2xl shadow-lg border border-purple-100 hover:shadow-xl transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border border-purple-200 shadow-sm">
+                <div className="p-3 bg-purple-200 rounded-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-purple-700" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-purple-800">Avaliando transcrição com IA...</p>
-                  <p className="text-xs text-purple-600">Isso pode levar alguns segundos</p>
+                  <p className="text-base font-semibold text-purple-800">Avaliando transcrição com IA...</p>
+                  <p className="text-sm text-purple-600">Isso pode levar alguns segundos</p>
                 </div>
               </div>
             </CardContent>
@@ -523,12 +730,15 @@ const AudioUpload: React.FC = () => {
 
         {/* Resultados da Avaliação */}
         {avaliacaoResult && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                🎯 Resultados da Avaliação
+          <Card className="bg-gradient-to-r from-white to-emerald-50 rounded-2xl shadow-lg border border-emerald-100 hover:shadow-xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-t-2xl">
+              <CardTitle className="flex items-center gap-3 text-xl font-bold text-white">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  🎯
+                </div>
+                Resultados da Avaliação
               </CardTitle>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-emerald-100 text-base">
                 Avaliação realizada automaticamente com IA
               </CardDescription>
             </CardHeader>
@@ -558,14 +768,19 @@ const AudioUpload: React.FC = () => {
 
         {/* Erro de Avaliação */}
         {avaliacaoError && (
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <Card className="bg-gradient-to-r from-white to-red-50 rounded-2xl shadow-lg border border-red-100 hover:shadow-xl transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="text-red-700 text-sm">
-                    Erro na avaliação automática: {avaliacaoError?.message || 'Erro desconhecido'}
-                  </p>
+              <div className="p-6 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-red-200 rounded-full">
+                    <AlertCircle className="w-6 h-6 text-red-700" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-red-800">Erro na Avaliação</p>
+                    <p className="text-sm text-red-700">
+                      {avaliacaoError?.message || 'Erro desconhecido na avaliação automática'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
