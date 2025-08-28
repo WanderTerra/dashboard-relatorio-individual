@@ -205,6 +205,14 @@ if (storedToken) {
 export const getFeedbacksByAvaliacao = (avaliacaoId: string) =>
   api.get(`/avaliacao/${avaliacaoId}/feedbacks`).then(r => r.data);
 
+// Aceitar feedback (POST) – endpoint dedicado
+export const aceitarFeedback = (id: number) =>
+  api.post(`/feedbacks/${id}/aceite`).then(r => r.data);
+
+// Alternativa (PUT) – seta aceite=1; o backend preenche aceite_em server-side
+export const aceitarFeedbackPut = (id: number) =>
+  api.put(`/feedbacks/${id}`, { aceite: 1 }).then(r => r.data);
+
 // Função para salvar feedbacks automaticamente
 export const salvarFeedbacksAutomaticos = (avaliacaoId: string, feedbacks: Array<{
   agent_id: string;

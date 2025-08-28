@@ -28,9 +28,8 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
-import { getAgents, getTrend } from '../lib/api';
+import { getAgents, getTrend, aceitarFeedback, aceitarFeedbackPut } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
-import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
@@ -62,15 +61,15 @@ interface FeedbackItem {
 
 const Feedback: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
-  const { user, isAuthenticated } = useAuth();
-  
-  // Debug: verificar contexto de autenticação
-  console.log('[DEBUG] Frontend: Contexto de autenticação:', { user, isAuthenticated });
-  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  // Estado para edição
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState<{ id: string; comentario: string; status: string }>({ id: '', comentario: '', status: 'ENVIADO' });
+
+  // Estado de acordeão e formulário de feedback
   const [expandedCalls, setExpandedCalls] = useState<Set<string>>(new Set());
   const [feedbackForm, setFeedbackForm] = useState({
     criterio: '',
@@ -154,70 +153,62 @@ const Feedback: React.FC = () => {
   const feedbackData = useMemo(() => {
     console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents });
     
-          if (feedbacks && feedbacks.length > 0) {
-        // Usar feedbacks reais da tabela
-        console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
-        let feedbacksFiltrados = feedbacks.map((fb: any) => {
-          // A pontuação já vem do backend via JOIN com a tabela avaliacoes
-          const performanceAtual = fb.performance_atual || 0;
-          console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
-          
-          // Normalizar nome do agente como na página Agents
-          const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
-          
-          return {
-            id: fb.id,
-            callId: fb.avaliacao_id,
-            avaliacaoId: fb.avaliacao_id,
-            agenteId: fb.agent_id,
-            agenteNome: nomeNormalizado,
-            criterio: fb.criterio_nome || 'Critério não especificado',
-            performanceAtual: performanceAtual,
-            observacao: fb.comentario,
-            status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
-            dataCriacao: fb.criado_em,
-            origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
-            comentario: fb.comentario
-          };
-        });
+    if (feedbacks && feedbacks.length > 0) {
+      // Usar feedbacks reais da tabela
+      console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
+      const mapped = feedbacks.map((fb: any) => {
+        // A pontuação já vem do backend via JOIN com a tabela avaliacoes
+        const performanceAtual = fb.performance_atual || 0;
+        console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
+        
+        // Normalizar nome do agente como na página Agents
+        const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
+        // Mapear status visual considerando aceite vindo do backend
+        const statusVisual = (fb?.aceite === 1 || fb?.status === 'ACEITO')
+          ? 'aceito'
+          : (fb?.status === 'APLICADO')
+            ? 'aplicado'
+            : (fb?.status === 'REVISAO')
+              ? 'revisao'
+              : 'pendente';
+        
+        return {
+          id: String(fb.id),
+          callId: fb.avaliacao_id,
+          avaliacaoId: fb.avaliacao_id,
+          agenteId: fb.agent_id,
+          agenteNome: nomeNormalizado,
+          criterio: fb.criterio_nome || 'Critério não especificado',
+          performanceAtual: performanceAtual,
+          observacao: fb.comentario,
+          status: statusVisual,
+          dataCriacao: fb.criado_em,
+          origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+          comentario: fb.comentario
+        };
+      });
 
-          // Se for um agente, filtrar apenas seus próprios feedbacks
-          if (user && user.permissions && user.permissions.some(p => p.startsWith('agent_'))) {
-            console.log('[DEBUG] Frontend: Usuário é agente:', user.full_name, user.id, user.permissions);
-            
-            // Extrair o ID do agente da permissão (ex: agent_1034 -> 1034)
-            const agentPerm = user.permissions.find(p => p.startsWith('agent_'));
-            const agentId = agentPerm ? agentPerm.replace('agent_', '') : null;
-            
-            console.log('[DEBUG] Frontend: AgentId extraído da permissão:', agentId);
-            
-            feedbacksFiltrados = feedbacksFiltrados.filter((fb: FeedbackItem) => {
-              const matchById = fb.agenteId === agentId;
-              const matchByName = fb.agenteNome.toLowerCase().includes(user.full_name.toLowerCase());
-              
-              console.log('[DEBUG] Frontend: Verificando feedback:', {
-                feedbackId: fb.id,
-                feedbackAgentId: fb.agenteId,
-                permissionAgentId: agentId,
-                agenteNome: fb.agenteNome,
-                userName: user.full_name,
-                matchById,
-                matchByName
-              });
-              
-              return matchById || matchByName;
-            });
-            
-            console.log('[DEBUG] Frontend: Filtrado feedbacks para agente:', user.full_name, feedbacksFiltrados.length);
-          } else {
-            console.log('[DEBUG] Frontend: Usuário não é agente ou não tem permissões:', user?.full_name, user?.permissions);
-          }
+      // Agrupar por id de feedback para evitar repetição visual
+      const grouped = new Map<string, FeedbackItem>();
+      for (const item of mapped) {
+        const key = item.id;
+        const existing = grouped.get(key);
+        if (!existing) {
+          grouped.set(key, item);
+        } else {
+          const prev = new Date(existing.dataCriacao || 0).getTime();
+          const cur = new Date(item.dataCriacao || 0).getTime();
+          if (cur >= prev) grouped.set(key, item);
+        }
+      }
 
-        return feedbacksFiltrados;
+      return Array.from(grouped.values()).sort(
+        (a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime()
+      );
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
       console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
-      let feedback: FeedbackItem[] = [];
+      const feedback: FeedbackItem[] = [];
       
       // Identificar agentes com notas baixas (performance < 70%)
       const agentesComNotasBaixas = agents
@@ -290,20 +281,6 @@ const Feedback: React.FC = () => {
         });
       });
       
-      // Se for um agente, filtrar apenas seus próprios feedbacks
-      if (user && user.permissions && user.permissions.includes('agent')) {
-        console.log('[DEBUG] Frontend: Fallback - Usuário é agente:', user.full_name, user.id, user.permissions);
-        feedback = feedback.filter(fb => {
-          const matchById = fb.agenteId === user.id.toString();
-          const matchByName = fb.agenteNome.toLowerCase().includes(user.full_name.toLowerCase());
-          console.log('[DEBUG] Frontend: Fallback - Verificando feedback:', fb.agenteId, fb.agenteNome, 'Match ID:', matchById, 'Match Name:', matchByName);
-          return matchById || matchByName;
-        });
-        console.log('[DEBUG] Frontend: Filtrado feedbacks fallback para agente:', user.full_name, feedback.length);
-      } else {
-        console.log('[DEBUG] Frontend: Fallback - Usuário não é agente ou não tem permissões:', user?.full_name, user?.permissions);
-      }
-      
       return feedback;
     }
     
@@ -339,7 +316,21 @@ const Feedback: React.FC = () => {
       );
     }
 
-    return filtered;
+    // Deduplicar por id do feedback (mantém o mais recente por id)
+    const byId = new Map<string, FeedbackItem>();
+    for (const item of filtered) {
+      const key = item.id;
+      const existing = byId.get(key);
+      if (!existing) {
+        byId.set(key, item);
+      } else {
+        const prev = new Date(existing.dataCriacao || 0).getTime();
+        const cur = new Date(item.dataCriacao || 0).getTime();
+        if (cur >= prev) byId.set(key, item);
+      }
+    }
+
+    return Array.from(byId.values());
   }, [feedbackData, statusFilter, searchTerm]);
 
   // Agrupar feedbacks por ligação (Call ID) - versão mais clara
@@ -420,10 +411,23 @@ const Feedback: React.FC = () => {
     setShowFeedbackModal(true);
   };
 
-  const handleAceitarFeedback = (feedback: FeedbackItem) => {
-    // Aqui você implementaria a lógica para aceitar o feedback
-    console.log('Feedback aceito:', feedback.id);
-    alert('Feedback aceito com sucesso!');
+  const handleAceitarFeedback = async (feedback: FeedbackItem) => {
+    try {
+      // Tenta via endpoint dedicado (POST)
+      try {
+        await aceitarFeedback(Number(feedback.id));
+      } catch (e) {
+        // Fallback via PUT caso o POST não exista no ambiente
+        await aceitarFeedbackPut(Number(feedback.id));
+      }
+      // Atualiza UI
+      setSelectedFeedback(prev => prev && prev.id === feedback.id ? { ...prev, status: 'aceito' } : prev);
+      await refetchFeedbacks();
+      alert('Feedback aceito com sucesso!');
+    } catch (err) {
+      console.error('[DEBUG] Erro ao aceitar feedback:', err);
+      alert('Não foi possível aceitar o feedback. Faça login novamente e tente de novo.');
+    }
   };
 
   const handleRejeitarFeedback = (feedback: FeedbackItem) => {
@@ -433,9 +437,45 @@ const Feedback: React.FC = () => {
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
-    // Aqui você implementaria a lógica para editar o feedback
-    console.log('Editando feedback:', feedback.id);
-    alert('Funcionalidade de edição será implementada!');
+    // Preenche o formulário com os dados atuais
+    setEditForm({
+      id: feedback.id,
+      comentario: feedback.comentario || feedback.observacao || '',
+      // Converter status visual -> status backend
+      status:
+        feedback.status === 'pendente' ? 'ENVIADO' :
+        feedback.status === 'aplicado' ? 'APLICADO' :
+        feedback.status === 'aceito' ? 'ACEITO' : 'REVISAO',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSalvarEdicao = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/feedbacks/${editForm.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ comentario: editForm.comentario, status: editForm.status }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Falha ao atualizar feedback: ${res.status} ${t}`);
+      }
+      setShowEditModal(false);
+      // Atualiza listagem
+      refetchFeedbacks();
+    } catch (err) {
+      console.error('[DEBUG] Erro ao salvar edição de feedback:', err);
+      alert('Não foi possível salvar as alterações.');
+    }
+  };
+
+  const handleCancelarEdicao = () => {
+    setShowEditModal(false);
   };
 
   const handleCriarFeedback = () => {
@@ -444,11 +484,7 @@ const Feedback: React.FC = () => {
     alert('Funcionalidade de criação será implementada!');
   };
 
-  // Verificar se o usuário é monitor ou admin
-  const isMonitor = user && user.permissions && (
-    user.permissions.includes('monitor') || 
-    user.permissions.includes('admin')
-  );
+  const isMonitor = true; // Aqui você implementaria a lógica de role/permissão
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
@@ -497,62 +533,24 @@ const Feedback: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
-        title={
-          user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) 
-            ? "Meus Feedbacks" 
-            : "Painel de Feedbacks"
-        }
-        subtitle={
-          user && user.permissions && user.permissions.some(p => p.startsWith('agent_'))
-            ? "Visualize e gerencie seus feedbacks pessoais"
-            : "Gerencie e visualize feedbacks de agentes em uma interface unificada"
-        }
+        title="Painel de Feedbacks" 
+        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"
         actions={
-          user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? (
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-blue-100 rounded-full">
-                <span className="text-sm font-semibold text-blue-700">
-                  Agente: {user.full_name}
-                </span>
-              </div>
-            </div>
-          ) : (
-            isMonitor && (
-              <button
-                onClick={handleCriarFeedback}
-                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-              >
-                <Plus className="h-5 w-5" />
-                Criar Feedback
-              </button>
-            )
+          isMonitor && (
+            <button
+              onClick={handleCriarFeedback}
+              className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+            >
+              <Plus className="h-5 w-5" />
+              Criar Feedback
+            </button>
           )
         }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Indicador de Modo Agente */}
-        {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <User className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-blue-800">
-                  Modo Agente Ativo
-                </h3>
-                <p className="text-blue-600">
-                  Visualizando apenas seus feedbacks pessoais • {user.full_name}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Filtros e Controles - Apenas para Administradores */}
-        {!user?.permissions?.some(p => p.startsWith('agent_')) && (
-          <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-2xl shadow-lg border border-gray-200 p-8 mb-8">
+        {/* Filtros e Controles */}
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-2xl shadow-lg border border-gray-200 p-8 mb-8">
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex flex-col">
@@ -625,24 +623,18 @@ const Feedback: React.FC = () => {
             </div>
           </div>
         </div>
-        )}
 
-        {/* Estatísticas Principais - Apenas para Administradores */}
-        {!user?.permissions?.some(p => p.startsWith('agent_')) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+        {/* Estatísticas Principais */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? 'Meus' : 'Total'}
-                </p>
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Total</p>
                 <p className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? 'Feedbacks' : 'Feedbacks'}
-                </p>
+                <p className="text-xs text-slate-500 mt-1">Feedbacks</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <MessageSquare className="h-6 w-6 text-slate-600" />
+                <Target className="h-6 w-6 text-slate-600" />
               </div>
             </div>
           </div>
@@ -650,13 +642,9 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-2xl shadow-lg border border-violet-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Minhas' : 'Ligações'}
-                </p>
+                <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Ligações</p>
                 <p className="text-3xl font-bold text-violet-900 mt-1">{feedbacksAgrupados.length}</p>
-                <p className="text-xs text-violet-500 mt-1">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Ligações' : 'Analisadas'}
-                </p>
+                <p className="text-xs text-violet-500 mt-1">Analisadas</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <Phone className="h-6 w-6 text-violet-600" />
@@ -667,13 +655,9 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-lg border border-amber-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Pendentes' : 'Pendentes'}
-                </p>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Pendentes</p>
                 <p className="text-3xl font-bold text-amber-900 mt-1">{stats.pendente}</p>
-                <p className="text-xs text-amber-500 mt-1">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Para aceitar' : 'Aguardando'}
-                </p>
+                <p className="text-xs text-amber-500 mt-1">Aguardando</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <Clock className="h-6 w-6 text-amber-600" />
@@ -684,13 +668,9 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg border border-emerald-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Aplicados' : 'Aplicados'}
-                </p>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Aplicados</p>
                 <p className="text-3xl font-bold text-emerald-900 mt-1">{stats.aplicado}</p>
-                <p className="text-xs text-emerald-500 mt-1">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Implementados' : 'Implementados'}
-                </p>
+                <p className="text-xs text-emerald-500 mt-1">Implementados</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6 text-emerald-600" />
@@ -701,13 +681,9 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border border-blue-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Aceitos' : 'Aceitos'}
-                </p>
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Aceitos</p>
                 <p className="text-3xl font-bold text-blue-900 mt-1">{stats.aceito}</p>
-                <p className="text-xs text-blue-500 mt-1">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Validados' : 'Validados'}
-                </p>
+                <p className="text-xs text-blue-500 mt-1">Validados</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6 text-blue-600" />
@@ -718,13 +694,9 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Revisão' : 'Revisão'}
-                </p>
+                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Revisão</p>
                 <p className="text-3xl font-bold text-orange-900 mt-1">{stats.revisao}</p>
-                <p className="text-xs text-orange-500 mt-1">
-                  {user && user.permissions && user.permissions.includes('agent') ? 'Para revisar' : 'Em análise'}
-                </p>
+                <p className="text-xs text-orange-500 mt-1">Em análise</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
@@ -732,7 +704,6 @@ const Feedback: React.FC = () => {
             </div>
           </div>
         </div>
-        )}
 
         {/* Lista de Feedbacks por Ligação */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
@@ -741,19 +712,9 @@ const Feedback: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">
                   Feedbacks por Ligação
-                  {user && user.permissions && user.permissions.includes('agent') && (
-                    <span className="ml-3 text-lg font-medium text-blue-600">
-                      (Meus Feedbacks)
-                    </span>
-                  )}
                 </h3>
                 <p className="text-gray-600 mt-2">
                   {feedbacksAgrupados.length} ligações analisadas • Organizadas por contexto de chamada
-                  {user && user.permissions && user.permissions.includes('agent') && (
-                    <span className="text-blue-600 font-medium">
-                      • Mostrando apenas seus feedbacks
-                    </span>
-                  )}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -790,25 +751,15 @@ const Feedback: React.FC = () => {
                   onClick={() => refetchTrend()}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
-                  <button
-                    onClick={() => refetchFeedbacks()}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    Tentar Novamente - Feedbacks
-                  </button>
+                  Tentar Novamente - Trend
+                </button>
+                <button
+                  onClick={() => refetchFeedbacks()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Tentar Novamente - Feedbacks
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Estado quando não há feedbacks para o agente */}
-          {user && user.permissions && user.permissions.includes('agent') && feedbackData && feedbackData.length === 0 && !feedbacksLoading && (
-            <div className="text-center py-12">
-              <MessageSquare className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum feedback encontrado</h3>
-              <p className="text-gray-600">
-                Você ainda não recebeu feedbacks. Continue se esforçando e os feedbacks aparecerão aqui quando disponíveis.
-              </p>
             </div>
           )}
 
@@ -847,7 +798,7 @@ const Feedback: React.FC = () => {
                             </p>
                             <p className="text-sm text-gray-600">
                               <span className="inline-flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4 text-indigo-600" />
+                                <Target className="h-4 w-4 text-indigo-600" />
                                 {ligacao.totalFeedbacks} critérios
                               </span>
                             </p>
@@ -1042,7 +993,7 @@ const Feedback: React.FC = () => {
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-blue-100 rounded-xl">
-                        <MessageSquare className="h-5 w-5 text-blue-600" />
+                        <Target className="h-5 w-5 text-blue-600" />
                       </div>
                       <h4 className="text-lg font-bold text-gray-800">Critério Avaliado</h4>
                     </div>
@@ -1211,6 +1162,63 @@ const Feedback: React.FC = () => {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Feedback */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Editar Feedback</h3>
+              <button onClick={handleCancelarEdicao} className="text-gray-400 hover:text-gray-600">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ENVIADO">Pendente</option>
+                  <option value="APLICADO">Aplicado</option>
+                  <option value="ACEITO">Aceito</option>
+                  <option value="REVISAO">Em Revisão</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comentário</label>
+                <textarea
+                  value={editForm.comentario}
+                  onChange={(e) => setEditForm((f) => ({ ...f, comentario: e.target.value }))}
+                  rows={6}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Escreva o comentário do feedback..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={handleCancelarEdicao}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSalvarEdicao}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Salvar
+                </button>
               </div>
             </div>
           </div>
