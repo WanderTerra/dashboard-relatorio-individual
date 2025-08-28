@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { AddExistingCriterioModal } from "../components/AddExistingCriterioModal";
 import { useToast } from "../hooks/use-toast";
 
 interface Carteira {
@@ -62,12 +61,15 @@ const CarteiraCriterios: React.FC = () => {
   const [editCriterio, setEditCriterio] = useState<Criterio | null>(null);
   const [selectedCarteiraForCriterio, setSelectedCarteiraForCriterio] = useState<Carteira | null>(null);
   const [showAddExistingModal, setShowAddExistingModal] = useState(false);
+  // Modal de sucesso ao criar e associar critério
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<{ criterio: string; carteira: string } | null>(null);
 
   // Categorias serão carregadas dinamicamente do banco de dados
 
   // Estados dos formulários
   const [carteiraForm, setCarteiraForm] = useState({ nome: "", descricao: "", ativo: true });
-  const [criterioForm, setCriterioForm] = useState({ nome: "", descricao: "", exemplo_frase: "", categoria: "", peso: 1 });
+  const [criterioForm, setCriterioForm] = useState({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
 
   // Funções para drag & drop das categorias
   const handleDragStart = (e: React.DragEvent, categoria: string) => {
@@ -261,6 +263,17 @@ const CarteiraCriterios: React.FC = () => {
     setLoading(false);
   };
 
+  const handleCloseSuccessModal = async () => {
+    setShowSuccessModal(false);
+    await refreshAllData();
+    if (selectedCarteiraForCriterio) {
+      setExpandedCarteira(selectedCarteiraForCriterio.id);
+      await fetchAssociacoes(selectedCarteiraForCriterio.id);
+    } else if (expandedCarteira) {
+      await fetchAssociacoes(expandedCarteira);
+    }
+  };
+
   // Carregar dados iniciais
   useEffect(() => {
     refreshAllData();
@@ -425,7 +438,12 @@ const CarteiraCriterios: React.FC = () => {
       } else {
         // Criar critério e associar automaticamente à carteira
         console.log("🔄 Criando critério:", criterioForm);
-        const criterioResponse = await api.post("/criterios/", criterioForm);
+        // Se estiver em modo "Outra", usar o valor digitado
+        const payload = {
+          ...criterioForm,
+          categoria: criterioForm.categoria === "__outra__" ? (criterioForm.categoriaCustom || "") : criterioForm.categoria
+        } as any;
+        const criterioResponse = await api.post("/criterios/", payload);
         const novoCriterio = criterioResponse.data;
         console.log("✅ Critério criado:", novoCriterio);
         
@@ -435,14 +453,27 @@ const CarteiraCriterios: React.FC = () => {
         // Associar automaticamente à carteira se houver uma selecionada
         if (selectedCarteiraForCriterio) {
           try {
-            console.log(`🔗 Associando critério ${novoCriterio.id} à carteira ${selectedCarteiraForCriterio.id}...`);
+            const criterioIdLocal = Number((novoCriterio as any)?.id);
+            console.log(`🔗 Associando critério ${criterioIdLocal} à carteira ${selectedCarteiraForCriterio.id}...`);
+            if (!criterioIdLocal || Number.isNaN(criterioIdLocal) || criterioIdLocal <= 0) {
+              console.error('❌ ID do critério inválido após criação:', novoCriterio);
+              toast({ title: '❌ Erro ao associar', description: 'ID do critério inválido após criação.' });
+              return;
+            }
             
-            const associacaoResponse = await api.post('/carteira_criterios/', {
+            console.log('➡️ POST /carteira_criterios', {
               carteira_id: selectedCarteiraForCriterio.id,
-              criterio_id: novoCriterio.id,
+              criterio_id: criterioIdLocal,
               ordem: 1,
               peso_especifico: criterioForm.peso
             });
+            const associacaoResponse = await api.post('/carteira_criterios/', {
+              carteira_id: selectedCarteiraForCriterio.id,
+              criterio_id: criterioIdLocal,
+              ordem: 1,
+              peso_especifico: criterioForm.peso
+            });
+            console.log('⬅️ Resposta associação', associacaoResponse.status, associacaoResponse.data);
             
             console.log("✅ Associação criada:", associacaoResponse.data);
             
@@ -456,39 +487,31 @@ const CarteiraCriterios: React.FC = () => {
               setExpandedCarteira(selectedCarteiraForCriterio.id);
             }
             
-            toast({
-              title: "✅ Critério criado com sucesso!",
-              description: `"${novoCriterio.nome}" foi adicionado à carteira "${selectedCarteiraForCriterio.nome}".`,
-              duration: 3000,
-            });
+            setSuccessInfo({ criterio: novoCriterio.nome, carteira: selectedCarteiraForCriterio.nome });
+            setShowSuccessModal(true);
           } catch (error) {
             console.error('Erro ao associar critério:', error);
             toast({
               title: "⚠️ Critério criado, mas erro na associação",
               description: "O critério foi criado, mas não foi associado à carteira. Tente associar manualmente.",
-              duration: 5000,
             });
           }
         } else {
-          toast({
-            title: "✅ Critério criado com sucesso!",
-            description: `"${novoCriterio.nome}" foi criado. Associe-o a uma carteira manualmente.`,
-            duration: 3000,
-          });
+          setSuccessInfo({ criterio: novoCriterio.nome, carteira: "(sem carteira)" });
+          setShowSuccessModal(true);
         }
       }
       
       setShowCriterioModal(false);
       setEditCriterio(null);
       setSelectedCarteiraForCriterio(null);
-      setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", peso: 1 });
+      setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
       
     } catch (err) {
       console.error("Erro ao salvar critério:", err);
       toast({
         title: "❌ Erro ao criar critério",
         description: "Verifique os dados e tente novamente.",
-        duration: 3000,
       });
     }
     setLoading(false);
@@ -521,10 +544,12 @@ const CarteiraCriterios: React.FC = () => {
     try {
       console.log(`🔗 Associando critério ${criterioId} à carteira ${expandedCarteira}...`);
       
+      console.log('➡️ POST /carteira_criterios', { carteira_id: expandedCarteira, criterio_id: criterioId });
       await api.post('/carteira_criterios/', {
         carteira_id: expandedCarteira,
         criterio_id: criterioId
       });
+      console.log('⬅️ Associação criada com sucesso');
       
       console.log(`✅ Critério associado com sucesso!`);
       
@@ -534,14 +559,12 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "✅ Critério associado!",
         description: "O critério foi adicionado à carteira com sucesso.",
-        duration: 3000,
       });
     } catch (err) {
       console.error("❌ Erro ao associar critério:", err);
       toast({
         title: "❌ Erro ao associar",
         description: "Não foi possível associar o critério à carteira.",
-        duration: 5000,
       });
     }
   };
@@ -562,14 +585,12 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "✅ Critério removido!",
         description: "O critério foi removido da carteira com sucesso.",
-        duration: 3000,
       });
     } catch (err) {
       console.error("❌ Erro ao remover associação:", err);
       toast({
         title: "❌ Erro ao remover",
         description: "Não foi possível remover o critério da carteira.",
-        duration: 5000,
       });
     }
   };
@@ -890,22 +911,13 @@ const CarteiraCriterios: React.FC = () => {
                             onClick={() => {
                               setSelectedCarteiraForCriterio(carteira);
                               setEditCriterio(null);
-                              setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", peso: 1 });
+                              setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
                               setShowCriterioModal(true);
                             }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 text-sm font-medium"
                           >
                             <Plus className="h-4 w-4" />
                             Criar Critério
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedCarteiraForCriterio(carteira);
-                              setShowAddExistingModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 text-sm font-medium"
-                          >
-                            Adicionar critério existente
                           </button>
                         </div>
                       </div>
@@ -926,7 +938,8 @@ const CarteiraCriterios: React.FC = () => {
                               onClick={() => {
                                 setSelectedCarteiraForCriterio(carteira);
                                 setEditCriterio(null);
-                                setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", peso: 1 });
+                                setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
+                                setCriterioForm({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
                                 setShowCriterioModal(true);
                               }}
                               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200"
@@ -934,15 +947,7 @@ const CarteiraCriterios: React.FC = () => {
                               <Plus className="h-4 w-4" />
                               Criar Critério
                             </button>
-                            <button
-                              onClick={() => {
-                                setSelectedCarteiraForCriterio(carteira);
-                                setShowAddExistingModal(true);
-                              }}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200"
-                            >
-                              Adicionar critério existente
-                            </button>
+                            
                           </div>
                         </div>
                       ) : (
@@ -1091,6 +1096,7 @@ const CarteiraCriterios: React.FC = () => {
                                               descricao: criterio.descricao || "", 
                                               exemplo_frase: criterio.exemplo_frase || "", 
                                               categoria: criterio.categoria || "", 
+                                              categoriaCustom: "",
                                               peso: criterio.peso || 1
                                             });
                                             setShowCriterioModal(true);
@@ -1435,8 +1441,8 @@ const CarteiraCriterios: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Digite o nome da nova categoria"
-                      value={criterioForm.categoria === "__outra__" ? "" : criterioForm.categoria}
-                      onChange={e => setCriterioForm(f => ({ ...f, categoria: e.target.value }))}
+                      value={criterioForm.categoriaCustom}
+                      onChange={e => setCriterioForm(f => ({ ...f, categoriaCustom: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -1598,19 +1604,29 @@ const CarteiraCriterios: React.FC = () => {
       )}
 
       {/* Modal Adicionar Critério Existente */}
-      {showAddExistingModal && selectedCarteiraForCriterio && (
-        <AddExistingCriterioModal
-          open={showAddExistingModal}
-          carteira={{ id: selectedCarteiraForCriterio.id, nome: selectedCarteiraForCriterio.nome }}
-          onClose={() => setShowAddExistingModal(false)}
-          onAdded={() => {
-            // Fechar modal e atualizar dados
-            setShowAddExistingModal(false);
-            if (selectedCarteiraForCriterio) {
-              fetchAssociacoes(selectedCarteiraForCriterio.id);
-            }
-          }}
-        />
+      {showSuccessModal && successInfo && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+              <h3 className="text-lg font-bold">Critério criado</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-gray-800">
+                O critério <span className="font-semibold">{successInfo.criterio}</span> foi criado e associado à carteira
+                <span className="font-semibold"> {successInfo.carteira}</span>.
+              </p>
+              <p className="text-gray-600 text-sm">Ao fechar este aviso, atualizaremos a página para exibir o novo critério.</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={handleCloseSuccessModal}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Ok, atualizar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
