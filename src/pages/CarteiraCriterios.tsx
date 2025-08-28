@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, clonarCriterioParaCarteira } from "../lib/api";
 import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useToast } from "../hooks/use-toast";
@@ -64,6 +64,35 @@ const CarteiraCriterios: React.FC = () => {
   // Modal de sucesso ao criar e associar critério
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{ criterio: string; carteira: string } | null>(null);
+  // Modal de clonagem de critério existente
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneTargetCarteira, setCloneTargetCarteira] = useState<Carteira | null>(null);
+  const [cloneSearch, setCloneSearch] = useState("");
+  const [cloneSelected, setCloneSelected] = useState<Criterio | null>(null);
+  const [cloneOverrides, setCloneOverrides] = useState<{
+    novo_nome: string;
+    nova_descricao: string;
+    novo_exemplo_frase: string;
+    nova_categoria: string;
+    novo_peso?: number;
+    peso_especifico?: number;
+  }>({ novo_nome: "", nova_descricao: "", novo_exemplo_frase: "", nova_categoria: "", novo_peso: undefined, peso_especifico: undefined });
+  const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
+  const [cloneSuccessInfo, setCloneSuccessInfo] = useState<{
+    fromId: number;
+    fromNome: string;
+    toCarteiraNome: string;
+    novoCriterioId: number;
+    ordem: number;
+    peso_especifico: number;
+    overrides: Partial<{
+      novo_nome: string;
+      nova_descricao: string;
+      novo_exemplo_frase: string;
+      nova_categoria: string;
+      novo_peso: number;
+    }>;
+  } | null>(null);
 
   // Categorias serão carregadas dinamicamente do banco de dados
 
@@ -919,6 +948,19 @@ const CarteiraCriterios: React.FC = () => {
                             <Plus className="h-4 w-4" />
                             Criar Critério
                           </button>
+                          <button
+                            onClick={() => {
+                              setCloneTargetCarteira(carteira);
+                              setCloneSearch("");
+                              setCloneSelected(null);
+                              setCloneOverrides({ novo_nome: "", nova_descricao: "", novo_exemplo_frase: "", nova_categoria: "", novo_peso: undefined, peso_especifico: undefined });
+                              setShowCloneModal(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-all duration-200 text-sm font-medium"
+                          >
+                            <Link2 className="h-4 w-4" />
+                            Clonar de existente
+                          </button>
                         </div>
                       </div>
 
@@ -1604,6 +1646,219 @@ const CarteiraCriterios: React.FC = () => {
       )}
 
       {/* Modal Adicionar Critério Existente */}
+      {showCloneModal && cloneTargetCarteira && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+              <h3 className="text-lg font-bold">Clonar critério para {cloneTargetCarteira.nome}</h3>
+              <p className="text-xs opacity-90">Será criado um novo critério independente e associado a esta carteira.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Buscar critério existente</label>
+                  <input
+                    value={cloneSearch}
+                    onChange={e => setCloneSearch(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Digite parte do nome ou categoria"
+                  />
+                  <div className="mt-2 max-h-64 overflow-y-auto border border-gray-200 rounded">
+                    {criterios
+                      .filter(c => {
+                        const q = cloneSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          c.nome.toLowerCase().includes(q) ||
+                          (c.categoria || "").toLowerCase().includes(q)
+                        );
+                      })
+                      .slice(0, 50)
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setCloneSelected(c);
+                            setCloneOverrides({
+                              novo_nome: c.nome || "",
+                              nova_descricao: c.descricao || "",
+                              novo_exemplo_frase: c.exemplo_frase || "",
+                              nova_categoria: c.categoria || "",
+                              novo_peso: c.peso,
+                              peso_especifico: c.peso,
+                            });
+                          }}
+                          className={`w-full text-left px-3 py-2 border-b last:border-b-0 hover:bg-gray-50 ${cloneSelected?.id === c.id ? 'bg-purple-50' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-gray-900">{c.nome}</div>
+                              <div className="text-xs text-gray-600">Categoria: {c.categoria || '—'} • Peso: {c.peso ?? '—'}</div>
+                            </div>
+                            <div className="text-xs text-gray-500">ID {c.id}</div>
+                          </div>
+                        </button>
+                      ))}
+                    {criterios.length === 0 && (
+                      <div className="p-3 text-sm text-gray-600">Nenhum critério encontrado.</div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Overrides (opcionais)</label>
+                  <div className="space-y-3">
+                    <input
+                      placeholder="Novo nome"
+                      value={cloneOverrides.novo_nome}
+                      onChange={e => setCloneOverrides(o => ({ ...o, novo_nome: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded"
+                    />
+                    <textarea
+                      placeholder="Nova descrição"
+                      value={cloneOverrides.nova_descricao}
+                      onChange={e => setCloneOverrides(o => ({ ...o, nova_descricao: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded min-h-[72px]"
+                    />
+                    <textarea
+                      placeholder="Novo exemplo de frase"
+                      value={cloneOverrides.novo_exemplo_frase}
+                      onChange={e => setCloneOverrides(o => ({ ...o, novo_exemplo_frase: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded min-h-[48px]"
+                    />
+                    <input
+                      placeholder="Nova categoria"
+                      value={cloneOverrides.nova_categoria}
+                      onChange={e => setCloneOverrides(o => ({ ...o, nova_categoria: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Novo peso (critério)</label>
+                        <input
+                          type="number"
+                          step={0.1}
+                          value={cloneOverrides.novo_peso ?? ''}
+                          onChange={e => setCloneOverrides(o => ({ ...o, novo_peso: e.target.value ? Number(e.target.value) : undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Peso específico (associação)</label>
+                        <input
+                          type="number"
+                          step={0.1}
+                          value={cloneOverrides.peso_especifico ?? ''}
+                          onChange={e => setCloneOverrides(o => ({ ...o, peso_especifico: e.target.value ? Number(e.target.value) : undefined }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowCloneModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!cloneSelected || !cloneTargetCarteira) return;
+                  try {
+                    const payload: any = {
+                      from_criterio_id: cloneSelected.id,
+                      to_carteira_id: cloneTargetCarteira.id,
+                    };
+                    if (cloneOverrides.novo_nome) payload.novo_nome = cloneOverrides.novo_nome;
+                    if (cloneOverrides.nova_descricao) payload.nova_descricao = cloneOverrides.nova_descricao;
+                    if (cloneOverrides.novo_exemplo_frase) payload.novo_exemplo_frase = cloneOverrides.novo_exemplo_frase;
+                    if (cloneOverrides.nova_categoria) payload.nova_categoria = cloneOverrides.nova_categoria;
+                    if (typeof cloneOverrides.novo_peso === 'number') payload.novo_peso = cloneOverrides.novo_peso;
+                    if (typeof cloneOverrides.peso_especifico === 'number') payload.peso_especifico = cloneOverrides.peso_especifico;
+
+                    console.log('➡️ POST /carteira_criterios/clone', payload);
+                    const resp = await clonarCriterioParaCarteira(payload);
+
+                    setShowCloneModal(false);
+
+                    setCloneSuccessInfo({
+                      fromId: cloneSelected.id,
+                      fromNome: cloneSelected.nome,
+                      toCarteiraNome: cloneTargetCarteira.nome,
+                      novoCriterioId: Number((resp?.novo_criterio_id) ?? 0),
+                      ordem: Number((resp?.ordem) ?? 1),
+                      peso_especifico: Number((resp?.peso_especifico) ?? (cloneOverrides.peso_especifico ?? cloneOverrides.novo_peso ?? cloneSelected.peso ?? 1)),
+                      overrides: {
+                        novo_nome: cloneOverrides.novo_nome || undefined,
+                        nova_descricao: cloneOverrides.nova_descricao || undefined,
+                        novo_exemplo_frase: cloneOverrides.novo_exemplo_frase || undefined,
+                        nova_categoria: cloneOverrides.nova_categoria || undefined,
+                        novo_peso: typeof cloneOverrides.novo_peso === 'number' ? cloneOverrides.novo_peso : undefined,
+                      },
+                    });
+                    setShowCloneSuccessModal(true);
+                  } catch (err) {
+                    console.error('❌ Erro ao clonar critério:', err);
+                    toast({ title: '❌ Erro ao clonar', description: 'Não foi possível clonar o critério.' });
+                  }
+                }}
+                disabled={!cloneSelected}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-full hover:bg-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Clonar e associar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCloneSuccessModal && cloneSuccessInfo && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+              <h3 className="text-lg font-bold">Critério clonado e associado</h3>
+            </div>
+            <div className="p-6 space-y-3 text-sm text-gray-800">
+              <div><span className="font-semibold">Origem:</span> ID {cloneSuccessInfo.fromId} • {cloneSuccessInfo.fromNome}</div>
+              <div><span className="font-semibold">Destino (carteira):</span> {cloneSuccessInfo.toCarteiraNome}</div>
+              <div><span className="font-semibold">Novo critério ID:</span> {cloneSuccessInfo.novoCriterioId}</div>
+              <div><span className="font-semibold">Ordem:</span> {cloneSuccessInfo.ordem}</div>
+              <div><span className="font-semibold">Peso específico (associação):</span> {cloneSuccessInfo.peso_especifico}</div>
+              {Object.values(cloneSuccessInfo.overrides).some(v => v !== undefined && v !== "") && (
+                <div className="mt-2">
+                  <div className="font-semibold mb-1">Overrides aplicados:</div>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {cloneSuccessInfo.overrides.novo_nome && (<li><span className="font-medium">Nome:</span> {cloneSuccessInfo.overrides.novo_nome}</li>)}
+                    {cloneSuccessInfo.overrides.nova_descricao && (<li><span className="font-medium">Descrição:</span> {cloneSuccessInfo.overrides.nova_descricao}</li>)}
+                    {cloneSuccessInfo.overrides.novo_exemplo_frase && (<li><span className="font-medium">Exemplo:</span> {cloneSuccessInfo.overrides.novo_exemplo_frase}</li>)}
+                    {cloneSuccessInfo.overrides.nova_categoria && (<li><span className="font-medium">Categoria:</span> {cloneSuccessInfo.overrides.nova_categoria}</li>)}
+                    {typeof cloneSuccessInfo.overrides.novo_peso === 'number' && (<li><span className="font-medium">Peso (critério):</span> {cloneSuccessInfo.overrides.novo_peso}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={async () => {
+                  setShowCloneSuccessModal(false);
+                  // Atualizar dados após confirmação
+                  await fetchCriterios();
+                  if (cloneTargetCarteira) {
+                    await fetchAssociacoes(cloneTargetCarteira.id);
+                    setExpandedCarteira(cloneTargetCarteira.id);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Ok, atualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSuccessModal && successInfo && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">

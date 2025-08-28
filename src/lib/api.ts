@@ -505,6 +505,19 @@ export const adicionarCriterioNaCarteira = (data: {
 export const removerCriterioDaCarteira = (assocId: number) =>
   api.delete(`/carteira_criterios/${assocId}`);
 
+// Clonar critério para outra carteira (cria um novo critério independente e associa)
+export const clonarCriterioParaCarteira = (data: {
+  from_criterio_id: number;
+  to_carteira_id: number;
+  novo_nome?: string;
+  nova_descricao?: string;
+  novo_exemplo_frase?: string;
+  nova_categoria?: string;
+  novo_peso?: number;
+  ordem?: number;
+  peso_especifico?: number;
+}) => api.post('/carteira_criterios/clone', data).then(r => r.data);
+
 // Função para buscar dados específicos de uma carteira para análise P.O.R.T.E.S
 export const getCarteiraPortesData = (carteiraId: number, filters: Filters) =>
   api.get(`/carteira/${carteiraId}/portes`, { params: filters }).then(r => r.data);
