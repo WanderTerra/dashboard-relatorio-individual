@@ -64,15 +64,15 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" sideOffset={4}>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" sideOffset={4} side="bottom" align="start">
         <Command>
-          <CommandInput placeholder={`Pesquisar ${placeholder.toLowerCase()}`} />
+          <CommandInput placeholder={`Pesquisar por nome ou ID...`} />
           <CommandEmpty>{emptyMessage}</CommandEmpty>
           <CommandGroup className="max-h-60 overflow-auto">
             {options.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.value}
+                value={`${option.value} ${option.label}`}
                 onSelect={() => handleSelect(option.value)}
               >
                 <Check

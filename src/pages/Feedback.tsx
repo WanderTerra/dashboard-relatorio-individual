@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { getAgents, getTrend } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
+import { useAuth } from '../contexts/AuthContext';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
@@ -61,6 +62,11 @@ interface FeedbackItem {
 
 const Feedback: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+  const { user, isAuthenticated } = useAuth();
+  
+  // Debug: verificar contexto de autenticação
+  console.log('[DEBUG] Frontend: Contexto de autenticação:', { user, isAuthenticated });
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
@@ -148,36 +154,70 @@ const Feedback: React.FC = () => {
   const feedbackData = useMemo(() => {
     console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents });
     
-    if (feedbacks && feedbacks.length > 0) {
-      // Usar feedbacks reais da tabela
-      console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
-      return feedbacks.map((fb: any) => {
-        // A pontuação já vem do backend via JOIN com a tabela avaliacoes
-        const performanceAtual = fb.performance_atual || 0;
-        console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
-        
-        // Normalizar nome do agente como na página Agents
-        const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
-        
-        return {
-          id: fb.id,
-          callId: fb.avaliacao_id,
-          avaliacaoId: fb.avaliacao_id,
-          agenteId: fb.agent_id,
-          agenteNome: nomeNormalizado,
-          criterio: fb.criterio_nome || 'Critério não especificado',
-          performanceAtual: performanceAtual,
-          observacao: fb.comentario,
-          status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
-          dataCriacao: fb.criado_em,
-          origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
-          comentario: fb.comentario
-        };
-      });
+          if (feedbacks && feedbacks.length > 0) {
+        // Usar feedbacks reais da tabela
+        console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
+        let feedbacksFiltrados = feedbacks.map((fb: any) => {
+          // A pontuação já vem do backend via JOIN com a tabela avaliacoes
+          const performanceAtual = fb.performance_atual || 0;
+          console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
+          
+          // Normalizar nome do agente como na página Agents
+          const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
+          
+          return {
+            id: fb.id,
+            callId: fb.avaliacao_id,
+            avaliacaoId: fb.avaliacao_id,
+            agenteId: fb.agent_id,
+            agenteNome: nomeNormalizado,
+            criterio: fb.criterio_nome || 'Critério não especificado',
+            performanceAtual: performanceAtual,
+            observacao: fb.comentario,
+            status: fb.status === 'ENVIADO' ? 'pendente' : fb.status.toLowerCase(),
+            dataCriacao: fb.criado_em,
+            origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+            comentario: fb.comentario
+          };
+        });
+
+          // Se for um agente, filtrar apenas seus próprios feedbacks
+          if (user && user.permissions && user.permissions.some(p => p.startsWith('agent_'))) {
+            console.log('[DEBUG] Frontend: Usuário é agente:', user.full_name, user.id, user.permissions);
+            
+            // Extrair o ID do agente da permissão (ex: agent_1034 -> 1034)
+            const agentPerm = user.permissions.find(p => p.startsWith('agent_'));
+            const agentId = agentPerm ? agentPerm.replace('agent_', '') : null;
+            
+            console.log('[DEBUG] Frontend: AgentId extraído da permissão:', agentId);
+            
+            feedbacksFiltrados = feedbacksFiltrados.filter((fb: FeedbackItem) => {
+              const matchById = fb.agenteId === agentId;
+              const matchByName = fb.agenteNome.toLowerCase().includes(user.full_name.toLowerCase());
+              
+              console.log('[DEBUG] Frontend: Verificando feedback:', {
+                feedbackId: fb.id,
+                feedbackAgentId: fb.agenteId,
+                permissionAgentId: agentId,
+                agenteNome: fb.agenteNome,
+                userName: user.full_name,
+                matchById,
+                matchByName
+              });
+              
+              return matchById || matchByName;
+            });
+            
+            console.log('[DEBUG] Frontend: Filtrado feedbacks para agente:', user.full_name, feedbacksFiltrados.length);
+          } else {
+            console.log('[DEBUG] Frontend: Usuário não é agente ou não tem permissões:', user?.full_name, user?.permissions);
+          }
+
+        return feedbacksFiltrados;
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
       console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
-      const feedback: FeedbackItem[] = [];
+      let feedback: FeedbackItem[] = [];
       
       // Identificar agentes com notas baixas (performance < 70%)
       const agentesComNotasBaixas = agents
@@ -249,6 +289,20 @@ const Feedback: React.FC = () => {
           }
         });
       });
+      
+      // Se for um agente, filtrar apenas seus próprios feedbacks
+      if (user && user.permissions && user.permissions.includes('agent')) {
+        console.log('[DEBUG] Frontend: Fallback - Usuário é agente:', user.full_name, user.id, user.permissions);
+        feedback = feedback.filter(fb => {
+          const matchById = fb.agenteId === user.id.toString();
+          const matchByName = fb.agenteNome.toLowerCase().includes(user.full_name.toLowerCase());
+          console.log('[DEBUG] Frontend: Fallback - Verificando feedback:', fb.agenteId, fb.agenteNome, 'Match ID:', matchById, 'Match Name:', matchByName);
+          return matchById || matchByName;
+        });
+        console.log('[DEBUG] Frontend: Filtrado feedbacks fallback para agente:', user.full_name, feedback.length);
+      } else {
+        console.log('[DEBUG] Frontend: Fallback - Usuário não é agente ou não tem permissões:', user?.full_name, user?.permissions);
+      }
       
       return feedback;
     }
@@ -390,7 +444,11 @@ const Feedback: React.FC = () => {
     alert('Funcionalidade de criação será implementada!');
   };
 
-  const isMonitor = true; // Aqui você implementaria a lógica de role/permissão
+  // Verificar se o usuário é monitor ou admin
+  const isMonitor = user && user.permissions && (
+    user.permissions.includes('monitor') || 
+    user.permissions.includes('admin')
+  );
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
@@ -439,24 +497,62 @@ const Feedback: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
-        title="Painel de Feedbacks" 
-        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"
+        title={
+          user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) 
+            ? "Meus Feedbacks" 
+            : "Painel de Feedbacks"
+        }
+        subtitle={
+          user && user.permissions && user.permissions.some(p => p.startsWith('agent_'))
+            ? "Visualize e gerencie seus feedbacks pessoais"
+            : "Gerencie e visualize feedbacks de agentes em uma interface unificada"
+        }
         actions={
-          isMonitor && (
-            <button
-              onClick={handleCriarFeedback}
-              className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-            >
-              <Plus className="h-5 w-5" />
-              Criar Feedback
-            </button>
+          user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? (
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 bg-blue-100 rounded-full">
+                <span className="text-sm font-semibold text-blue-700">
+                  Agente: {user.full_name}
+                </span>
+              </div>
+            </div>
+          ) : (
+            isMonitor && (
+              <button
+                onClick={handleCriarFeedback}
+                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+              >
+                <Plus className="h-5 w-5" />
+                Criar Feedback
+              </button>
+            )
           )
         }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filtros e Controles */}
-        <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-2xl shadow-lg border border-gray-200 p-8 mb-8">
+        {/* Indicador de Modo Agente */}
+        {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-800">
+                  Modo Agente Ativo
+                </h3>
+                <p className="text-blue-600">
+                  Visualizando apenas seus feedbacks pessoais • {user.full_name}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Filtros e Controles - Apenas para Administradores */}
+        {!user?.permissions?.some(p => p.startsWith('agent_')) && (
+          <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-2xl shadow-lg border border-gray-200 p-8 mb-8">
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex flex-col">
@@ -529,18 +625,24 @@ const Feedback: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
-        {/* Estatísticas Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+        {/* Estatísticas Principais - Apenas para Administradores */}
+        {!user?.permissions?.some(p => p.startsWith('agent_')) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Total</p>
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? 'Meus' : 'Total'}
+                </p>
                 <p className="text-3xl font-bold text-slate-900 mt-1">{stats.total}</p>
-                <p className="text-xs text-slate-500 mt-1">Feedbacks</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {user && user.permissions && user.permissions.some(p => p.startsWith('agent_')) ? 'Feedbacks' : 'Feedbacks'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <Target className="h-6 w-6 text-slate-600" />
+                <MessageSquare className="h-6 w-6 text-slate-600" />
               </div>
             </div>
           </div>
@@ -548,9 +650,13 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-2xl shadow-lg border border-violet-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Ligações</p>
+                <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Minhas' : 'Ligações'}
+                </p>
                 <p className="text-3xl font-bold text-violet-900 mt-1">{feedbacksAgrupados.length}</p>
-                <p className="text-xs text-violet-500 mt-1">Analisadas</p>
+                <p className="text-xs text-violet-500 mt-1">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Ligações' : 'Analisadas'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <Phone className="h-6 w-6 text-violet-600" />
@@ -561,9 +667,13 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-lg border border-amber-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Pendentes</p>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Pendentes' : 'Pendentes'}
+                </p>
                 <p className="text-3xl font-bold text-amber-900 mt-1">{stats.pendente}</p>
-                <p className="text-xs text-amber-500 mt-1">Aguardando</p>
+                <p className="text-xs text-amber-500 mt-1">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Para aceitar' : 'Aguardando'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <Clock className="h-6 w-6 text-amber-600" />
@@ -574,9 +684,13 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg border border-emerald-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Aplicados</p>
+                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Aplicados' : 'Aplicados'}
+                </p>
                 <p className="text-3xl font-bold text-emerald-900 mt-1">{stats.aplicado}</p>
-                <p className="text-xs text-emerald-500 mt-1">Implementados</p>
+                <p className="text-xs text-emerald-500 mt-1">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Implementados' : 'Implementados'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6 text-emerald-600" />
@@ -587,9 +701,13 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border border-blue-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Aceitos</p>
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Aceitos' : 'Aceitos'}
+                </p>
                 <p className="text-3xl font-bold text-blue-900 mt-1">{stats.aceito}</p>
-                <p className="text-xs text-blue-500 mt-1">Validados</p>
+                <p className="text-xs text-blue-500 mt-1">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Validados' : 'Validados'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6 text-blue-600" />
@@ -600,9 +718,13 @@ const Feedback: React.FC = () => {
           <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Revisão</p>
+                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Revisão' : 'Revisão'}
+                </p>
                 <p className="text-3xl font-bold text-orange-900 mt-1">{stats.revisao}</p>
-                <p className="text-xs text-orange-500 mt-1">Em análise</p>
+                <p className="text-xs text-orange-500 mt-1">
+                  {user && user.permissions && user.permissions.includes('agent') ? 'Para revisar' : 'Em análise'}
+                </p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
@@ -610,6 +732,7 @@ const Feedback: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Lista de Feedbacks por Ligação */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
@@ -618,9 +741,19 @@ const Feedback: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">
                   Feedbacks por Ligação
+                  {user && user.permissions && user.permissions.includes('agent') && (
+                    <span className="ml-3 text-lg font-medium text-blue-600">
+                      (Meus Feedbacks)
+                    </span>
+                  )}
                 </h3>
                 <p className="text-gray-600 mt-2">
                   {feedbacksAgrupados.length} ligações analisadas • Organizadas por contexto de chamada
+                  {user && user.permissions && user.permissions.includes('agent') && (
+                    <span className="text-blue-600 font-medium">
+                      • Mostrando apenas seus feedbacks
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -657,15 +790,25 @@ const Feedback: React.FC = () => {
                   onClick={() => refetchTrend()}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
-                  Tentar Novamente - Trend
-                </button>
-                <button
-                  onClick={() => refetchFeedbacks()}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  Tentar Novamente - Feedbacks
+                  <button
+                    onClick={() => refetchFeedbacks()}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Tentar Novamente - Feedbacks
+                  </button>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Estado quando não há feedbacks para o agente */}
+          {user && user.permissions && user.permissions.includes('agent') && feedbackData && feedbackData.length === 0 && !feedbacksLoading && (
+            <div className="text-center py-12">
+              <MessageSquare className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum feedback encontrado</h3>
+              <p className="text-gray-600">
+                Você ainda não recebeu feedbacks. Continue se esforçando e os feedbacks aparecerão aqui quando disponíveis.
+              </p>
             </div>
           )}
 
@@ -704,7 +847,7 @@ const Feedback: React.FC = () => {
                             </p>
                             <p className="text-sm text-gray-600">
                               <span className="inline-flex items-center gap-2">
-                                <Target className="h-4 w-4 text-indigo-600" />
+                                <MessageSquare className="h-4 w-4 text-indigo-600" />
                                 {ligacao.totalFeedbacks} critérios
                               </span>
                             </p>
@@ -899,7 +1042,7 @@ const Feedback: React.FC = () => {
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-blue-100 rounded-xl">
-                        <Target className="h-5 w-5 text-blue-600" />
+                        <MessageSquare className="h-5 w-5 text-blue-600" />
                       </div>
                       <h4 className="text-lg font-bold text-gray-800">Critério Avaliado</h4>
                     </div>

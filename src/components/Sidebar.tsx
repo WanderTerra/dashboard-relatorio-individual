@@ -19,7 +19,7 @@ type SidebarLink =
 const adminLinks: SidebarLink[] = [
   { label: "Dashboard", to: "/", icon: <Home size={20} /> },
   { label: "Desempenho", to: "/agents", icon: <BarChart3 size={20} /> },
-  { label: "Feedback", to: "/feedback", icon: <Target size={20} /> },
+  { label: "Feedback", to: "/feedback", icon: <MessageSquare size={20} /> },
   { label: "Upload de Áudios", to: "/upload", icon: <Upload size={20} /> },
   {
     label: "Gerenciar",
@@ -35,6 +35,7 @@ const adminLinks: SidebarLink[] = [
 
 const agentLinks = (agentId: string): SidebarLink[] => [
   { to: `/agent/${agentId}`, label: "Minha Página", icon: <Home size={20} /> },
+  { to: `/feedback`, label: "Feedback", icon: <MessageSquare size={20} /> },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setCollapsed: setCollapsedProp }) => {
@@ -57,6 +58,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
     : agentId
     ? agentLinks(agentId)
     : [];
+
+  // Debug logs
+  console.log('[DEBUG] Sidebar - Usuário:', {
+    userId: user?.id,
+    userName: user?.full_name,
+    permissions: user?.permissions,
+    isAdmin,
+    agentPerm,
+    agentId,
+    linksCount: links.length
+  });
 
   // Função para controlar dropdowns
   const toggleDropdown = (label: string) => {
