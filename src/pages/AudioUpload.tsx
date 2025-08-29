@@ -31,6 +31,11 @@ const AudioUpload: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const [selectedAgent, setSelectedAgent] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadFileId, setUploadFileId] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [uploadCallId, setUploadCallId] = useState<string | null>(null);
+  const [uploadAvaliacaoId, setUploadAvaliacaoId] = useState<number | null>(null);
+  const pollingRef = useRef<any>(null);
 
   // Estado para transcrição com Scribe
   const [transcription, setTranscription] = useState<any>(null);
@@ -189,33 +194,99 @@ const AudioUpload: React.FC = () => {
     };
 
     setUploadedFile(newFile);
-    simulateUpload(newFile);
+    try {
+      console.log('[UPLOAD] Arquivo selecionado:', file.name, 'bytes:', file.size);
+      void uploadSelectedFile(files[0], newFile);
+    } catch (e:any) {
+      console.error('[UPLOAD] Falha ao iniciar upload:', e);
+      toast.error('Falha ao iniciar upload: ' + (e?.message || 'erro'));
+    }
   };
 
-  // Simulate upload process
-  const simulateUpload = (file: UploadedFile) => {
-    setIsUploading(true);
-    
-    const interval = setInterval(() => {
-      setUploadedFile(prev => {
-        if (!prev) return null;
-        
-        const newProgress = prev.progress + Math.random() * 20;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          toast.success('Arquivo enviado com sucesso!');
-          return { ...prev, progress: 100, status: 'success' as const };
-        }
-        return { ...prev, progress: newProgress };
+  // Real upload to backend via /uploads/audio and start polling
+  const uploadSelectedFile = async (fileObj: File, uiFile: UploadedFile) => {
+    try {
+      setIsUploading(true);
+      setUploadStatus(null);
+      setUploadFileId(null);
+      setUploadAvaliacaoId(null);
+      setUploadCallId(null);
+
+      const formData = new FormData();
+      formData.append('file', fileObj);
+      formData.append('agent_id', selectedAgent);
+      formData.append('carteira_id', String(selectedCarteiraAvaliacao || ''));
+
+      const token = localStorage.getItem('auth_token');
+      const res = await axios.post('/api/uploads/audio', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
-    }, 200);
 
-    // Simulate completion
-    setTimeout(() => {
+      const data = res.data as any;
+      if (data?.status === 'duplicate' && data?.avaliacao_id) {
+        setUploadStatus('duplicate');
+        setUploadCallId(data.call_id || null);
+        setUploadAvaliacaoId(data.avaliacao_id);
+        setUploadedFile(prev => prev ? { ...prev, progress: 100, status: 'success' } : prev);
+        toast.success('Áudio já processado. Reutilizando avaliação existente.');
+        return;
+      }
+
+      if (!data?.file_id) {
+        throw new Error('Resposta inválida do servidor (sem file_id)');
+      }
+
+      setUploadFileId(data.file_id);
+      setUploadCallId(data.call_id || null);
+      setUploadStatus(data.status || 'pending');
+      setUploadedFile(prev => prev ? { ...prev, progress: 100, status: 'success' } : prev);
+      toast.success('Upload iniciado. Processando áudio...');
+
+      startPollingStatus(data.file_id);
+    } catch (err: any) {
+      console.error('❌ Erro no upload:', err);
+      setUploadStatus('error');
+      setUploadedFile(prev => prev ? { ...prev, status: 'error', error: err?.response?.data?.detail || err.message } : prev);
+      toast.error('Erro ao enviar: ' + (err?.response?.data?.detail || err.message));
+    } finally {
       setIsUploading(false);
-    }, 3000);
+    }
   };
+
+  const startPollingStatus = (fileId: number) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await axios.get(`/api/uploads/${fileId}`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        const data = res.data as any;
+        setUploadStatus(data?.status || null);
+        if (data?.call_id) setUploadCallId(data.call_id);
+        if (data?.avaliacao_id) {
+          setUploadAvaliacaoId(data.avaliacao_id);
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          toast.success(`Processamento concluído. Avaliação #${data.avaliacao_id}`);
+        }
+        if (data?.status === 'failed') {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          toast.error('Falha no processamento: ' + (data?.error_msg || 'Erro desconhecido'));
+        }
+      } catch (e: any) {
+        console.warn('⚠️ Erro ao consultar status do upload:', e?.message);
+      }
+    }, 2500);
+  };
+
+
 
   // Handle drag and drop
   const handleDragOver = (e: React.DragEvent) => {
@@ -616,29 +687,20 @@ const AudioUpload: React.FC = () => {
                 </div>
               </div>
 
-              {/* Botão Transcrever */}
-              {uploadedFile.status === 'success' && !transcription && (
-                <div className="mt-4">
-                  <Button
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] rounded-xl"
-                    onClick={handleTranscribe}
-                    disabled={isTranscribing}
-                    size="lg"
-                  >
-                    {isTranscribing ? (
-                      <>
-                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                        Transcrevendo...
-                      </>
-                    ) : (
-                      <>
-                        <div className="mr-3 p-1 bg-white/20 rounded-lg">
-                          🎙️
-                        </div>
-                        Transcrever Arquivo
-                      </>
-                    )}
-                  </Button>
+              {/* Botão removido - upload é automático após seleção do arquivo */}
+
+              {/* Status do processamento server-side */}
+              {(uploadStatus || uploadCallId || uploadAvaliacaoId) && (
+                <div className="mt-4 space-y-2 text-sm text-slate-700">
+                  {uploadCallId && (
+                    <div>call_id: <span className="font-mono">{uploadCallId}</span></div>
+                  )}
+                  {uploadStatus && (
+                    <div>status: <span className="font-semibold">{uploadStatus}</span></div>
+                  )}
+                  {uploadAvaliacaoId && (
+                    <div>avaliacao_id: <span className="font-semibold">{uploadAvaliacaoId}</span></div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -745,7 +807,6 @@ const AudioUpload: React.FC = () => {
             <CardContent>
               <AvaliacaoResultados
                 avaliacao={avaliacaoResult}
-                carteiraId={selectedCarteiraAvaliacao || undefined}
                 isLoading={isAvaliando}
               />
               
