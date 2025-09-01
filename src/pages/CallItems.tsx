@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCallItems, getAgentSummary, getCallerInfo, getFeedbacksByAvaliacao, getAvaliacaoById } from '../lib/api';
+import { getMixedCallItems, getMixedAgentSummary, getMixedCallerInfo, getFeedbacksByAvaliacao, getAvaliacaoById } from '../lib/api';
 import { formatItemName, formatAgentName } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
@@ -39,8 +39,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const [editedItems, setEditedItems] = useState<Set<string>>(new Set());
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
   const { data = [], isLoading } = useQuery<Item[]>({
-    queryKey: ['callItems', avaliacaoId],
-    queryFn : () => getCallItems(avaliacaoId!),
+    queryKey: ['mixed-callItems', avaliacaoId],
+    queryFn : () => getMixedCallItems(avaliacaoId!),
   });
 
 
@@ -49,8 +49,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
   // Buscar informações do agente para obter o nome
   const { data: agentInfo } = useQuery({
-    queryKey: ['agentSummary', agentId, apiFilters],
-    queryFn: () => getAgentSummary(agentId!, apiFilters),
+    queryKey: ['mixed-agentSummary', agentId, apiFilters],
+    queryFn: () => getMixedAgentSummary(agentId!, apiFilters),
     enabled: !!agentId
   });
 
@@ -63,8 +63,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
   // Nova query para buscar informações do caller (telefone)
   const { data: callerInfo } = useQuery({
-    queryKey: ['callerInfo', avaliacaoId],
-    queryFn: () => getCallerInfo(avaliacaoId!),
+    queryKey: ['mixed-callerInfo', avaliacaoId],
+    queryFn: () => getMixedCallerInfo(avaliacaoId!),
     enabled: !!avaliacaoId
   });
   

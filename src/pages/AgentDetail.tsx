@@ -19,10 +19,10 @@ import {
 } from 'recharts';
 
 import {
-  getAgentSummary,
-  getAgentCalls,
-  getAgentWorstItem,
-  getAgentCriteria
+  getMixedAgentSummary,
+  getMixedAgentCalls,
+  getMixedAgentWorstItem,
+  getMixedAgentCriteria
 } from '../lib/api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
@@ -80,9 +80,9 @@ const AgentDetail: React.FC = () => {
   
   // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
-    queryKey: ['agentSummary', agentId, apiFilters],
+    queryKey: ['mixed-agentSummary', agentId, apiFilters],
     queryFn: () => {
-      return getAgentSummary(agentId, apiFilters).then(data => {
+      return getMixedAgentSummary(agentId, apiFilters).then(data => {
         return data;
       });
     },
@@ -90,25 +90,25 @@ const AgentDetail: React.FC = () => {
 
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
-    queryKey: ['agentCalls', agentId, apiFilters],
+    queryKey: ['mixed-agentCalls', agentId, apiFilters],
     queryFn: () => {
-      return getAgentCalls(agentId, apiFilters);
+      return getMixedAgentCalls(agentId, apiFilters);
     },
   });
 
   // worst item
   const { data: worstItem, isLoading: wiLoading, error: wiError } = useQuery({
-    queryKey: ['agentWorstItem', agentId, apiFilters],
+    queryKey: ['mixed-agentWorstItem', agentId, apiFilters],
     queryFn: () => {
-      return getAgentWorstItem(agentId, apiFilters);
+      return getMixedAgentWorstItem(agentId, apiFilters);
     },
   });
 
   // agent criteria for radar chart
   const { data: criteria, isLoading: criteriaLoading, error: criteriaError } = useQuery({
-    queryKey: ['agentCriteria', agentId, apiFilters],
+    queryKey: ['mixed-agentCriteria', agentId, apiFilters],
     queryFn: () => {
-      return getAgentCriteria(agentId, apiFilters);
+      return getMixedAgentCriteria(agentId, apiFilters);
     },
   });
 

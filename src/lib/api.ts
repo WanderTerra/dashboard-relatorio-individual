@@ -638,3 +638,18 @@ export const listDownloadedFiles = (params?: { job_id?: number; status?: string;
 
 export const reprocessFile = (fileId: number) =>
   api.post(`/downloads/files/${fileId}/reprocess`).then(r => r.data);
+
+// === FUNÇÕES MISTAS PARA UPLOADS + JOBS ===
+
+// Funções mistas que buscam dados tanto das tabelas originais quanto das clones de upload
+export const getMixedKpis           = (f: Filters)        => api.get('/mixed/kpis',    { params: f }).then(r => r.data);
+export const getMixedTrend          = (f: Filters)        => api.get('/mixed/trend',   { params: f }).then(r => r.data);
+export const getMixedAgents         = (f: Filters)        => api.get('/mixed/agents',  { params: f }).then(r => r.data);
+export const getMixedAgentSummary   = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/summary`, { params: f }).then(r => r.data);
+export const getMixedAgentCalls     = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/calls`,   { params: f }).then(r => r.data);
+export const getMixedCallItems      = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/items`).then(r => r.data);
+export const getMixedTranscription  = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/transcription`).then(r => r.data);
+export const getMixedAgentWorstItem = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/worst_item`, { params: f }).then(r => r.data);
+export const getMixedAgentCriteria  = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/criteria`, { params: f }).then(r => r.data);
+export const getMixedCallerInfo     = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/caller`).then(r => r.data);
+export const getMixedCarteirasFromAvaliacoes = () => api.get('/mixed/carteiras-avaliacoes').then(r => r.data);

@@ -31,15 +31,19 @@ const AudioUpload: React.FC = () => {
   const [selectedCarteira, setSelectedCarteira] = useState<string>('');
   const [selectedAgent, setSelectedAgent] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [uploadFileId, setUploadFileId] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [uploadCallId, setUploadCallId] = useState<string | null>(null);
   const [uploadAvaliacaoId, setUploadAvaliacaoId] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const pollingRef = useRef<any>(null);
+  const transcribeTriggeredRef = useRef<boolean>(false);
 
   // Estado para transcrição com Scribe
   const [transcription, setTranscription] = useState<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   // Hook para avaliação automática
   const {
@@ -185,6 +189,7 @@ const AudioUpload: React.FC = () => {
 
     // Pegar apenas o primeiro arquivo
     const file = audioFiles[0];
+    setOriginalFile(file);
     const newFile: UploadedFile = {
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
@@ -208,9 +213,11 @@ const AudioUpload: React.FC = () => {
     try {
       setIsUploading(true);
       setUploadStatus(null);
+      setUploadError(null);
       setUploadFileId(null);
       setUploadAvaliacaoId(null);
       setUploadCallId(null);
+      transcribeTriggeredRef.current = false;
 
       const formData = new FormData();
       formData.append('file', fileObj);
@@ -267,17 +274,64 @@ const AudioUpload: React.FC = () => {
           },
         });
         const data = res.data as any;
+        console.log('[POLL] upload status:', data);
         setUploadStatus(data?.status || null);
+        setUploadError(data?.error_msg || null);
         if (data?.call_id) setUploadCallId(data.call_id);
-        if (data?.avaliacao_id) {
-          setUploadAvaliacaoId(data.avaliacao_id);
+
+        // DESATIVADO: Fallback automático de transcrição.
+        // A partir de agora, a transcrição só inicia via botão "Forçar Transcrição" para evitar duplicidade.
+        if (data?.avaliacao_upload_id) {
+          setUploadAvaliacaoId(data.avaliacao_upload_id);
           clearInterval(pollingRef.current);
           pollingRef.current = null;
-          toast.success(`Processamento concluído. Avaliação #${data.avaliacao_id}`);
+          toast.success(`Processamento concluído. Avaliação (upload) #${data.avaliacao_upload_id}`);
+          // Ainda assim, garantir que a transcrição apareça na tela
+          try {
+            if (!transcription && !transcribeTriggeredRef.current) {
+              transcribeTriggeredRef.current = true;
+              console.log('[AUTO] Chamando handleTranscribe após avaliacao_upload_id');
+              await handleTranscribe();
+            }
+          } catch (err) {
+            console.warn('Falha ao exibir transcrição após conclusão:', err);
+          }
+        }
+        // Quando a transcrição do backend terminar mas não houver avaliacao_upload_id disponível,
+        // carregamos a transcrição na UI usando o arquivo selecionado e em seguida avaliamos com IA.
+        if (!data?.avaliacao_upload_id && data?.status === 'transcribed') {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          toast.success('Transcrição concluída no servidor. Carregando transcrição na tela...');
+          try {
+            if (!transcribeTriggeredRef.current) {
+              transcribeTriggeredRef.current = true;
+              console.log('[AUTO] Chamando handleTranscribe após status=transcribed');
+              await handleTranscribe();
+            }
+            if (selectedCarteira) {
+              await handleEvaluate();
+            }
+          } catch (err) {
+            console.warn('Falha ao carregar transcrição/avaliação automática após transcrição:', err);
+          }
+        }
+        // Se o backend avançou além de 'transcribed', ainda garantimos que a transcrição apareça
+        if (['evaluated', 'feedbacks_generated', 'completed', 'done'].includes(String(data?.status || ''))) {
+          try {
+            if (!transcription && !transcribeTriggeredRef.current) {
+              transcribeTriggeredRef.current = true;
+              console.log('[AUTO] Chamando handleTranscribe em estado avançado:', data?.status);
+              await handleTranscribe();
+            }
+          } catch (err) {
+            console.warn('Falha ao exibir transcrição em estado avançado:', err);
+          }
         }
         if (data?.status === 'failed') {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
+          setUploadedFile(prev => prev ? { ...prev, status: 'error' } : prev);
           toast.error('Falha no processamento: ' + (data?.error_msg || 'Erro desconhecido'));
         }
       } catch (e: any) {
@@ -330,19 +384,27 @@ const AudioUpload: React.FC = () => {
     
     setIsTranscribing(true);
     setTranscription(null);
+    setTranscribeError(null);
     
     try {
       const input = fileInputRef.current;
-      if (!input || !input.files || input.files.length === 0) {
+      let file: File | null = null;
+      if (originalFile) {
+        file = originalFile;
+      } else if (input && input.files && input.files.length > 0) {
+        file = input.files[0];
+      }
+      if (!file) {
         toast.error('Arquivo de áudio não encontrado');
         return;
       }
-      
-      const file = input.files[0];
       console.log('🎙️ Iniciando transcrição...');
       
       const formData = new FormData();
       formData.append('arquivo', file);
+      if (selectedCarteiraAvaliacao) {
+        formData.append('carteira_id', String(selectedCarteiraAvaliacao));
+      }
       
       const token = localStorage.getItem('auth_token');
       const res = await axios.post('/api/transcricao/upload', formData, {
@@ -352,14 +414,25 @@ const AudioUpload: React.FC = () => {
         },
       });
       
-      console.log('✅ Transcrição concluída:', res.data);
+      console.log('✅ Transcrição concluída - payload bruto:', res.data);
       const responseData = res.data as any;
-      setTranscription(responseData.transcricao);
-      toast.success('Transcrição concluída com sucesso!');
+      const transData = responseData?.transcricao || responseData?.data?.transcricao || responseData;
+      if (transData && transData.words) {
+        setTranscription(transData);
+        console.log('📄 Transcrição setada no estado. words:', Array.isArray(transData.words) ? transData.words.length : 0);
+        toast.success('Transcrição concluída com sucesso!');
+      } else {
+        const msg = 'Resposta sem campo transcricao.words';
+        console.warn(msg, responseData);
+        setTranscribeError(msg);
+        toast.error('Não foi possível exibir a transcrição (formato inválido)');
+      }
       
     } catch (err: any) {
       console.error('❌ Erro na transcrição:', err);
-      toast.error('Erro ao transcrever: ' + (err?.response?.data?.detail || err.message));
+      const detail = err?.response?.data?.detail || err?.message || 'erro desconhecido';
+      setTranscribeError(String(detail));
+      toast.error('Erro ao transcrever: ' + detail);
     } finally {
       setIsTranscribing(false);
     }
@@ -701,6 +774,40 @@ const AudioUpload: React.FC = () => {
                   {uploadAvaliacaoId && (
                     <div>avaliacao_id: <span className="font-semibold">{uploadAvaliacaoId}</span></div>
                   )}
+                  {uploadStatus === 'failed' && uploadError && (
+                    <div className="text-red-600">erro: <span className="font-mono">{uploadError}</span></div>
+                  )}
+                  {uploadStatus === 'failed' && (
+                    <div className="pt-2">
+                      <Button
+                        onClick={handleTranscribe}
+                        className="bg-slate-600 hover:bg-slate-700 text-white"
+                      >
+                        Tentar transcrever localmente
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Ações rápidas para transcrição quando ainda não exibida */}
+              {!transcription && (
+                <div className="mt-4 flex items-center gap-3">
+                  <Button
+                    onClick={handleTranscribe}
+                    disabled={isTranscribing}
+                    className="bg-slate-600 hover:bg-slate-700 text-white"
+                  >
+                    {isTranscribing ? 'Transcrevendo…' : 'Forçar Transcrição'}
+                  </Button>
+                  {isTranscribing && (
+                    <span className="text-xs text-slate-600">Enviando para processamento…</span>
+                  )}
+                </div>
+              )}
+              {transcribeError && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  Erro ao transcrever: {transcribeError}
                 </div>
               )}
             </CardContent>
@@ -725,7 +832,7 @@ const AudioUpload: React.FC = () => {
         )}
 
         {/* Transcrição */}
-        {transcription && (
+        {transcription && transcription.words && (
           <Card className="bg-gradient-to-r from-white to-indigo-50 rounded-2xl shadow-lg border border-indigo-100 hover:shadow-xl transition-all duration-300">
             <CardHeader className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-2xl">
               <CardTitle className="flex items-center gap-3 text-xl font-bold text-white">
@@ -748,6 +855,22 @@ const AudioUpload: React.FC = () => {
               
               {/* Botão Avaliar com IA */}
               <div className="mt-4">
+                {/* Forçar Transcrição / Mostrar erro */}
+                {transcribeError && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    Erro ao transcrever: {transcribeError}
+                  </div>
+                )}
+                {!transcription && (
+                  <Button
+                    variant="outline"
+                    onClick={handleTranscribe}
+                    disabled={isTranscribing}
+                    className="mb-3 border-gray-300"
+                  >
+                    {isTranscribing ? 'Transcrevendo…' : 'Forçar Transcrição'}
+                  </Button>
+                )}
                 <Button
                   className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] rounded-xl"
                   onClick={handleEvaluate}

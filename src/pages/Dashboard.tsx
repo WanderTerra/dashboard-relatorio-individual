@@ -7,18 +7,24 @@ import TrendLineChart from '../components/TrendLineChart';
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getKpis, getTrend, getCarteirasFromAvaliacoes } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedCarteirasFromAvaliacoes } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
 
-  // Buscar carteiras únicas da tabela avaliacoes
-  const { data: carteiras = [] } = useQuery({
-    queryKey: ['carteiras-avaliacoes'],
-    queryFn: getCarteirasFromAvaliacoes,
+  // Buscar carteiras únicas das tabelas mistas (avaliacoes + avaliacoes_uploads)
+  const { data: carteirasRaw = [] } = useQuery({
+    queryKey: ['carteiras-mixed'],
+    queryFn: getMixedCarteirasFromAvaliacoes,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
+
+  // Transformar carteiras para o formato esperado pelo Combobox
+  const carteiras = carteirasRaw.map((item: { carteira: string }) => ({
+    value: item.carteira,
+    label: item.carteira
+  }));
 
   // Construir objeto de filtros para a API (incluindo carteira apenas se tiver valor)
   const apiFilters = { 
@@ -27,21 +33,21 @@ const Dashboard: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
-  // KPIs e tendência
+  // KPIs e tendência mistos
   const { data: kpis } = useQuery({ 
-    queryKey: ['kpis', apiFilters], 
-    queryFn: () => getKpis(apiFilters) 
+    queryKey: ['mixed-kpis', apiFilters], 
+    queryFn: () => getMixedKpis(apiFilters) 
   });
   const { data: trend } = useQuery({ 
-    queryKey: ['trend', apiFilters], 
-    queryFn: () => getTrend(apiFilters) 
+    queryKey: ['mixed-trend', apiFilters], 
+    queryFn: () => getMixedTrend(apiFilters) 
   });
 
   return (
     <div>
       <PageHeader 
         title="Dashboard de Avaliação" 
-        subtitle="Análise de performance e qualidade de ligações"
+        subtitle="Análise de performance e qualidade de ligações (Jobs + Uploads)"
         actions={
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -100,7 +106,7 @@ const Dashboard: React.FC = () => {
 
         {/* Gráfico de linha */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal (Jobs + Uploads)</h2>
           <div className="min-h-[500px]">
             <TrendLineChart data={trend ?? []} />
           </div>
@@ -108,9 +114,9 @@ const Dashboard: React.FC = () => {
 
         {/* Gráfico de comparativo mensal */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal (Jobs + Uploads)</h2>
           <p className="text-sm text-gray-600 mb-6">
-            Análise da média mensal de pontuação das ligações
+            Análise da média mensal de pontuação das ligações (incluindo uploads)
           </p>
           <MonthlyComparisonChart trendData={trend ?? []} />
         </div>

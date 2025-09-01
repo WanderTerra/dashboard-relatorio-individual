@@ -28,7 +28,7 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
-import { getAgents, getTrend, aceitarFeedback, aceitarFeedbackPut } from '../lib/api';
+import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
@@ -117,12 +117,12 @@ const Feedback: React.FC = () => {
 
   // Buscar agentes para estatísticas (mantido para compatibilidade)
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
-    queryKey: ['feedbacks-agents', apiFilters],
+    queryKey: ['feedbacks-agents-mixed', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks/agents');
-      return fetch(`/api/feedbacks/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
+      console.log('[DEBUG] Frontend: Chamando endpoint /mixed/agents');
+      return fetch(`/api/mixed/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
         .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /feedbacks/agents:', res.status, res.statusText);
+          console.log('[DEBUG] Frontend: Resposta do /mixed/agents:', res.status, res.statusText);
           return res.json();
         })
         .then(data => {
@@ -141,8 +141,8 @@ const Feedback: React.FC = () => {
   });
 
   const { data: trend, isLoading: trendLoading, error: trendError, refetch: refetchTrend } = useQuery({
-    queryKey: ['trend', apiFilters],
-    queryFn: () => getTrend(apiFilters),
+    queryKey: ['mixed-trend', apiFilters],
+    queryFn: () => getMixedTrend(apiFilters),
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 1000,
