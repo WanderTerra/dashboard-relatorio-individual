@@ -19,10 +19,10 @@ import {
 } from 'recharts';
 
 import {
-  getMixedAgentSummary,
-  getMixedAgentCalls,
-  getMixedAgentWorstItem,
-  getMixedAgentCriteria
+  getAgentSummary,
+  getAgentCalls,
+  getAgentWorstItem,
+  getAgentCriteria
 } from '../lib/api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
@@ -72,17 +72,18 @@ const AgentDetail: React.FC = () => {
   }, [endDate]);
 
   // Use startDate e endDate nos filtros das queries
+  // CORREÇÃO: Não usar carteira do localStorage para página de agente específico
   const apiFilters = { 
     start: startDate, 
-    end: endDate, 
-    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+    end: endDate
+    // Removido carteira para que a API busque em todas as carteiras
   };
   
   // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
-    queryKey: ['mixed-agentSummary', agentId, apiFilters],
+    queryKey: ['agentSummary', agentId, apiFilters],
     queryFn: () => {
-      return getMixedAgentSummary(agentId, apiFilters).then(data => {
+      return getAgentSummary(agentId, apiFilters).then(data => {
         return data;
       });
     },
@@ -90,25 +91,25 @@ const AgentDetail: React.FC = () => {
 
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
-    queryKey: ['mixed-agentCalls', agentId, apiFilters],
+    queryKey: ['agentCalls', agentId, apiFilters],
     queryFn: () => {
-      return getMixedAgentCalls(agentId, apiFilters);
+      return getAgentCalls(agentId, apiFilters);
     },
   });
 
   // worst item
   const { data: worstItem, isLoading: wiLoading, error: wiError } = useQuery({
-    queryKey: ['mixed-agentWorstItem', agentId, apiFilters],
+    queryKey: ['agentWorstItem', agentId, apiFilters],
     queryFn: () => {
-      return getMixedAgentWorstItem(agentId, apiFilters);
+      return getAgentWorstItem(agentId, apiFilters);
     },
   });
 
   // agent criteria for radar chart
   const { data: criteria, isLoading: criteriaLoading, error: criteriaError } = useQuery({
-    queryKey: ['mixed-agentCriteria', agentId, apiFilters],
+    queryKey: ['agentCriteria', agentId, apiFilters],
     queryFn: () => {
-      return getMixedAgentCriteria(agentId, apiFilters);
+      return getAgentCriteria(agentId, apiFilters);
     },
   });
 
