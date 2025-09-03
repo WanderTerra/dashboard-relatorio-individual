@@ -48,9 +48,9 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
       return updateItem(avaliacaoId, itemId, selectedStatus, descricao);
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['callItems', avaliacaoId] });
-      const previousItems = queryClient.getQueryData(['callItems', avaliacaoId]);
-      queryClient.setQueryData(['callItems', avaliacaoId], (old: any[] | undefined) =>
+      await queryClient.cancelQueries({ queryKey: ['mixed-callItems', avaliacaoId] });
+      const previousItems = queryClient.getQueryData(['mixed-callItems', avaliacaoId]);
+      queryClient.setQueryData(['mixed-callItems', avaliacaoId], (old: any[] | undefined) =>
         old ? old.map(oldItem =>
           oldItem.categoria === item.categoria
             ? { ...oldItem, resultado: selectedStatus, descricao }
@@ -61,7 +61,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
     },
     onError: (error: Error, variables: void, context: { previousItems: any; } | undefined) => {
       if (context?.previousItems) {
-        queryClient.setQueryData(['callItems', avaliacaoId], context.previousItems);
+        queryClient.setQueryData(['mixed-callItems', avaliacaoId], context.previousItems);
       }
       let errorMessage = 'Erro desconhecido';
       if (error instanceof Error) {
@@ -74,22 +74,21 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
           errorMessage = `Erro ${error.response.status}: ${error.response.statusText}`;
         }
       }
-      toast({
-        title: "Erro",
+      toast.error('Erro', {
         description: `Erro ao atualizar item: ${errorMessage}`,
-        variant: "destructive",
+        duration: 6000,
       });
     },
     onSuccess: () => {
-      toast({
-        title: "Sucesso",
+      toast.success('Sucesso', {
         description: `Item "${formatItemName(item.categoria)}" atualizado com sucesso!`,
-        variant: "default",
+        duration: 4000,
       });
       onClose(true, item.categoria);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['callItems', avaliacaoId] });
+      queryClient.invalidateQueries({ queryKey: ['mixed-callItems', avaliacaoId] });
+      queryClient.invalidateQueries({ queryKey: ['avaliacao', avaliacaoId] });
       queryClient.invalidateQueries({ queryKey: ['agentSummary'] });
       queryClient.invalidateQueries({ queryKey: ['kpis'] });
       queryClient.invalidateQueries({ queryKey: ['agents'] });
