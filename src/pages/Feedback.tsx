@@ -28,7 +28,7 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
-import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut } from '../lib/api';
+import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
@@ -78,6 +78,9 @@ const Feedback: React.FC = () => {
     agenteId: '',
     agenteNome: ''
   });
+  
+  // Estado para feedbacks gerais das ligações
+  const [feedbacksGerais, setFeedbacksGerais] = useState<{[callId: string]: any}>({});
 
   // Filtros para API - com fallback para datas padrão
   const apiFilters = {
@@ -174,7 +177,7 @@ const Feedback: React.FC = () => {
         
         return {
           id: String(fb.id),
-          callId: fb.avaliacao_id,
+          callId: fb.avaliacao_id, // Usar avaliacao_id para agrupamento correto
           avaliacaoId: fb.avaliacao_id,
           agenteId: fb.agent_id,
           agenteNome: nomeNormalizado,
@@ -188,17 +191,21 @@ const Feedback: React.FC = () => {
         };
       });
 
-      // Agrupar por id de feedback para evitar repetição visual
+      // Agrupar por critério + avaliação para evitar repetição visual
       const grouped = new Map<string, FeedbackItem>();
       for (const item of mapped) {
-        const key = item.id;
+        // Usar critério + avaliação como chave para deduplicação
+        const key = `${item.avaliacaoId}-${item.criterio}`;
         const existing = grouped.get(key);
         if (!existing) {
           grouped.set(key, item);
         } else {
-          const prev = new Date(existing.dataCriacao || 0).getTime();
-          const cur = new Date(item.dataCriacao || 0).getTime();
-          if (cur >= prev) grouped.set(key, item);
+          // Manter o feedback com ID maior (mais recente)
+          const existingId = parseInt(existing.id);
+          const currentId = parseInt(item.id);
+          if (currentId > existingId) {
+            grouped.set(key, item);
+          }
         }
       }
 
@@ -318,6 +325,7 @@ const Feedback: React.FC = () => {
 
     // Deduplicar por id do feedback (mantém o mais recente por id)
     const byId = new Map<string, FeedbackItem>();
+    
     for (const item of filtered) {
       const key = item.id;
       const existing = byId.get(key);
@@ -329,31 +337,31 @@ const Feedback: React.FC = () => {
         if (cur >= prev) byId.set(key, item);
       }
     }
-
+    
     return Array.from(byId.values());
   }, [feedbackData, statusFilter, searchTerm]);
 
-  // Agrupar feedbacks por ligação (Call ID) - versão mais clara
+  // Agrupar feedbacks por avaliação (como era originalmente)
   const feedbacksAgrupados = useMemo(() => {
     const agrupados: { [key: string]: FeedbackItem[] } = {};
     
     filteredFeedback.forEach((feedback: FeedbackItem) => {
-      const callKey = feedback.callId || 'sem-call-id';
-      if (!agrupados[callKey]) {
-        agrupados[callKey] = [];
+      const avaliacaoKey = feedback.callId || 'sem-avaliacao-id'; // callId agora é avaliacao_id
+      if (!agrupados[avaliacaoKey]) {
+        agrupados[avaliacaoKey] = [];
       }
-      agrupados[callKey].push(feedback);
+      agrupados[avaliacaoKey].push(feedback);
     });
 
-    // Ordenar ligações por número de feedbacks pendentes
+    // Ordenar avaliações por número de feedbacks pendentes
     return Object.entries(agrupados)
-      .map(([callId, feedbacks]) => {
+      .map(([avaliacaoId, feedbacks]) => {
         const performanceMedia = feedbacks.reduce((acc, fb) => acc + fb.performanceAtual, 0) / feedbacks.length;
         const feedbacksPendentes = feedbacks.filter(fb => fb.status === 'pendente').length;
         const agenteNome = feedbacks[0]?.agenteNome || 'Agente';
         
         return {
-          callId,
+          callId: avaliacaoId, // Manter nome para compatibilidade, mas agora é avaliacao_id
           agenteNome,
           feedbacks,
           performanceMedia: Math.round(performanceMedia),
@@ -519,13 +527,48 @@ const Feedback: React.FC = () => {
     applyFilters();
   }, [filters.start, filters.end, filters.carteira, statusFilter, searchTerm]);
 
-  // Função para alternar o estado de expansão de uma ligação
-  const toggleCallExpansion = (callId: string) => {
+  // Função para buscar feedback geral de uma ligação
+  const fetchFeedbackGeral = async (avaliacaoId: string) => {
+    try {
+      // Buscar o call_id real através dos dados do backend
+      const feedbacksAvaliacao = feedbacks.filter((f: any) => f.avaliacao_id.toString() === avaliacaoId);
+      const callIdReal = feedbacksAvaliacao[0]?.call_id; // Pegar o call_id real do backend
+      
+      if (!callIdReal) {
+        console.log(`[DEBUG] Não foi possível encontrar call_id real para avaliação ${avaliacaoId}`);
+        return;
+      }
+      
+      console.log(`[DEBUG] Buscando feedback geral para avaliação ${avaliacaoId} (call_id: ${callIdReal})`);
+      const feedbackGeral = await getFeedbackGeralLigacao(callIdReal);
+      setFeedbacksGerais(prev => ({
+        ...prev,
+        [avaliacaoId]: feedbackGeral
+      }));
+      console.log(`[DEBUG] Feedback geral recebido para avaliação ${avaliacaoId}:`, feedbackGeral);
+    } catch (error: any) {
+      console.error(`[DEBUG] Erro ao buscar feedback geral para avaliação ${avaliacaoId}:`, error);
+      // Se erro 403 (sem permissão), não mostrar erro - apenas não exibir o feedback
+      if (error?.response?.status !== 403) {
+        setFeedbacksGerais(prev => ({
+          ...prev,
+          [avaliacaoId]: { error: 'Erro ao carregar feedback geral' }
+        }));
+      }
+    }
+  };
+
+  // Função para alternar o estado de expansão de uma ligação (agora por avaliação)
+  const toggleCallExpansion = (avaliacaoId: string) => {
     const newExpandedCalls = new Set(expandedCalls);
-    if (newExpandedCalls.has(callId)) {
-      newExpandedCalls.delete(callId);
+    if (newExpandedCalls.has(avaliacaoId)) {
+      newExpandedCalls.delete(avaliacaoId);
     } else {
-      newExpandedCalls.add(callId);
+      newExpandedCalls.add(avaliacaoId);
+      // Buscar feedback geral quando expandir
+      if (!feedbacksGerais[avaliacaoId]) {
+        fetchFeedbackGeral(avaliacaoId);
+      }
     }
     setExpandedCalls(newExpandedCalls);
   };
@@ -856,6 +899,36 @@ const Feedback: React.FC = () => {
                                          {/* Conteúdo colapsável - Critérios da Ligação */}
                      <CollapsibleContent>
                        <div className="space-y-6 pl-8 pr-6">
+                         {/* Feedback Geral da Ligação */}
+                         {feedbacksGerais[ligacao.callId] && !feedbacksGerais[ligacao.callId].error && (
+                           <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-6 border-2 border-emerald-200 shadow-lg mb-6">
+                             <div className="flex items-start gap-4 mb-4">
+                               <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl shadow-lg">
+                                 <Bot className="h-6 w-6 text-white" />
+                               </div>
+                               <div className="flex-1">
+                                 <h4 className="text-xl font-bold text-emerald-900 mb-2">Feedback Geral da Ligação</h4>
+                                 <p className="text-sm text-emerald-700 mb-3">
+                                   Análise inteligente completa da ligação #{ligacao.callId}
+                                 </p>
+                                 {feedbacksGerais[ligacao.callId].observacoes_gerais ? (
+                                   <div className="bg-white/90 rounded-xl p-4 border border-emerald-200">
+                                     <div className="prose prose-emerald max-w-none">
+                                       <p className="text-gray-800 leading-relaxed whitespace-pre-line text-base">
+                                         {feedbacksGerais[ligacao.callId].observacoes_gerais}
+                                       </p>
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <div className="bg-white/90 rounded-xl p-4 border border-emerald-200">
+                                     <p className="text-gray-500 italic">Feedback geral não disponível para esta ligação.</p>
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+                         )}
+                         
                          {/* Cabeçalho dos Critérios */}
                          <div className="flex items-center gap-4 mb-6">
                            <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>

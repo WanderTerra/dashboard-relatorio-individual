@@ -653,3 +653,4 @@ export const getMixedAgentWorstItem = (id: string, f: Filters) => api.get(`/mixe
 export const getMixedAgentCriteria  = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/criteria`, { params: f }).then(r => r.data);
 export const getMixedCallerInfo     = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/caller`).then(r => r.data);
 export const getMixedCarteirasFromAvaliacoes = () => api.get('/mixed/carteiras-avaliacoes').then(r => r.data);
+export const getFeedbackGeralLigacao = (callId: string) => api.get(`/mixed/call/${callId}/feedback-geral`).then(r => r.data);
