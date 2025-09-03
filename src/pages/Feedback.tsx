@@ -69,7 +69,8 @@ const Feedback: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState<{ id: string; comentario: string; status: string }>({ id: '', comentario: '', status: 'ENVIADO' });
 
-  // Estado de acordeão e formulário de feedback
+  // Estado de acordeão para agentes e avaliações
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [expandedCalls, setExpandedCalls] = useState<Set<string>>(new Set());
   const [feedbackForm, setFeedbackForm] = useState({
     criterio: '',
@@ -341,7 +342,67 @@ const Feedback: React.FC = () => {
     return Array.from(byId.values());
   }, [feedbackData, statusFilter, searchTerm]);
 
-  // Agrupar feedbacks por avaliação (como era originalmente)
+  // Agrupar feedbacks por agente (para administradores)
+  const feedbacksPorAgente = useMemo(() => {
+    const agrupadosPorAgente: { [key: string]: FeedbackItem[] } = {};
+    
+    // Primeiro agrupar todos os feedbacks por agente
+    filteredFeedback.forEach((feedback: FeedbackItem) => {
+      const agenteKey = feedback.agenteId || 'sem-agente-id';
+      if (!agrupadosPorAgente[agenteKey]) {
+        agrupadosPorAgente[agenteKey] = [];
+      }
+      agrupadosPorAgente[agenteKey].push(feedback);
+    });
+
+    // Transformar em estrutura para visualização
+    return Object.entries(agrupadosPorAgente)
+      .map(([agenteId, feedbacks]) => {
+        const agenteNome = feedbacks[0]?.agenteNome || 'Agente';
+        const performanceMedia = feedbacks.reduce((acc, fb) => acc + fb.performanceAtual, 0) / feedbacks.length;
+        
+        // Agrupar feedbacks do agente por avaliação
+        const avaliacoesPorAgente: { [key: string]: FeedbackItem[] } = {};
+        feedbacks.forEach((feedback: FeedbackItem) => {
+          const avaliacaoKey = feedback.callId || 'sem-avaliacao-id';
+          if (!avaliacoesPorAgente[avaliacaoKey]) {
+            avaliacoesPorAgente[avaliacaoKey] = [];
+          }
+          avaliacoesPorAgente[avaliacaoKey].push(feedback);
+        });
+
+        // Transformar avaliações em array
+        const avaliacoes = Object.entries(avaliacoesPorAgente)
+          .map(([avaliacaoId, feedbacksAvaliacao]) => ({
+            avaliacaoId,
+            feedbacks: feedbacksAvaliacao,
+            totalFeedbacks: feedbacksAvaliacao.length,
+            feedbacksPendentes: feedbacksAvaliacao.filter(fb => fb.status === 'pendente').length,
+            feedbacksAplicados: feedbacksAvaliacao.filter(fb => fb.status === 'aplicado').length,
+            feedbacksAceitos: feedbacksAvaliacao.filter(fb => fb.status === 'aceito').length,
+            feedbacksRevisao: feedbacksAvaliacao.filter(fb => fb.status === 'revisao').length,
+            performanceMedia: Math.round(feedbacksAvaliacao.reduce((acc, fb) => acc + fb.performanceAtual, 0) / feedbacksAvaliacao.length),
+            dataLigacao: feedbacksAvaliacao[0]?.dataCriacao || 'N/A'
+          }))
+          .sort((a, b) => b.feedbacksPendentes - a.feedbacksPendentes);
+
+        return {
+          agenteId,
+          agenteNome,
+          totalFeedbacks: feedbacks.length,
+          totalAvaliacoes: avaliacoes.length,
+          feedbacksPendentes: feedbacks.filter(fb => fb.status === 'pendente').length,
+          feedbacksAplicados: feedbacks.filter(fb => fb.status === 'aplicado').length,
+          feedbacksAceitos: feedbacks.filter(fb => fb.status === 'aceito').length,
+          feedbacksRevisao: feedbacks.filter(fb => fb.status === 'revisao').length,
+          performanceMedia: Math.round(performanceMedia),
+          avaliacoes
+        };
+      })
+      .sort((a, b) => b.feedbacksPendentes - a.feedbacksPendentes);
+  }, [filteredFeedback]);
+
+  // Manter estrutura antiga para compatibilidade (se não for admin)
   const feedbacksAgrupados = useMemo(() => {
     const agrupados: { [key: string]: FeedbackItem[] } = {};
     
@@ -558,6 +619,17 @@ const Feedback: React.FC = () => {
     }
   };
 
+  // Função para alternar expansão de agente (novo)
+  const toggleAgentExpansion = (agenteId: string) => {
+    const newExpandedAgents = new Set(expandedAgents);
+    if (newExpandedAgents.has(agenteId)) {
+      newExpandedAgents.delete(agenteId);
+    } else {
+      newExpandedAgents.add(agenteId);
+    }
+    setExpandedAgents(newExpandedAgents);
+  };
+
   // Função para alternar o estado de expansão de uma ligação (agora por avaliação)
   const toggleCallExpansion = (avaliacaoId: string) => {
     const newExpandedCalls = new Set(expandedCalls);
@@ -748,22 +820,28 @@ const Feedback: React.FC = () => {
           </div>
         </div>
 
-        {/* Lista de Feedbacks por Ligação */}
+        {/* Lista de Feedbacks - Por Agente (Admin) ou Por Ligação (Outros) */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
           <div className="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  Feedbacks por Ligação
+                  {isMonitor ? 'Feedbacks por Agente' : 'Feedbacks por Ligação'}
                 </h3>
                 <p className="text-gray-600 mt-2">
-                  {feedbacksAgrupados.length} ligações analisadas • Organizadas por contexto de chamada
+                  {isMonitor 
+                    ? `${feedbacksPorAgente.length} agentes analisados • Organizados por conciliador`
+                    : `${feedbacksAgrupados.length} ligações analisadas • Organizadas por contexto de chamada`
+                  }
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="px-4 py-2 bg-blue-100 rounded-full">
                   <span className="text-sm font-semibold text-blue-700">
-                    {feedbacksAgrupados.length} Ligações
+                    {isMonitor 
+                      ? `${feedbacksPorAgente.length} Agentes`
+                      : `${feedbacksAgrupados.length} Ligações`
+                    }
                   </span>
                 </div>
               </div>
@@ -807,14 +885,227 @@ const Feedback: React.FC = () => {
           )}
 
           {/* No Data State */}
-          {!agentsLoading && !trendLoading && !feedbacksLoading && !agentsError && !trendError && !feedbacksError && feedbacksAgrupados.length === 0 ? (
+          {!agentsLoading && !trendLoading && !feedbacksLoading && !agentsError && !trendError && !feedbacksError && 
+           (isMonitor ? feedbacksPorAgente.length === 0 : feedbacksAgrupados.length === 0) ? (
             <div className="text-center py-12">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">Nenhum feedback encontrado para os filtros selecionados.</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {feedbacksAgrupados.map((ligacao) => (
+              {/* Exibição por Agente (Administradores) */}
+              {isMonitor ? (
+                feedbacksPorAgente.map((agente) => (
+                  <div key={agente.agenteId} className="p-6">
+                    {/* Card do Agente */}
+                    <Collapsible 
+                      open={expandedAgents.has(agente.agenteId)}
+                      onOpenChange={() => toggleAgentExpansion(agente.agenteId)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between mb-6 p-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group">
+                          {/* Seção Esquerda - Informações do Agente */}
+                          <div className="flex items-center gap-6 flex-1">
+                            <div className="p-5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+                              <User className="h-8 w-8 text-white" />
+                            </div>
+                            <div className="space-y-3">
+                              <h4 className="text-3xl font-bold text-gray-900">
+                                {agente.agenteNome}
+                              </h4>
+                              <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                                <p className="text-sm font-medium text-gray-700">
+                                  <span className="inline-flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-green-600" />
+                                    Agente: {agente.agenteId}
+                                  </span>
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  <span className="inline-flex items-center gap-2">
+                                    <Target className="h-4 w-4 text-emerald-600" />
+                                    {agente.totalAvaliacoes} avaliações
+                                  </span>
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  <span className="inline-flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-green-600" />
+                                    Performance: {agente.performanceMedia}%
+                                  </span>
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  <span className="inline-flex items-center gap-2">
+                                    <MessageSquare className="h-4 w-4 text-gray-600" />
+                                    {agente.totalFeedbacks} feedbacks
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Seção Central - Estatísticas do Agente */}
+                          <div className="flex items-center gap-4 mx-8">
+                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
+                              <div className="text-3xl font-bold text-amber-600 mb-1">{agente.feedbacksPendentes}</div>
+                              <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pendentes</div>
+                            </div>
+                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
+                              <div className="text-3xl font-bold text-emerald-600 mb-1">{agente.feedbacksAplicados}</div>
+                              <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Aplicados</div>
+                            </div>
+                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
+                              <div className="text-3xl font-bold text-blue-600 mb-1">{agente.feedbacksAceitos}</div>
+                              <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Aceitos</div>
+                            </div>
+                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
+                              <div className="text-3xl font-bold text-orange-600 mb-1">{agente.feedbacksRevisao}</div>
+                              <div className="text-xs font-semibold text-orange-700 uppercase tracking-wider">Revisão</div>
+                            </div>
+                          </div>
+
+                          {/* Seção Direita - Controle de Expansão */}
+                          <div className="flex flex-col items-center gap-3 flex-shrink-0">
+                            <div className="p-3 bg-white/90 rounded-xl shadow-inner border border-gray-100 group-hover:bg-white transition-all duration-200 group-hover:scale-110">
+                              {expandedAgents.has(agente.agenteId) ? (
+                                <ChevronDown className="h-6 w-6 text-green-600" />
+                              ) : (
+                                <ChevronRight className="h-6 w-6 text-green-600" />
+                              )}
+                            </div>
+                            <div className="text-sm text-green-600 font-semibold">
+                              {expandedAgents.has(agente.agenteId) ? 'Recolher' : 'Expandir'}
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+
+                      {/* Conteúdo colapsável - Avaliações do Agente */}
+                      <CollapsibleContent>
+                        <div className="space-y-4 pl-8 pr-6">
+                          {/* Cabeçalho das Avaliações */}
+                          <div className="flex items-center gap-4 mb-6">
+                            <div className="w-2 h-8 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"></div>
+                            <h5 className="text-xl font-bold text-gray-800">
+                              Avaliações do Agente
+                            </h5>
+                            <span className="px-4 py-2 bg-green-100 text-green-700 text-sm font-semibold rounded-full border border-green-200">
+                              {agente.totalAvaliacoes} avaliações
+                            </span>
+                          </div>
+                          
+                          {/* Lista de Avaliações */}
+                          <div className="space-y-4">
+                            {agente.avaliacoes.map((avaliacao) => (
+                              <div key={avaliacao.avaliacaoId} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+                                <Collapsible 
+                                  open={expandedCalls.has(avaliacao.avaliacaoId)}
+                                  onOpenChange={() => toggleCallExpansion(avaliacao.avaliacaoId)}
+                                >
+                                  <CollapsibleTrigger asChild>
+                                    <div className="flex items-center justify-between p-6 cursor-pointer hover:bg-blue-100/50 transition-all duration-200 rounded-xl">
+                                      <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm">
+                                          <Phone className="h-5 w-5 text-white" />
+                                        </div>
+                                        <div>
+                                          <h6 className="text-lg font-bold text-gray-900">Avaliação #{avaliacao.avaliacaoId}</h6>
+                                          <div className="flex items-center gap-6 mt-1">
+                                            <span className="text-sm text-gray-600">{avaliacao.totalFeedbacks} critérios</span>
+                                            <span className="text-sm text-gray-600">Performance: {avaliacao.performanceMedia}%</span>
+                                            <span className="text-sm text-gray-500">{avaliacao.dataLigacao}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
+                                          <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
+                                          <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
+                                          <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
+                                        </div>
+                                        {expandedCalls.has(avaliacao.avaliacaoId) ? (
+                                          <ChevronDown className="h-4 w-4 text-blue-600" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-blue-600" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </CollapsibleTrigger>
+
+                                  {/* Conteúdo da Avaliação - Feedback Geral + Critérios */}
+                                  <CollapsibleContent>
+                                    <div className="px-6 pb-6 space-y-4">
+                                      {/* Feedback Geral da Ligação */}
+                                      {feedbacksGerais[avaliacao.avaliacaoId] && !feedbacksGerais[avaliacao.avaliacaoId].error && (
+                                        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                                          <div className="flex items-start gap-3">
+                                            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg">
+                                              <Bot className="h-4 w-4 text-white" />
+                                            </div>
+                                            <div className="flex-1">
+                                              <h6 className="text-sm font-bold text-emerald-900 mb-1">Feedback Geral da Ligação</h6>
+                                              {feedbacksGerais[avaliacao.avaliacaoId].observacoes_gerais ? (
+                                                <div className="bg-white/90 rounded-lg p-3 border border-emerald-200">
+                                                  <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
+                                                    {feedbacksGerais[avaliacao.avaliacaoId].observacoes_gerais}
+                                                  </p>
+                                                </div>
+                                              ) : (
+                                                <p className="text-gray-500 italic text-sm">Feedback geral não disponível.</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Lista de Critérios */}
+                                      <div className="grid gap-3">
+                                        {avaliacao.feedbacks.map((feedback) => (
+                                          <div key={feedback.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                                            <div className="flex items-center justify-between">
+                                              <div className="flex items-center gap-3 flex-1">
+                                                <div className="p-2 bg-gray-100 rounded-lg">
+                                                  <span className="text-lg">{getOrigemIcon(feedback.origem)}</span>
+                                                </div>
+                                                <div>
+                                                  <h6 className="text-sm font-bold text-gray-900">{feedback.criterio}</h6>
+                                                  <div className="flex items-center gap-4 mt-1">
+                                                    <span className={`text-sm font-semibold ${getPerformanceColor(feedback.performanceAtual)}`}>
+                                                      {feedback.performanceAtual}%
+                                                    </span>
+                                                    <span className={`text-xs font-semibold ${getStatusColor(feedback.status)}`}>
+                                                      {feedback.status === 'pendente' ? 'Pendente' : 
+                                                       feedback.status === 'aplicado' ? 'Aplicado' :
+                                                       feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <button
+                                                onClick={() => handleVerDetalhes(feedback)}
+                                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                                              >
+                                                <Eye className="h-3 w-3" />
+                                                Ver
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                ))
+              ) : (
+                /* Exibição original por Ligação (Agentes) */
+                feedbacksAgrupados.map((ligacao) => (
                 <div key={ligacao.callId} className="p-6">
                   {/* Cabeçalho da Ligação - Agora clicável */}
                   <Collapsible 
@@ -1002,7 +1293,8 @@ const Feedback: React.FC = () => {
                      </CollapsibleContent>
                   </Collapsible>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
