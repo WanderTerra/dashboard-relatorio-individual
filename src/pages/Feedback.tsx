@@ -33,6 +33,7 @@ import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Agente {
   id: string;
@@ -60,6 +61,7 @@ interface FeedbackItem {
 }
 
 const Feedback: React.FC = () => {
+  const { user } = useAuth();
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
@@ -82,6 +84,20 @@ const Feedback: React.FC = () => {
   
   // Estado para feedbacks gerais das ligações
   const [feedbacksGerais, setFeedbacksGerais] = useState<{[callId: string]: any}>({});
+
+  // Lógica de permissões
+  const isAdmin = user?.permissions?.includes('admin') || false;
+  const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
+  const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
+  const isAgentUser = currentAgentId && !isAdmin;
+
+  console.log('[DEBUG] Permissões do usuário:', {
+    userId: user?.id,
+    permissions: user?.permissions,
+    isAdmin,
+    currentAgentId,
+    isAgentUser
+  });
 
   // Filtros para API - com fallback para datas padrão
   const apiFilters = {
@@ -155,12 +171,21 @@ const Feedback: React.FC = () => {
 
   // Usar feedbacks reais se disponíveis, senão gerar baseado nos agentes
   const feedbackData = useMemo(() => {
-    console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents });
+    console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents, isAgentUser, currentAgentId });
     
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
       console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
-      const mapped = feedbacks.map((fb: any) => {
+      let filteredFeedbacks = feedbacks;
+      
+      // Se for um agente (não admin), filtrar apenas feedbacks do próprio agente
+      if (isAgentUser && currentAgentId) {
+        console.log(`[DEBUG] Frontend: Filtrando feedbacks apenas para agente ${currentAgentId}`);
+        filteredFeedbacks = feedbacks.filter((fb: any) => String(fb.agent_id) === String(currentAgentId));
+        console.log(`[DEBUG] Frontend: Feedbacks filtrados: ${filteredFeedbacks.length} de ${feedbacks.length} total`);
+      }
+      
+      const mapped = filteredFeedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
         const performanceAtual = fb.performance_atual || 0;
         console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
@@ -218,8 +243,16 @@ const Feedback: React.FC = () => {
       console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
       const feedback: FeedbackItem[] = [];
       
+      // Filtrar agentes se for um agente comum
+      let filteredAgents = agents;
+      if (isAgentUser && currentAgentId) {
+        console.log(`[DEBUG] Frontend: Filtrando agentes apenas para agente ${currentAgentId}`);
+        filteredAgents = agents.filter((agent: any) => String(agent.id) === String(currentAgentId));
+        console.log(`[DEBUG] Frontend: Agentes filtrados: ${filteredAgents.length} de ${agents.length} total`);
+      }
+      
       // Identificar agentes com notas baixas (performance < 70%)
-      const agentesComNotasBaixas = agents
+      const agentesComNotasBaixas = filteredAgents
         .filter((agent: any) => {
           const media = agent.media || 0;
           return media < 70;
@@ -294,7 +327,7 @@ const Feedback: React.FC = () => {
     
     console.log('[DEBUG] Frontend: Nenhum dado disponível para feedbacks');
     return [];
-  }, [feedbacks, agents, trend]);
+  }, [feedbacks, agents, trend, isAgentUser, currentAgentId]);
 
   // Debug dos dados
   useEffect(() => {
@@ -349,6 +382,12 @@ const Feedback: React.FC = () => {
     // Primeiro agrupar todos os feedbacks por agente
     filteredFeedback.forEach((feedback: FeedbackItem) => {
       const agenteKey = feedback.agenteId || 'sem-agente-id';
+      
+      // Se for agente comum, só mostrar seus próprios feedbacks
+      if (isAgentUser && currentAgentId && String(feedback.agenteId) !== String(currentAgentId)) {
+        return; // Pular feedbacks de outros agentes
+      }
+      
       if (!agrupadosPorAgente[agenteKey]) {
         agrupadosPorAgente[agenteKey] = [];
       }
@@ -400,7 +439,7 @@ const Feedback: React.FC = () => {
         };
       })
       .sort((a, b) => b.feedbacksPendentes - a.feedbacksPendentes);
-  }, [filteredFeedback]);
+  }, [filteredFeedback, isAgentUser, currentAgentId]);
 
   // Manter estrutura antiga para compatibilidade (se não for admin)
   const feedbacksAgrupados = useMemo(() => {
@@ -553,7 +592,7 @@ const Feedback: React.FC = () => {
     alert('Funcionalidade de criação será implementada!');
   };
 
-  const isMonitor = true; // Aqui você implementaria a lógica de role/permissão
+  const isMonitor = isAdmin; // Apenas administradores são considerados monitores
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
