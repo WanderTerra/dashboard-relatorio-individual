@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMixedCallItems, getMixedAgentSummary, getMixedCallerInfo, getFeedbacksByAvaliacao, getAvaliacaoById } from '../lib/api';
-import { formatItemName, formatAgentName } from '../lib/format';
+import { formatItemName, formatAgentName, organizeItemsByCategory } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
 import PageHeader from '../components/PageHeader';
@@ -43,8 +43,51 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryFn : () => getMixedCallItems(avaliacaoId!),
   });
 
+  // Buscar a estrutura da carteira baseada no avaliacaoId
+  const { data: carteiraStructure } = useQuery({
+    queryKey: ['carteiraStructure', avaliacaoId],
+    queryFn: async () => {
+      // Buscar a estrutura da carteira para obter a ordem e categorização
+      const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
+      if (!response.ok) {
+        throw new Error('Erro ao buscar estrutura da carteira');
+      }
+      return response.json();
+    },
+    enabled: !!avaliacaoId
+  });
 
+  // Função para organizar itens baseado na estrutura da carteira
+  const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+    if (!carteiraStructure || !carteiraStructure.categories) {
+      // Fallback para organização padrão se não houver estrutura
+      return organizeItemsByCategory(items);
+    }
 
+    // Criar um mapa dos itens por ID do critério
+    const itemsById = items.reduce((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+    }, {});
+
+    // Organizar baseado na estrutura da carteira
+    const organizedCategories = carteiraStructure.categories
+      .map(category => {
+        const categoryItems = category.criteria
+          .map(criteria => itemsById[criteria.id])
+          .filter(Boolean); // Remove itens não encontrados
+
+        return {
+          category: category.name,
+          items: categoryItems,
+          order: category.order || 0
+        };
+      })
+      .filter(category => category.items.length > 0) // Remove categorias vazias
+      .sort((a, b) => a.order - b.order);
+
+    return organizedCategories;
+  };
 
 
   // Buscar informações do agente para obter o nome
@@ -417,46 +460,68 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
               <span className="ml-4 text-sm font-medium text-gray-600">Carregando itens...</span>
             </div>
           ) : (
-            <ul className="space-y-4">
-              {data.map((it, idx) => (
-                <li 
-                  key={idx} 
-                  className={`rounded-xl bg-white p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
-                    editedItems.has(it.categoria) ? 'border-l-4 border-blue-500' : 'border border-gray-100'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                          it.resultado === 'CONFORME' ? 'bg-green-500 shadow-sm shadow-green-200' :
-                          it.resultado === 'NAO CONFORME' ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-gray-400 shadow-sm shadow-gray-200'
-                        }`}></div>
-                        <span className="text-sm font-semibold text-gray-800">{formatItemName(it.categoria)}</span>
-                      </div>
-                      <div className="text-xs text-gray-600 mb-2 leading-relaxed">{it.descricao}</div>
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center ${
-                        it.resultado === 'CONFORME' ? 'bg-green-100 text-green-700' :
-                        it.resultado === 'NAO CONFORME' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {formatItemName(it.resultado)}
+            <div className="space-y-6">
+              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup) => (
+                <div key={categoryGroup.category} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  {/* Header da categoria */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+                        {categoryGroup.category}
+                      </h3>
+                      <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200">
+                        {categoryGroup.items.length} {categoryGroup.items.length === 1 ? 'critério' : 'critérios'}
                       </span>
                     </div>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleEditItem(it)}
-                        className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-full transition-all duration-200 font-light shadow-sm backdrop-blur-sm border border-blue-300/50 group"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                        <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
-                      </button>
-                    )}
                   </div>
-                </li>
+                  
+                  {/* Itens da categoria */}
+                  <div className="p-6">
+                    <ul className="space-y-4">
+                      {categoryGroup.items.map((it, idx) => (
+                        <li 
+                          key={idx} 
+                          className={`rounded-xl bg-gray-50 p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
+                            editedItems.has(it.categoria) ? 'border-l-4 border-blue-500' : 'border border-gray-100'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                                  it.resultado === 'CONFORME' ? 'bg-green-500 shadow-sm shadow-green-200' :
+                                  it.resultado === 'NAO CONFORME' ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-gray-400 shadow-sm shadow-gray-200'
+                                }`}></div>
+                                <span className="text-sm font-semibold text-gray-800">{formatItemName(it.categoria)}</span>
+                              </div>
+                              <div className="text-xs text-gray-600 mb-2 leading-relaxed">{it.descricao}</div>
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center ${
+                                it.resultado === 'CONFORME' ? 'bg-green-100 text-green-700' :
+                                it.resultado === 'NAO CONFORME' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {formatItemName(it.resultado)}
+                              </span>
+                            </div>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleEditItem(it)}
+                                className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-full transition-all duration-200 font-light shadow-sm backdrop-blur-sm border border-blue-300/50 group"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                                <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
 
           {/* Modal de edição */}

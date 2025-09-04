@@ -316,3 +316,109 @@ export const agentIdNameMap: Record<string, string> = {
   "1030": "Yasmim Souza",
   "1088": "Yasmim Souza (Pequenas Carteiras)"
 };
+
+// Função para categorizar critérios baseado no nome
+export const categorizeCriteria = (criteriaName: string): string => {
+  const lowerName = criteriaName.toLowerCase();
+  
+  // Abordagem
+  if (lowerName.includes("abordagem") || lowerName.includes("script") || lowerName.includes("cumpriment") || 
+      lowerName.includes("identificou") || lowerName.includes("origem do atendimento") ||
+      lowerName.includes("saudacao") || lowerName.includes("identificacao") || lowerName.includes("uso_script")) {
+    return "Abordagem";
+  }
+  
+  // Confirmação de dados
+  if (lowerName.includes("confirmacao") || lowerName.includes("confirmacao") || lowerName.includes("dados") ||
+      lowerName.includes("valores") || lowerName.includes("informou") || lowerName.includes("seguranca_info") ||
+      lowerName.includes("confirmacoes_seguranca") || lowerName.includes("confirmacao_seguranca")) {
+    return "Confirmação de dados";
+  }
+  
+  // Check-list
+  if (lowerName.includes("check") || lowerName.includes("confirm") || lowerName.includes("verific") ||
+      lowerName.includes("boleto") || lowerName.includes("vencimento") || lowerName.includes("aceite") ||
+      lowerName.includes("captura_dados") || lowerName.includes("conhecimento_produto")) {
+    return "Check-list";
+  }
+  
+  // Negociação
+  if (lowerName.includes("negociacao") || lowerName.includes("negociação") || lowerName.includes("oferta") || 
+      lowerName.includes("desconto") || lowerName.includes("parcelamento") || lowerName.includes("fechamento") ||
+      lowerName.includes("acordo") || lowerName.includes("pagamento") || lowerName.includes("gestao_objecoes") ||
+      lowerName.includes("persuasao_efetiva") || lowerName.includes("reforco_prazo")) {
+    return "Negociação";
+  }
+  
+  // Falha Crítica
+  if (lowerName.includes("falha") || lowerName.includes("critica") || lowerName.includes("crítica") ||
+      lowerName.includes("problema") || lowerName.includes("erro") || lowerName.includes("falha_critica")) {
+    return "Falha Crítica";
+  }
+  
+  // Encerramento
+  if (lowerName.includes("encerramento") || lowerName.includes("agradece") || lowerName.includes("duvida") ||
+      lowerName.includes("questionou") || lowerName.includes("ajudar") || lowerName.includes("finalizacao") ||
+      lowerName.includes("solucao_duvidas") || lowerName.includes("tempo_medio_atendimento")) {
+    return "Encerramento";
+  }
+  
+  // Se não conseguir categorizar, usar "Outros"
+  return "Outros";
+};
+
+// Função para organizar itens por categoria
+export const organizeItemsByCategory = (items: any[]) => {
+  const categories = {
+    "Abordagem": [],
+    "Confirmação de dados": [],
+    "Check-list": [],
+    "Negociação": [],
+    "Falha Crítica": [],
+    "Encerramento": [],
+    "Outros": []
+  };
+  
+  items.forEach(item => {
+    const category = categorizeCriteria(item.categoria);
+    if (categories[category as keyof typeof categories]) {
+      categories[category as keyof typeof categories].push(item);
+    }
+  });
+  
+  // Remover categorias vazias e retornar apenas as que têm itens
+  return Object.entries(categories)
+    .filter(([_, items]) => items.length > 0)
+    .map(([categoryName, categoryItems]) => ({
+      category: categoryName,
+      items: categoryItems
+    }));
+};
+
+// Função para organizar itens baseado na estrutura da carteira
+export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+  if (!carteiraStructure || !carteiraStructure.categories) {
+    // Fallback para organização padrão se não houver estrutura
+    return organizeItemsByCategory(items);
+  }
+
+  // Criar um mapa dos itens por categoria
+  const itemsByCategory = items.reduce((acc, item) => {
+    const category = item.categoria || 'Outros';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
+    return acc;
+  }, {});
+
+  // Organizar baseado na estrutura da carteira
+  const organizedCategories = carteiraStructure.categories
+    .filter(category => itemsByCategory[category.name]?.length > 0)
+    .map(category => ({
+      category: category.name,
+      items: itemsByCategory[category.name] || [],
+      order: category.order || 0
+    }))
+    .sort((a, b) => a.order - b.order);
+
+  return organizedCategories;
+};

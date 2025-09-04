@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   RadarChart, 
@@ -24,13 +24,16 @@ import {
   getAgentWorstItem,
   getAgentCriteria
 } from '../lib/api';
+import { getAgentGamification } from '../lib/gamification-api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
-import PageHeader   from '../components/PageHeader';
+import GamifiedAgentHeader from '../components/GamifiedAgentHeader';
 import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, BarChart3, TrendingUp } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
+import { getAutomaticAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
+import NotificationBell from '../components/NotificationBell';
 
 // Funções utilitárias para LocalStorage
 const getPersistedDate = (key: string, fallback: string) =>
@@ -49,6 +52,7 @@ const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeChart, setActiveChart] = React.useState<'radar' | 'bar'>('radar');
   
   if (!agentId) return <div>Agente não especificado.</div>;
@@ -62,7 +66,20 @@ const AgentDetail: React.FC = () => {
   const [endDate, setEndDate] = useState(() =>
     getPersistedDate('agent_filter_end', today)
   );
-  const [activeTab, setActiveTab] = useState<'overview' | 'feedback'>('overview');
+
+  // ✅ Modificado: detectar aba da URL
+  const urlParams = new URLSearchParams(location.search);
+  const tabFromUrl = urlParams.get('tab') as 'overview' | 'feedback' | 'calls' | null;
+  const [activeTab, setActiveTab] = useState<'overview' | 'feedback' | 'calls'>(
+    tabFromUrl || 'overview' // ✅ Usar aba da URL se disponível
+  );
+
+  // ✅ Adicionado: atualizar aba quando URL mudar
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   useEffect(() => {
     setPersistedDate('agent_filter_start', startDate);
@@ -72,11 +89,10 @@ const AgentDetail: React.FC = () => {
   }, [endDate]);
 
   // Use startDate e endDate nos filtros das queries
-  // CORREÇÃO: Não usar carteira do localStorage para página de agente específico
   const apiFilters = { 
     start: startDate, 
-    end: endDate
-    // Removido carteira para que a API busque em todas as carteiras
+    end: endDate, 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
   
   // summary
@@ -89,19 +105,19 @@ const AgentDetail: React.FC = () => {
     },
   });
 
+  // gamification data
+  const { data: gamificationData, isLoading: gamificationLoading, error: gamificationError } = useQuery({
+    queryKey: ['agentGamification', agentId],
+    queryFn: () => getAgentGamification(agentId),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false
+  });
+
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
     queryKey: ['agentCalls', agentId, apiFilters],
     queryFn: () => {
       return getAgentCalls(agentId, apiFilters);
-    },
-  });
-
-  // worst item
-  const { data: worstItem, isLoading: wiLoading, error: wiError } = useQuery({
-    queryKey: ['agentWorstItem', agentId, apiFilters],
-    queryFn: () => {
-      return getAgentWorstItem(agentId, apiFilters);
     },
   });
 
@@ -113,30 +129,36 @@ const AgentDetail: React.FC = () => {
     },
   });
 
-  // Feedbacks do agente
-  const { data: agentFeedbacks, isLoading: feedbacksLoading, error: feedbacksError } = useQuery({
-    queryKey: ['agentFeedbacks', agentId, apiFilters, user?.id],
-    queryFn: () => {
-      return fetch('/api/feedbacks/with-scores')
-        .then(res => res.json())
-        .then(data => {
-          // Filtrar apenas feedbacks deste agente específico
-          const filteredFeedbacks = data.filter((fb: any) => {
-            // Se for um agente, sempre filtrar pelo ID do usuário logado
-            // Se for admin/monitor, filtrar pelo ID da página
-            const targetAgentId = isAgent ? user?.id?.toString() : agentId;
-            
-            // Comparar pelo ID do agente na tabela de feedbacks
-            const matchById = fb.agent_id === targetAgentId;
-            
-            return matchById;
-          });
-          
-          return filteredFeedbacks;
-        });
-    },
-    enabled: activeTab === 'feedback' && !!user, // Só busca quando a aba feedback estiver ativa e usuário estiver logado
-  });
+  // Calcular o pior item localmente usando os critérios
+  const worstItem = React.useMemo(() => {
+    if (!criteria || criteria.length === 0) return null;
+    
+    const deduplicatedCriteria = deduplicateCriteria(criteria);
+    let worstCriterion = null;
+    let worstValue = 100;
+    
+    deduplicatedCriteria.forEach((criterion: any) => {
+      const standardized = standardizeCriteria(criterion);
+      if (!standardized.isNotApplicable && standardized.value < worstValue) {
+        worstValue = standardized.value;
+        worstCriterion = {
+          categoria: standardized.name,
+          taxa_nao_conforme: (100 - standardized.value) / 100
+        };
+      }
+    });
+    
+    return worstCriterion;
+  }, [criteria]);
+
+  // Verifica se o usuário autenticado é o próprio agente da página
+  const isAgent = user && user.id && (
+    user.id.toString() === agentId || 
+    user.id === parseInt(agentId)
+  );
+
+  // ✅ Adicionar estado para o modal de níveis
+  const [showLevelsModal, setShowLevelsModal] = useState<boolean>(false);
 
   // Helper function to format criteria data for radar chart
   const generateMonthlyData = (callsData: any[]) => {
@@ -174,19 +196,66 @@ const AgentDetail: React.FC = () => {
   const formatCriteriaForRadar = (criteriaData: any[]) => {
     if (!criteriaData || criteriaData.length === 0) return [];
     
+    // Log para debug - verificar estrutura dos dados
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Dados brutos dos critérios:', criteriaData.slice(0, 3));
+      console.log(' Campos disponíveis no primeiro critério:', Object.keys(criteriaData[0] || {}));
+    }
+    
     // Primeiro, deduplicar os critérios
     const deduplicatedCriteria = deduplicateCriteria(criteriaData);
+    
+    // Função para extrair categoria do nome do critério
+    const extractCategoryFromName = (name: string) => {
+      const lowerName = name.toLowerCase();
+      
+      // Categorias específicas do admin baseadas no print
+      if (lowerName.includes('abordagem') || lowerName.includes('script') || lowerName.includes('cumpriment') || 
+          lowerName.includes('identificou') || lowerName.includes('origem do atendimento')) {
+        return 'Abordagem';
+      }
+      if (lowerName.includes('check') || lowerName.includes('confirm') || lowerName.includes('verific') ||
+          lowerName.includes('boleto') || lowerName.includes('vencimento') || lowerName.includes('aceite')) {
+        return 'Check-list';
+      }
+      if (lowerName.includes('confirmação') || lowerName.includes('confirmacao') || lowerName.includes('dados') ||
+          lowerName.includes('valores') || lowerName.includes('informou')) {
+        return 'Confirmação de dados';
+      }
+      if (lowerName.includes('encerramento') || lowerName.includes('agradece') || lowerName.includes('duvida') ||
+          lowerName.includes('questionou') || lowerName.includes('ajudar')) {
+        return 'Encerramento';
+      }
+      if (lowerName.includes('negociacao') || lowerName.includes('negociação') || lowerName.includes('oferta') || 
+          lowerName.includes('desconto') || lowerName.includes('parcelamento') || lowerName.includes('fechamento') ||
+          lowerName.includes('acordo') || lowerName.includes('pagamento')) {
+        return 'Negociação';
+      }
+      
+      // Se não conseguir identificar, usar "Outros"
+      return 'Outros';
+    };
     
     // Agrupar critérios por categoria
     const categoriesMap = new Map();
     
-    deduplicatedCriteria.forEach(item => {
+    deduplicatedCriteria.forEach((item, index) => {
       const standardized = standardizeCriteria(item);
+      
+      // Log detalhado para debug
+      if (process.env.NODE_ENV === 'development' && index < 3) {
+        console.log(` Critério ${index + 1}:`, {
+          rawData: item,
+          standardized: standardized,
+          extractedCategory: extractCategoryFromName(standardized.name)
+        });
+      }
       
       // Pular critérios que não se aplicam
       if (standardized.isNotApplicable) return;
       
-      const category = standardized.name.split(' - ')[0] || 'Sem Categoria'; // Pegar primeira parte como categoria
+      // Tentar extrair categoria do nome do critério
+      const category = extractCategoryFromName(standardized.name);
       
       if (!categoriesMap.has(category)) {
         categoriesMap.set(category, {
@@ -199,8 +268,9 @@ const AgentDetail: React.FC = () => {
       categoriesMap.get(category).count++;
     });
     
-          // Calcular média de cada categoria
-      const formatted = Array.from(categoriesMap.entries()).map(([category, data]) => {
+    // Calcular média de cada categoria
+    const formatted = Array.from(categoriesMap.entries())
+      .map(([category, data]) => {
         const averageValue = data.values.reduce((sum: number, val: number) => sum + val, 0) / data.values.length;
         
         return {
@@ -210,7 +280,9 @@ const AgentDetail: React.FC = () => {
           count: data.count,
           originalData: data.values
         };
-      });
+      })
+      .sort((a, b) => b.count - a.count) // Ordenar por número de critérios (mais importantes primeiro)
+      .slice(0, 8); // Limitar a 8 categorias para o radar ficar legível
 
     // Log para debug
     if (process.env.NODE_ENV === 'development') {
@@ -222,36 +294,7 @@ const AgentDetail: React.FC = () => {
       });
     }
 
-    // Retornar dados agrupados por categoria
     return formatted;
-  };
-
-  // Funções auxiliares para feedbacks
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pendente': return 'text-yellow-600';
-      case 'aplicado': return 'text-green-600';
-      case 'aceito': return 'text-blue-600';
-      case 'revisao': return 'text-orange-600';
-      default: return 'text-gray-600';
-    }
-  };
-
-  const getPerformanceColor = (performance: number) => {
-    if (performance >= 80) return 'text-green-600';
-    if (performance >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getOrigemIcon = (origem: string) => {
-    switch (origem?.toLowerCase()) {
-      case 'ia':
-        return '🤖';
-      case 'monitor':
-        return '👨‍💼';
-      default:
-        return '❓';
-    }
   };
 
   // Log de erros e dados recebidos
@@ -262,80 +305,43 @@ const AgentDetail: React.FC = () => {
     if (callsError) {
       console.error('Erro ao buscar ligações do agente:', callsError);
     }
-    if (wiError) {
-      console.error('Erro ao buscar pior item do agente:', wiError);
-    }
     if (criteriaError) {
       console.error('Erro ao buscar critérios do agente:', criteriaError);
     }
-  }, [summaryError, callsError, wiError, criteriaError, summary, criteria, calls]);
-
-  // Verifica se o usuário autenticado é o próprio agente da página
-  const isAgent = user && user.id && (
-    user.id.toString() === agentId || 
-    user.id === parseInt(agentId)
-  );
-  
-
+  }, [summaryError, callsError, criteriaError, summary, criteria, calls]);
 
   return (
     <div>
-      <PageHeader 
-        title={isAgent ? "Minha Página" : "Detalhes do Agente"}
-        subtitle={isAgent ? "Análise detalhada do seu desempenho" : `Análise detalhada do Agente ${agentId}`}
-        breadcrumbs={isAgent ? [] : [
-          { label: 'Dashboard', href: '/' },
-          { label: 'Detalhes do Agente', isActive: true }
-        ]}
-        actions={
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-end">
-            <div className="flex flex-col">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-                className="h-8 sm:h-9 border border-gray-300 rounded-xl px-2 sm:px-3 text-xs sm:text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-                className="h-8 sm:h-9 border border-gray-300 rounded-xl px-2 sm:px-3 text-xs sm:text-sm shadow-sm bg-white !text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-            {!isAgent && (
-              <button
-                onClick={() => navigate(-1)}
-                className="inline-flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 transition-all duration-200 shadow-sm"
-              >
-                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-                Voltar
-              </button>
-            )}
-          </div>
-        }
-
+      <GamifiedAgentHeader 
+        agentName={summary ? formatAgentName(summary) : `Agente ${agentId}`}
+        agentId={agentId}
       />
 
       {/* Sistema de Abas */}
-      {isAgent && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                  activeTab === 'overview'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Visão Geral
-              </button>
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                activeTab === 'overview'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Visão Geral
+            </button>
+            <button
+              onClick={() => setActiveTab('calls')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                activeTab === 'calls'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {isAgent ? 'Histórico de Ligações' : 'Ligações do Agente'}
+            </button>
+            {isAgent && (
               <button
                 onClick={() => setActiveTab('feedback')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
@@ -346,365 +352,559 @@ const AgentDetail: React.FC = () => {
               >
                 Feedbacks
               </button>
-            </nav>
-          </div>
+            )}
+          </nav>
+        </div>
+      </div>
+
+      {/* Sino de Notificações - Apenas para agentes */}
+      {isAgent && (
+        <div className="absolute top-4 right-4 z-50">
+          <NotificationBell agentId={agentId} />
         </div>
       )}
       
 
-      
-
-
       {/* Conteúdo da Aba Visão Geral */}
       {activeTab === 'overview' && (
-        <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
-          {/* Resumo do agente */}
-          {summaryLoading ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="animate-pulse !text-gray-900">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
-            {/* Layout responsivo: Ícone, Nome/ID, Métricas */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6 !text-gray-900">
-              {/* Coluna 1: Ícone */}
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                  <span className="text-xl sm:text-2xl font-bold text-white">
-                    {formatAgentName(summary).charAt(0)}
-                  </span>
+        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {/* Cards de Status Rápido - Versão Animada */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card de Nível - Com animações */}
+            <div 
+              className="group relative bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-4 border border-yellow-200 
+                         hover:shadow-xl hover:shadow-yellow-100/50 hover:-translate-y-1 hover:scale-105 
+                         transition-all duration-300 ease-out cursor-pointer
+                         animate-fade-in-up"
+              style={{ animationDelay: '0ms' }}
+              onClick={() => setShowLevelsModal(true)}
+            >
+              <div className="flex items-center">
+                <div className="p-3 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-xl mr-3 
+                                group-hover:rotate-12 group-hover:scale-110 transition-all duration-300">
+                  <Trophy className="w-6 h-6 text-yellow-600 group-hover:text-yellow-700" />
+                </div>
+                <div>
+                  <p className="text-sm text-yellow-700 font-medium group-hover:text-yellow-800 transition-colors">
+                    Nível Atual
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-800 group-hover:text-yellow-900 transition-colors">
+                    {gamificationData?.current_level || 1}
+                  </p>
                 </div>
               </div>
               
-              {/* Coluna 2: Nome e ID */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 truncate">
-                  {formatAgentName(summary)}
-                </h3>
-                <p className="text-sm sm:text-base text-gray-600 font-medium">Agente ID: {agentId}</p>
+              {/* Efeito de brilho no hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                              opacity-0 group-hover:opacity-100 group-hover:animate-shine 
+                              transition-opacity duration-300 rounded-xl"></div>
+            </div>
+
+            {/* Card de XP - Com animações */}
+            <div 
+              className="group relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 
+                         hover:shadow-xl hover:shadow-blue-100/50 hover:-translate-y-1 hover:scale-105 
+                         transition-all duration-300 ease-out cursor-pointer
+                         animate-fade-in-up"
+              style={{ animationDelay: '100ms' }}
+            >
+              <div className="flex items-center">
+                <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl mr-3 
+                                group-hover:rotate-12 group-hover:scale-110 transition-all duration-300">
+                  <Star className="w-6 h-6 text-blue-600 group-hover:text-blue-700 group-hover:animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 font-medium group-hover:text-blue-800 transition-colors">
+                    XP Total
+                  </p>
+                  <p className="text-2xl font-bold text-blue-800 group-hover:text-blue-900 transition-colors">
+                    {gamificationData?.total_xp_earned?.toLocaleString() || '0'}
+                  </p>
+                </div>
               </div>
               
-              {/* Coluna 3: Métricas - Apenas para administradores */}
-              {!isAgent && (
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 !text-gray-900 w-full sm:w-auto">
-                  <div className="text-center sm:text-left !text-gray-900">
-                    <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Total de Ligações</p>
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary?.ligacoes ?? 0}</p>
+              {/* Contador animado de XP */}
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-blue-500 font-medium animate-bounce">+XP</div>
+              </div>
+              
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                              opacity-0 group-hover:opacity-100 group-hover:animate-shine 
+                              transition-opacity duration-300 rounded-xl"></div>
+            </div>
+
+            {/* Card de Ligações - Com animações */}
+            <div 
+              className="group relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 
+                         hover:shadow-xl hover:shadow-green-100/50 hover:-translate-y-1 hover:scale-105 
+                         transition-all duration-300 ease-out cursor-pointer
+                         animate-fade-in-up"
+              style={{ animationDelay: '200ms' }}
+            >
+              <div className="flex items-center">
+                <div className="p-3 bg-gradient-to-br from-green-100 to-green-200 rounded-xl mr-3 
+                                group-hover:rotate-12 group-hover:scale-110 transition-all duration-300">
+                  <svg className="w-6 h-6 text-green-600 group-hover:text-green-700 group-hover:animate-pulse" 
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 font-medium group-hover:text-green-800 transition-colors">
+                    Ligações
+                  </p>
+                  <p className="text-2xl font-bold text-green-800 group-hover:text-green-900 transition-colors">
+                    {calls?.length || 0}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Indicador de atividade */}
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+              </div>
+              
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                              opacity-0 group-hover:opacity-100 group-hover:animate-shine 
+                              transition-opacity duration-300 rounded-xl"></div>
+            </div>
+
+            {/* Card de Média - Com animações */}
+            <div 
+              className="group relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 
+                         hover:shadow-xl hover:shadow-blue-100/50 hover:-translate-y-1 hover:scale-105 
+                         transition-all duration-300 ease-out cursor-pointer
+                         animate-fade-in-up"
+              style={{ animationDelay: '300ms' }}
+            >
+              <div className="flex items-center">
+                <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl mr-3 
+                                group-hover:rotate-12 group-hover:scale-110 transition-all duration-300">
+                  <TrendingUp className="w-6 h-6 text-blue-600 group-hover:text-blue-700 group-hover:animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 font-medium group-hover:text-blue-800 transition-colors">
+                    Média
+                  </p>
+                  <p className="text-2xl font-bold text-blue-800 group-hover:text-blue-900 transition-colors">
+                    {summary?.media ? summary.media.toFixed(1) : '0.0'}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Barra de progresso animada */}
+              <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="w-full bg-blue-100 rounded-full h-1">
+                  <div 
+                    className="bg-gradient-to-r from-blue-400 to-blue-600 h-1 rounded-full animate-progress"
+                    style={{ width: `${Math.min((summary?.media || 0) * 10, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
+                              opacity-0 group-hover:opacity-100 group-hover:animate-shine 
+                              transition-opacity duration-300 rounded-xl"></div>
+            </div>
+          </div>
+
+          {/* Seção Principal - Duas Colunas */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Coluna Esquerda - Conquistas */}
+            <div className="space-y-6">
+              {/* Conquistas Principais */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                    <Award className="w-5 h-5 text-purple-600" />
                   </div>
-                  <div className="text-center sm:text-left !text-gray-900">
-                    <p className="text-xs sm:text-sm text-gray-500 font-medium mb-1">Média de Avaliação</p>
-                    <p className="text-xl sm:text-2xl font-bold text-blue-600">{(summary?.media ?? 0).toFixed(1)}</p>
+                  <h2 className="text-lg font-bold text-gray-900">Suas Conquistas</h2>
+                </div>
+                
+                {(() => {
+                  if (!gamificationData && !calls && !criteria) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="animate-pulse">
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+                          <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const agentData = {
+                    agent_id: agentId,
+                    current_level: gamificationData?.current_level || 1,
+                    current_xp: gamificationData?.current_xp || 0,
+                    total_xp_earned: gamificationData?.total_xp_earned || 0,
+                    calls: calls || [],
+                    criteria: criteria || [],
+                    summary: summary
+                  };
+                  
+                  const achievements = getAutomaticAchievements(agentData);
+                  const unlockedAchievements = achievements.filter(a => a.is_unlocked);
+                  
+                  return (
+                    <div className="space-y-4">
+                      {/* Resumo */}
+                      <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center mr-3">
+                            <span className="text-green-800 font-bold text-sm">{unlockedAchievements.length}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-green-800">Conquistas Desbloqueadas</p>
+                            <p className="text-xs text-green-600">{achievements.length} conquistas disponíveis</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-green-800">
+                            {unlockedAchievements.reduce((sum, a) => sum + a.xp_reward, 0)} XP
+                          </p>
+                          <p className="text-xs text-green-600">Total ganho</p>
+                        </div>
+                      </div>
+
+                      {/* Lista de Conquistas Desbloqueadas */}
+                      {unlockedAchievements.length > 0 ? (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {unlockedAchievements.slice(0, 5).map((achievement) => (
+                            <div key={achievement.id} className="flex items-center p-3 bg-green-50 rounded-lg border border-green-200">
+                              <div className="text-2xl mr-3">{achievement.icon}</div>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-green-800 text-sm">{achievement.name}</h4>
+                                <p className="text-xs text-green-600">{achievement.description}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="inline-block bg-green-200 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                                  +{achievement.xp_reward} XP
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {unlockedAchievements.length > 5 && (
+                            <div className="text-center py-2">
+                              <span className="text-xs text-gray-500">
+                                +{unlockedAchievements.length - 5} outras conquistas
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <Award className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">Nenhuma conquista desbloqueada ainda</p>
+                          <p className="text-xs text-gray-500 mt-1">Continue se esforçando para desbloquear conquistas!</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Próximas Conquistas */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-orange-100 rounded-lg mr-3">
+                    <Target className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Próximas Conquistas</h2>
+                </div>
+                
+                {(() => {
+                  if (!gamificationData && !calls && !criteria) {
+                    return <div className="text-center py-4 text-gray-500">Carregando...</div>;
+                  }
+
+                  const agentData = {
+                    agent_id: agentId,
+                    current_level: gamificationData?.current_level || 1,
+                    current_xp: gamificationData?.current_xp || 0,
+                    total_xp_earned: gamificationData?.total_xp_earned || 0,
+                    calls: calls || [],
+                    criteria: criteria || [],
+                    summary: summary
+                  };
+                  
+                  const achievements = getAutomaticAchievements(agentData);
+                  const lockedAchievements = achievements.filter(a => !a.is_unlocked);
+                  
+                  return (
+                    <div className="space-y-2">
+                      {lockedAchievements.slice(0, 3).map((achievement) => (
+                        <div key={achievement.id} className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200 opacity-75">
+                          <div className="text-2xl mr-3 grayscale">{achievement.icon}</div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-600 text-sm">{achievement.name}</h4>
+                            <p className="text-xs text-gray-500">{achievement.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="inline-block bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full font-medium">
+                              {achievement.xp_reward} XP
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Coluna Direita - Desempenho */}
+            <div className="space-y-6">
+              {/* Resumo de Desempenho */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Desempenho Recente</h2>
+                </div>
+                
+                {criteriaLoading ? (
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                ) : criteria && criteria.length > 0 ? (
+                  <div className="space-y-3">
+                    {deduplicateCriteria(criteria).slice(0, 4).map((criterion: any, index: number) => {
+                      const standardized = standardizeCriteria(criterion);
+                      
+                      return (
+                        <div key={standardized.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 text-sm">
+                              {formatItemName(standardized.name)}
+                            </h4>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-1000 ${
+                                  standardized.isNotApplicable
+                                    ? 'bg-gray-400' 
+                                    : standardized.value >= 70 
+                                      ? 'bg-green-500' 
+                                      : 'bg-red-500'
+                                }`}
+                                style={{ width: `${standardized.isNotApplicable ? 100 : standardized.value}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div className="ml-4 text-right">
+                            <span className={`text-sm font-bold ${
+                              standardized.isNotApplicable
+                                ? 'text-gray-600' 
+                                : standardized.value >= 70 
+                                  ? 'text-green-600' 
+                                  : 'text-red-600'
+                            }`}>
+                              {standardized.isNotApplicable ? 'N/A' : `${standardized.value.toFixed(0)}%`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <BarChart3 className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">Nenhum dado de desempenho disponível</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Área de Atenção (apenas para admins) */}
+              {!isAgent && worstItem && (
+                <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="p-2 bg-red-100 rounded-lg mr-3">
+                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Área de Atenção</h2>
+                  </div>
+                  
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-red-200 rounded-full flex items-center justify-center mr-3">
+                        <svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-red-900">
+                          {formatItemName(worstItem.categoria)}
+                        </h3>
+                        <p className="text-sm text-red-700">
+                          Taxa de não conformidade: <span className="font-bold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
-        )}
 
-        {/* Pior item - Apenas para administradores */}
-        {!isAgent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Pior Item Avaliado</h2>
-            {wiLoading ? (
-              <div className="animate-pulse !text-gray-900">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            ) : worstItem ? (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+          {/* Seção de Gráficos (Opcional - apenas se houver dados) */}
+          {criteria && criteria.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  <div className="p-2 bg-indigo-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
-                      {formatItemName(worstItem.categoria)}
-                    </h3>
-                    <p className="text-sm text-red-700 mt-1">
-                      Taxa de não conformidade: <span className="text-sm font-semibold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
-                    </p>
-                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Análise Detalhada</h2>
+                </div>
+                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                  <button 
+                    onClick={() => setActiveChart('radar')} 
+                    className={`px-3 py-1 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      activeChart === 'radar' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Radar
+                  </button>
+                  <button 
+                    onClick={() => setActiveChart('bar')} 
+                    className={`px-3 py-1 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      activeChart === 'bar' 
+                        ? 'bg-white text-gray-900 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Barras
+                  </button>
                 </div>
               </div>
-            ) : (
-              <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                <p className="text-gray-600">Sem dados de avaliação disponíveis para o período selecionado.</p>
+              
+              <div className="h-64 bg-gray-50 rounded-lg p-4">
+                {formatCriteriaForRadar(criteria).length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {activeChart === 'radar' ? (
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
+                        <PolarGrid stroke="#e5e7eb" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 10 }} />
+                        <Radar
+                          name="Desempenho"
+                          dataKey="value"
+                          stroke="#4f46e5"
+                          fill="#4f46e5"
+                          fillOpacity={0.6}
+                        />
+                        <Tooltip 
+                          formatter={(value, name, props) => {
+                            const data = props.payload;
+                            return [
+                              `${value}%`, 
+                              data.subject
+                            ];
+                          }} 
+                        />
+                      </RadarChart>
+                    ) : (
+                      <BarChart data={formatCriteriaForRadar(criteria)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
+                        <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <p className="text-gray-600 text-sm">Nenhuma categoria disponível</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}        {/* Gráfico de Radar - Critérios do Agente */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
-
-          
-          {/* Nota sobre dados de demonstração */}
-          {criteria && criteria.length > 0 && 
-           formatCriteriaForRadar(criteria).every(item => item.value === 0) && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                ⚠️ <strong>Dados de demonstração:</strong> Os dados do backend retornaram valores 0%. 
-                Exibindo dados de exemplo para demonstrar a funcionalidade do gráfico.
-              </p>
             </div>
           )}
-          
-          {criteriaLoading ? (
-            <div className="animate-pulse space-y-4 !text-gray-900">
-              <div className="h-64 bg-gray-200 rounded"></div>
-              <div className="grid grid-cols-2 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-4 bg-gray-200 rounded"></div>
+        </div>
+      )}
+
+      {/* Conteúdo da Aba Histórico de Ligações */}
+      {activeTab === 'calls' && (
+        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {/* Header */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Histórico de Ligações</h2>
+                <p className="text-gray-600">Visualize todas as suas ligações e avaliações</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-blue-600">
+                  {calls?.length || 0}
+                </p>
+                <p className="text-sm text-gray-600">Ligações realizadas</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de Ligações */}
+          {callsLoading ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="animate-pulse space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-16 bg-gray-200 rounded-xl"></div>
                 ))}
               </div>
             </div>
-          ) : criteria && criteria.length > 0 ? (
-            <>
-              {/* Informação sobre duplicatas */}
-              {(() => {
-                const analysis = analyzeCriteriaDuplicates(criteria);
-                return analysis.duplicates > 0 ? (
-                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p className="text-sm text-orange-800">
-                      ⚠️ <strong>Critérios duplicados detectados:</strong> 
-                      {analysis.duplicateGroups.map((group, index) => (
-                        <span key={index}>
-                          "{group.normalizedName}" ({group.items.length}x){index < analysis.duplicateGroups.length - 1 ? ', ' : ''}
-                        </span>
-                      ))}
-                      <br />
-                      <span className="text-xs">
-                        Total: {analysis.total} critérios recebidos, {analysis.unique} únicos exibidos.
-                        {analysis.duplicates} duplicatas foram removidas automaticamente.
-                      </span>
+          ) : calls && calls.length > 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center">
+                  <div className="p-2 bg-gray-100 rounded-xl mr-3">
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Suas Ligações</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Detalhes das ligações realizadas no período
                     </p>
                   </div>
-                ) : null;
-              })()}
-              <div className="space-y-6">
-                {/* Header com opções de gráfico */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                    <svg className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Desempenho por Categoria
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
-                      <button 
-                        onClick={() => setActiveChart('radar')} 
-                        className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
-                          activeChart === 'radar' 
-                            ? 'bg-white text-gray-900 shadow-sm' 
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <span className="hidden sm:inline">Radar</span>
-                      </button>
-                      <button 
-                        onClick={() => setActiveChart('bar')} 
-                        className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
-                          activeChart === 'bar' 
-                            ? 'bg-white text-gray-900 shadow-sm' 
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Barras</span>
-                      </button>
-                    </div>
-                    {process.env.NODE_ENV === 'development' && (
-                      <button 
-                        onClick={() => {
-                          console.log('🔍 [DEBUG] Dados atuais:', { criteria, formatted: formatCriteriaForRadar(criteria || []) });
-                        }}
-                        className="text-xs bg-blue-600/70 hover:bg-blue-700/80 text-white px-3 py-1.5 rounded-full font-light backdrop-blur-sm border border-blue-300/50 shadow-sm transition-all duration-200"
-                      >
-                        Debug Data
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Gráfico dinâmico */}
-                <div className="h-48 sm:h-64">
-                  {formatCriteriaForRadar(criteria).length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      {activeChart === 'radar' ? (
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formatCriteriaForRadar(criteria)}>
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                          <Radar
-                            name="Desempenho"
-                            dataKey="value"
-                            stroke="#4f46e5"
-                            fill="#4f46e5"
-                            fillOpacity={0.6}
-                          />
-                          <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                        </RadarChart>
-                      ) : (
-                        <BarChart data={formatCriteriaForRadar(criteria)}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                          <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                          <Tooltip formatter={(value) => [`${value}%`, 'Performance']} />
-                          <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      )}
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2zm0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                        <p className="text-gray-600">Nenhuma categoria disponível para exibir nos gráficos.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Critérios detalhados */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {deduplicateCriteria(criteria).map((criterion: any, index: number) => {
-                    const standardized = standardizeCriteria(criterion);
-                    
-                    return (
-                      <div 
-                        key={standardized.id} 
-                        className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-gray-900">
-                              {formatItemName(standardized.name)}
-                            </h3>
-                            {criterion._deduplicationInfo?.duplicateCount > 1 && (
-                              <p className="text-xs text-orange-600 mt-1">
-                                ⚠️ Critério duplicado ({criterion._deduplicationInfo.duplicateCount}x)
-                              </p>
-                            )}
-                          </div>
-                          <span 
-                            className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                              standardized.isNotApplicable
-                                ? 'bg-gray-100 text-gray-600' // Cinza para "Não se aplica"
-                                : standardized.value >= 70 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {standardized.isNotApplicable ? 'Não se aplica' : `${standardized.value.toFixed(1)}%`}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="bg-white border border-gray-100 rounded-xl p-8 text-center shadow-sm">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <p className="mt-4 text-gray-600">Nenhum critério de avaliação encontrado para o período selecionado.</p>
+              
+              <CallList calls={calls} user={user} />
             </div>
-          )}
-        </div>
-
-        {/* Gráfico de Comparativo Mensal */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 !text-gray-900">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0 mb-4">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-              <TrendingUp className="inline-block w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
-              Comparativo Mensal
-            </h2>
-          </div>
-          
-          {generateMonthlyData(calls || []).length > 0 ? (
-            <>
-              <div className="h-48 sm:h-64" id="chart-container">
-                {(() => {
-                  const chartData = generateMonthlyData(calls || []);
-                  
-                  return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
-                        data={chartData}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="month" 
-                          tick={{ fill: '#6b7280', fontSize: 12 }}
-                        />
-                        <YAxis 
-                          domain={[0, 100]} 
-                          tick={{ fill: '#6b7280', fontSize: 12 }}
-                        />
-                        <Tooltip 
-                          formatter={(value) => {
-                            return [`${value}%`, 'Média de Pontuação'];
-                          }} 
-                        />
-                        <Legend />
-                        <Bar 
-                          dataKey="notas" 
-                          radius={[4, 4, 0, 0]} 
-                          name="Média de Pontuação" 
-                          fill="#3b82f6"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  );
-                })()}
-              </div>
-
-            </>
           ) : (
-            <div className="h-64 flex items-center justify-center">
-              <div className="text-center">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                <p className="mt-4 text-gray-600">Nenhum dado disponível para gerar o comparativo mensal.</p>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Lista de ligações - Apenas para administradores */}
-        {!isAgent && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 !text-gray-900">
-            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Histórico de Ligações</h2>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Detalhes das ligações realizadas no período
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma ligação encontrada</h3>
+              <p className="text-gray-600">
+                Você ainda não realizou ligações no período selecionado.
               </p>
             </div>
-            
-            {callsLoading ? (
-              <div className="p-4 sm:p-6 !text-gray-900">
-                <div className="animate-pulse space-y-4 !text-gray-900">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <CallList calls={calls ?? []} user={user} />
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       )}
 
       {/* Conteúdo da Aba Feedbacks */}
@@ -741,7 +941,7 @@ const AgentDetail: React.FC = () => {
               {!isAgent && (
                 <div className="text-right">
                   <p className="text-2xl font-bold text-blue-600">
-                    {agentFeedbacks?.length || 0}
+                    0
                   </p>
                   <p className="text-sm text-gray-500">Total de Feedbacks</p>
                 </div>
@@ -762,86 +962,6 @@ const AgentDetail: React.FC = () => {
                 Apenas o próprio agente pode visualizar seus feedbacks pessoais.
               </p>
             </div>
-          ) : feedbacksLoading ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="animate-pulse space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-20 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </div>
-          ) : feedbacksError ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="text-center text-red-600">
-                <p>Erro ao carregar feedbacks. Tente novamente.</p>
-              </div>
-            </div>
-          ) : agentFeedbacks && agentFeedbacks.length > 0 ? (
-            <div className="space-y-4">
-
-              
-              {agentFeedbacks.map((feedback: any) => (
-                <div key={feedback.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-3 sm:space-y-0">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-lg">{getOrigemIcon(feedback.origem)}</span>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {feedback.criterio_nome || 'Critério não especificado'}
-                        </h3>
-                      </div>
-                      <p className="text-gray-600 mb-3">
-                        {feedback.comentario || 'Nenhum comentário disponível'}
-                      </p>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Performance:</span>
-                          <span className={`font-semibold ${getPerformanceColor(feedback.performance_atual || 0)}`}>
-                            {feedback.performance_atual || 0}%
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Status:</span>
-                          <span className={`font-semibold ${getStatusColor(feedback.status)}`}>
-                            {feedback.status === 'ENVIADO' ? 'Pendente' : feedback.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Origem:</span>
-                          <span className="font-semibold text-gray-700">
-                            {feedback.origem === 'monitoria' ? 'Monitor' : 'IA'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500">Data:</span>
-                          <span className="font-semibold text-gray-700">
-                            {new Date(feedback.criado_em).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Ações do Feedback */}
-                    {feedback.status === 'ENVIADO' && (
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button
-                          onClick={() => alert('Funcionalidade de aceitar feedback será implementada!')}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                        >
-                          Aceitar
-                        </button>
-                        <button
-                          onClick={() => alert('Funcionalidade de rejeitar feedback será implementada!')}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                        >
-                          Rejeitar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
               <div className="text-gray-400 mb-4">
@@ -857,6 +977,191 @@ const AgentDetail: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Modal para exibir todos os níveis */}
+      {showLevelsModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowLevelsModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-6 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Crown className="h-6 w-6 mr-3 text-yellow-500" />
+                Sistema de Níveis
+              </h3>
+              <button
+                onClick={() => setShowLevelsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {[
+                { id: 1, name: 'Bronze', xpRequired: 0, color: '#8B4513', bgColor: '#F5DEB3', borderColor: '#D2691E', icon: '🥉' },
+                { id: 2, name: 'Prata', xpRequired: 1000, color: '#4A5568', bgColor: '#E2E8F0', borderColor: '#718096', icon: '🥈' },
+                { id: 3, name: 'Ouro', xpRequired: 5000, color: '#B7791F', bgColor: '#FEF5E7', borderColor: '#D69E2E', icon: '🥇' },
+                { id: 4, name: 'Platina', xpRequired: 10000, color: '#2C5282', bgColor: '#EBF8FF', borderColor: '#3182CE', icon: '💎' },
+                { id: 5, name: 'Diamante', xpRequired: 20000, color: '#553C9A', bgColor: '#FAF5FF', borderColor: '#805AD5', icon: '💠' },
+                { id: 6, name: 'Nível Secreto', xpRequired: 50000, color: '#C53030', bgColor: '#FED7D7', borderColor: '#E53E3E', icon: '👑' }
+              ].map((level) => {
+                const isCurrentLevel = level.id === (gamificationData?.current_level || 1);
+                const isUnlocked = (gamificationData?.current_xp || 0) >= level.xpRequired;
+                
+                // Calcular próximo nível
+                const nextLevel = level.id < 6 ? [
+                  { id: 1, name: 'Bronze', xpRequired: 0, icon: '🥉' },
+                  { id: 2, name: 'Prata', xpRequired: 1000, icon: '🥈' },
+                  { id: 3, name: 'Ouro', xpRequired: 5000, icon: '🥇' },
+                  { id: 4, name: 'Platina', xpRequired: 10000, icon: '💎' },
+                  { id: 5, name: 'Diamante', xpRequired: 20000, icon: '💠' },
+                  { id: 6, name: 'Nível Secreto', xpRequired: 50000, icon: '' }
+                ].find(l => l.id === level.id + 1) : null;
+              
+                const progressToNext = nextLevel ? (() => {
+                  let xpRequired = 0;
+                  let xpCurrent = 0;
+                  
+                  switch (nextLevel.id) {
+                    case 2: // Prata
+                      xpRequired = 1000;
+                      xpCurrent = gamificationData?.current_xp || 0;
+                      break;
+                    case 3: // Ouro
+                      xpRequired = 4000;
+                      xpCurrent = (gamificationData?.current_xp || 0) - 1000;
+                      break;
+                    case 4: // Platina
+                      xpRequired = 5000;
+                      xpCurrent = (gamificationData?.current_xp || 0) - 5000;
+                      break;
+                    case 5: // Diamante
+                      xpRequired = 10000;
+                      xpCurrent = (gamificationData?.current_xp || 0) - 10000;
+                      break;
+                    case 6: // Nível Secreto
+                      xpRequired = 30000;
+                      xpCurrent = (gamificationData?.current_xp || 0) - 20000;
+                      break;
+                    default:
+                      return 100;
+                  }
+                  
+                  const percentage = Math.min(100, (xpCurrent / xpRequired) * 100);
+                  return Math.max(0, percentage);
+                })() : 100;
+                
+                return (
+                  <div
+                    key={level.id}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 ${
+                      isCurrentLevel
+                        ? 'border-yellow-400 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-lg'
+                        : isUnlocked
+                        ? 'border-gray-200 bg-white hover:shadow-md'
+                        : 'border-gray-100 bg-gray-50 opacity-60'
+                    }`}
+                  >
+                    {/* Badge de nível atual */}
+                    {isCurrentLevel && (
+                      <div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        ATUAL
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center space-x-4">
+                      {/* Ícone do nível */}
+                      <div className="text-3xl">{level.icon}</div>
+                      
+                      {/* Informações do nível */}
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h4 className="text-lg font-bold text-gray-900">{level.name}</h4>
+                          {isUnlocked && (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          )}
+                        </div>
+                        
+                        <div className="text-sm text-gray-600 mb-3">
+                          {level.xpRequired === 0 
+                            ? 'Nível inicial' 
+                            : `${level.xpRequired.toLocaleString()} XP necessário`
+                          }
+                        </div>
+                        
+                        {/* Barra de progresso para o próximo nível */}
+                        {isCurrentLevel && nextLevel && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>Progresso para {nextLevel.name}</span>
+                              <span>{progressToNext.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${progressToNext}%` }}
+                              ></div>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{(gamificationData?.current_xp || 0).toLocaleString()} XP</span>
+                              <span>{nextLevel.xpRequired.toLocaleString()} XP</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Status para níveis desbloqueados mas não atuais */}
+                        {isUnlocked && !isCurrentLevel && (
+                          <div className="text-xs text-green-600 font-medium">
+                            ✓ Desbloqueado
+                          </div>
+                        )}
+                        
+                        {/* Status para níveis bloqueados */}
+                        {!isUnlocked && (
+                          <div className="text-xs text-gray-500">
+                             Bloqueado - {level.xpRequired.toLocaleString()} XP necessário
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Informações adicionais */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="flex items-start">
+                <Info className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-2">Como ganhar XP:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Ligações aprovadas: +10 XP</li>
+                    <li>Ligações com alta pontuação (90%+): +20 XP</li>
+                    <li>Conquistas desbloqueadas: +25-150 XP</li>
+                    <li>Sequência de boas performances: +5 XP bônus</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowLevelsModal(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

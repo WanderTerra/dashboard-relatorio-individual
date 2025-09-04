@@ -654,3 +654,19 @@ export const getMixedAgentCriteria  = (id: string, f: Filters) => api.get(`/mixe
 export const getMixedCallerInfo     = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/caller`).then(r => r.data);
 export const getMixedCarteirasFromAvaliacoes = () => api.get('/mixed/carteiras-avaliacoes').then(r => r.data);
 export const getFeedbackGeralLigacao = (callId: string) => api.get(`/mixed/call/${callId}/feedback-geral`).then(r => r.data);
+
+// API para buscar notificações do agente
+export const getAgentNotifications = async (agentId: string) => {
+  const response = await fetch(`/api/notifications/agent/${agentId}`);
+  if (!response.ok) throw new Error('Erro ao buscar notificações');
+  return response.json();
+};
+
+// API para marcar notificação como lida
+export const markNotificationAsRead = async (notificationId: string) => {
+  const response = await fetch(`/api/notifications/${notificationId}/read`, {
+    method: 'PUT',
+  });
+  if (!response.ok) throw new Error('Erro ao marcar notificação como lida');
+  return response.json();
+};
