@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music, User } from 'lucide-react';
+import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music, User, FileText } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -44,6 +44,7 @@ const AudioUpload: React.FC = () => {
   const [transcription, setTranscription] = useState<any>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Hook para avaliação automática
   const {
@@ -275,6 +276,7 @@ const AudioUpload: React.FC = () => {
         });
         const data = res.data as any;
         console.log('[POLL] upload status:', data);
+        console.log('[POLL] Status anterior:', uploadStatus, 'Novo status:', data?.status);
         setUploadStatus(data?.status || null);
         setUploadError(data?.error_msg || null);
         if (data?.call_id) setUploadCallId(data.call_id);
@@ -456,6 +458,81 @@ const AudioUpload: React.FC = () => {
     } catch (err: any) {
       console.error('❌ Erro na avaliação:', err);
       toast.error('Erro ao iniciar avaliação: ' + err.message);
+    }
+  };
+
+  // Gerar PDF - Versão simplificada
+  const handleGeneratePDF = async () => {
+    const avaliacaoId = uploadAvaliacaoId;
+    const callId = uploadCallId;
+    
+    if (!avaliacaoId && !callId) {
+      toast.error('Nenhuma avaliação ou call_id disponível para gerar PDF');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const idToUse = avaliacaoId || callId;
+      
+      console.log('🎯 Tentando gerar PDF para:', { avaliacaoId, callId, idToUse });
+      
+      // Tentar gerar PDF diretamente (sem verificar status primeiro)
+      const response = await axios.get(`/api/pdf/upload/${idToUse}`, {
+        responseType: 'blob',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      // Criar link para download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `avaliacao_${idToUse}_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('PDF gerado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error);
+      const detail = error?.response?.data?.detail || error?.message || 'Erro desconhecido';
+      
+      // Se falhou com avaliacaoId, tentar com callId
+      if (avaliacaoId && uploadCallId && String(avaliacaoId) !== uploadCallId) {
+        console.log('🔄 Tentando novamente com call_id...');
+        try {
+          const token = localStorage.getItem('auth_token');
+          const response = await axios.get(`/api/pdf/upload/${uploadCallId}`, {
+            responseType: 'blob',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `avaliacao_${uploadCallId}_${new Date().toISOString().split('T')[0]}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+
+          toast.success('PDF gerado com sucesso! (usando call_id)');
+          return;
+        } catch (secondError: any) {
+          console.error('Erro na segunda tentativa:', secondError);
+          toast.error(`Erro ao gerar PDF: ${secondError?.response?.data?.detail || secondError?.message || 'Erro desconhecido'}`);
+        }
+      } else {
+        toast.error(`Erro ao gerar PDF: ${detail}`);
+      }
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -784,6 +861,66 @@ const AudioUpload: React.FC = () => {
                         className="bg-slate-600 hover:bg-slate-700 text-white"
                       >
                         Tentar transcrever localmente
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* BOTÃO DE PDF - VERSÃO SIMPLIFICADA */}
+                  {/* DEBUG: Verificar valores */}
+                  <div className="text-xs text-gray-500 mt-2">
+                    Debug: uploadAvaliacaoId={uploadAvaliacaoId}, uploadStatus={uploadStatus}
+                  </div>
+                  
+                  {/* Botão sempre que há avaliação, independente do status */}
+                  {uploadAvaliacaoId && (
+                    <div className="pt-2">
+                      <div className="text-xs text-blue-600 mb-1">
+                        Avaliação ID: {uploadAvaliacaoId} | Status: {uploadStatus || 'N/A'}
+                      </div>
+                      <Button
+                        onClick={handleGeneratePDF}
+                        disabled={isGeneratingPDF}
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                        size="sm"
+                      >
+                        {isGeneratingPDF ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Gerando PDF...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Gerar PDF
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Botão alternativo se não há avaliação mas há call_id */}
+                  {!uploadAvaliacaoId && uploadCallId && (
+                    <div className="pt-2">
+                      <div className="text-xs text-orange-600 mb-1">
+                        Call ID: {uploadCallId} | Aguardando avaliação...
+                      </div>
+                      <Button
+                        onClick={handleGeneratePDF}
+                        disabled={isGeneratingPDF}
+                        className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                        size="sm"
+                      >
+                        {isGeneratingPDF ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Tentando...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Tentar Gerar PDF
+                          </>
+                        )}
                       </Button>
                     </div>
                   )}
