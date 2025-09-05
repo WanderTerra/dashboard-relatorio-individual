@@ -176,12 +176,12 @@ export function deduplicateCriteria(criteria: any[]): any[] {
   
   if (analysis.duplicates > 0) {
     console.group(`🔍 Análise de Duplicatas - ${analysis.total} critérios`);
-    console.log(`📊 Total: ${analysis.total}, Únicos: ${analysis.unique}, Duplicatas: ${analysis.duplicates}`);
+  
     
     analysis.duplicateGroups.forEach(group => {
       console.group(`🔄 Grupo de duplicatas: "${group.normalizedName}"`);
       group.items.forEach(item => {
-        console.log(`  - "${item.originalName}" (índice ${item.index})`);
+
       });
       console.groupEnd();
     });
@@ -228,12 +228,12 @@ export function deduplicateCriteria(criteria: any[]): any[] {
     });
   });
   
-  console.log(`✅ Deduplicação concluída: ${criteria.length} → ${deduplicated.length} critérios únicos`);
+
   
   // Log detalhado dos critérios removidos
   if (criteria.length !== deduplicated.length) {
     const removedCount = criteria.length - deduplicated.length;
-    console.log(`⚠️ ${removedCount} critérios duplicados foram removidos automaticamente`);
+
   }
   
   return deduplicated;

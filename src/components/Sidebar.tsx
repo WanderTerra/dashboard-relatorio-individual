@@ -59,16 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
     ? agentLinks(agentId)
     : [];
 
-  // Debug logs
-  console.log('[DEBUG] Sidebar - Usuário:', {
-    userId: user?.id,
-    userName: user?.full_name,
-    permissions: user?.permissions,
-    isAdmin,
-    agentPerm,
-    agentId,
-    linksCount: links.length
-  });
+
 
   // Função para controlar dropdowns
   const toggleDropdown = (label: string) => {

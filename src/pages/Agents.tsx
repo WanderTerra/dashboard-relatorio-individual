@@ -47,9 +47,9 @@ const Agents: React.FC = () => {
     enabled: true, // Sempre habilitado
   });
 
-  // Para cada agente, dispara uma query para obter o pior item
+  // Para cada agente, dispara uma query para obter o pior item (limitado a 10 para performance)
   const worstItemQueries = useQueries({
-    queries: agents?.map((agent: any) => ({
+    queries: agents?.slice(0, 10).map((agent: any) => ({
       queryKey: ['agent-worst-item', agent.agent_id, apiFilters],
       queryFn: () => getAgentWorstItem(agent.agent_id, apiFilters),
       enabled: !!agents,

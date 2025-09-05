@@ -106,13 +106,7 @@ const Feedback: React.FC = () => {
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
   const isAgentUser = currentAgentId && !isAdmin;
 
-  console.log('[DEBUG] Permissões do usuário:', {
-    userId: user?.id,
-    permissions: user?.permissions,
-    isAdmin,
-    currentAgentId,
-    isAgentUser
-  });
+
 
   // Filtros para API - com fallback para datas padrão
   const apiFilters = {
@@ -125,18 +119,9 @@ const Feedback: React.FC = () => {
   const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
     queryKey: ['feedbacks-with-scores', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks/with-scores');
       return fetch('/api/feedbacks/with-scores')
-        .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /feedbacks/with-scores:', res.status, res.statusText);
-          return res.json();
-        })
-        .then(data => {
-          console.log('[DEBUG] Frontend: Dados recebidos:', data);
-          return data;
-        })
+        .then(res => res.json())
         .catch(err => {
-          console.error('[DEBUG] Frontend: Erro ao buscar feedbacks com pontuações:', err);
           throw err;
         });
     },
@@ -154,18 +139,9 @@ const Feedback: React.FC = () => {
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ['feedbacks-agents-mixed', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /mixed/agents');
       return fetch(`/api/mixed/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
-        .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /mixed/agents:', res.status, res.statusText);
-          return res.json();
-        })
-        .then(data => {
-          console.log('[DEBUG] Frontend: Dados de agentes recebidos:', data);
-          return data;
-        })
+        .then(res => res.json())
         .catch(err => {
-          console.error('[DEBUG] Frontend: Erro ao buscar agentes:', err);
           throw err;
         });
     },
@@ -186,24 +162,18 @@ const Feedback: React.FC = () => {
 
   // Usar feedbacks reais se disponíveis, senão gerar baseado nos agentes
   const feedbackData = useMemo(() => {
-    console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents, isAgentUser, currentAgentId });
-    
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
-      console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
       let filteredFeedbacks = feedbacks;
       
       // Se for um agente (não admin), filtrar apenas feedbacks do próprio agente
       if (isAgentUser && currentAgentId) {
-        console.log(`[DEBUG] Frontend: Filtrando feedbacks apenas para agente ${currentAgentId}`);
         filteredFeedbacks = feedbacks.filter((fb: any) => String(fb.agent_id) === String(currentAgentId));
-        console.log(`[DEBUG] Frontend: Feedbacks filtrados: ${filteredFeedbacks.length} de ${feedbacks.length} total`);
       }
       
       const mapped = filteredFeedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
         const performanceAtual = fb.performance_atual || 0;
-        console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
         
         // Normalizar nome do agente como na página Agents
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
@@ -255,15 +225,12 @@ const Feedback: React.FC = () => {
       );
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
-      console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
       const feedback: FeedbackItem[] = [];
       
       // Filtrar agentes se for um agente comum
       let filteredAgents = agents;
       if (isAgentUser && currentAgentId) {
-        console.log(`[DEBUG] Frontend: Filtrando agentes apenas para agente ${currentAgentId}`);
         filteredAgents = agents.filter((agent: any) => String(agent.id) === String(currentAgentId));
-        console.log(`[DEBUG] Frontend: Agentes filtrados: ${filteredAgents.length} de ${agents.length} total`);
       }
       
       // Identificar agentes com notas baixas (performance < 70%)
@@ -340,22 +307,10 @@ const Feedback: React.FC = () => {
       return feedback;
     }
     
-    console.log('[DEBUG] Frontend: Nenhum dado disponível para feedbacks');
     return [];
   }, [feedbacks, agents, trend, isAgentUser, currentAgentId]);
 
-  // Debug dos dados
-  useEffect(() => {
-    console.log('[DEBUG] Frontend: Estado dos feedbacks:', {
-      feedbacks,
-      feedbacksLoading,
-      feedbacksError,
-      feedbacksParaExibir: feedbackData?.length || 0,
-      agents: agents?.length || 0,
-      agentsLoading,
-      agentsError
-    });
-  }, [feedbacks, feedbacksLoading, feedbacksError, feedbackData, agents, agentsLoading, agentsError]);
+
 
   // Filtrar feedback
   const filteredFeedback = useMemo(() => {
@@ -555,7 +510,6 @@ const Feedback: React.FC = () => {
 
   const handleRejeitarFeedback = (feedback: FeedbackItem) => {
     // Rejeitar = contestar (mesmo fluxo, mas com texto diferente)
-    console.log('[DEBUG] Rejeitando feedback:', feedback.id);
     setFeedbackParaContestar(feedback);
     setComentarioContestacao('');
     setTipoAcao('rejeitar');
@@ -606,19 +560,16 @@ const Feedback: React.FC = () => {
 
   const handleCriarFeedback = () => {
     // Aqui você implementaria a lógica para criar novo feedback
-    console.log('Criando novo feedback');
     alert('Funcionalidade de criação será implementada!');
   };
 
   // Funções para contestação
   const handleAceitarTodos = async (avaliacaoId: string) => {
     try {
-      console.log(`[DEBUG] Aceitando todos os feedbacks da avaliação ${avaliacaoId}`);
       await aceitarTodosFeedbacks(Number(avaliacaoId));
       alert('Todos os feedbacks foram aceitos com sucesso!');
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('[DEBUG] Erro ao aceitar todos os feedbacks:', error);
       alert(`Erro ao aceitar feedbacks: ${error.response?.data?.detail || error.message}`);
     }
   };
@@ -637,7 +588,6 @@ const Feedback: React.FC = () => {
     }
 
     try {
-      console.log(`[DEBUG] Contestando feedback ${feedbackParaContestar.id}`);
       await contestarFeedback(Number(feedbackParaContestar.id), comentarioContestacao);
       alert(tipoAcao === 'contestar' ? 'Contestação enviada com sucesso!' : 'Rejeição enviada com sucesso!');
       setShowContestacaoModal(false);
@@ -645,7 +595,6 @@ const Feedback: React.FC = () => {
       setComentarioContestacao('');
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('[DEBUG] Erro ao contestar feedback:', error);
       alert(`Erro ao contestar feedback: ${error.response?.data?.detail || error.message}`);
     }
   };
@@ -660,8 +609,6 @@ const Feedback: React.FC = () => {
     if (!contestacaoParaAnalisar) return;
 
     try {
-      console.log(`[DEBUG] Analisando contestação ${contestacaoParaAnalisar.id}: ${aceitar ? 'aceitar' : 'rejeitar'}`);
-      
       const analise = {
         aceitar_contestacao: aceitar,
         novo_resultado: aceitar ? novoResultado : undefined
@@ -673,7 +620,6 @@ const Feedback: React.FC = () => {
       setContestacaoParaAnalisar(null);
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('[DEBUG] Erro ao analisar contestação:', error);
       alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
     }
   };
@@ -682,26 +628,22 @@ const Feedback: React.FC = () => {
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
-    console.log('[DEBUG] Frontend: Status filter mudou para:', newStatus);
     setStatusFilter(newStatus as any);
   };
 
   // Filtros de busca
   const handleSearchChange = (searchTerm: string) => {
-    console.log('[DEBUG] Frontend: Search filter mudou para:', searchTerm);
     setSearchTerm(searchTerm);
   };
 
   // Filtros de data
   const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('[DEBUG] Frontend: Date filter mudou para:', startDate, 'até', endDate);
     setStartDate(startDate);
     setEndDate(endDate);
   };
 
   // Aplicar filtros
   const applyFilters = () => {
-    console.log('[DEBUG] Frontend: Aplicando filtros:', { filters, statusFilter, searchTerm });
     // Forçar refetch dos dados com novos filtros
     refetchAgents();
     refetchFeedbacks();
@@ -709,7 +651,6 @@ const Feedback: React.FC = () => {
 
   // Efeito para aplicar filtros automaticamente
   useEffect(() => {
-    console.log('[DEBUG] Frontend: Filtros mudaram, aplicando automaticamente:', { filters, statusFilter, searchTerm });
     applyFilters();
   }, [filters.start, filters.end, filters.carteira, statusFilter, searchTerm]);
 
@@ -721,19 +662,15 @@ const Feedback: React.FC = () => {
       const callIdReal = feedbacksAvaliacao[0]?.call_id; // Pegar o call_id real do backend
       
       if (!callIdReal) {
-        console.log(`[DEBUG] Não foi possível encontrar call_id real para avaliação ${avaliacaoId}`);
         return;
       }
       
-      console.log(`[DEBUG] Buscando feedback geral para avaliação ${avaliacaoId} (call_id: ${callIdReal})`);
       const feedbackGeral = await getFeedbackGeralLigacao(callIdReal);
       setFeedbacksGerais(prev => ({
         ...prev,
         [avaliacaoId]: feedbackGeral
       }));
-      console.log(`[DEBUG] Feedback geral recebido para avaliação ${avaliacaoId}:`, feedbackGeral);
     } catch (error: any) {
-      console.error(`[DEBUG] Erro ao buscar feedback geral para avaliação ${avaliacaoId}:`, error);
       // Se erro 403 (sem permissão), não mostrar erro - apenas não exibir o feedback
       if (error?.response?.status !== 403) {
         setFeedbacksGerais(prev => ({

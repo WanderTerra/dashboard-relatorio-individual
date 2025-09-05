@@ -45,8 +45,6 @@ const Login: React.FC = () => {
 
     try {
       const response = await login(credentials);
-      console.log('🔍 Resposta completa do login:', response);
-      console.log('🔍 Usuario requires_password_change:', response.user.requires_password_change);
       
       // Update the auth context with user info
       const userWithPermissions = {
@@ -54,11 +52,9 @@ const Login: React.FC = () => {
         permissions: (response.user as any).permissions || [],
       };
       authLogin(userWithPermissions);
-      console.log('🔐 AuthContext atualizado com usuário:', userWithPermissions);
       
       const permissions = userWithPermissions.permissions;
       if (userWithPermissions.requires_password_change) {
-        console.log('⚠️ Usuário precisa trocar senha, mostrando tela de troca');
         setShowPasswordChange(true);
       } else {
         // Redirecionamento baseado nas permissões
@@ -100,7 +96,7 @@ const Login: React.FC = () => {
   };
 
   const handlePasswordChangeComplete = () => {
-    console.log('🔄 Senha alterada com sucesso, ocultando tela de troca e redirecionando');
+    
     setShowPasswordChange(false);
     // Note: The user info should already be set in authLogin above
     navigate('/');
@@ -240,7 +236,7 @@ const PasswordChangeForm: React.FC<{ onComplete: () => void }> = ({ onComplete }
   const { login: authLogin } = useAuth();
 
   const showErrorToast = (message: string) => {
-    console.log('🔴 showErrorToast chamada com:', message);
+
     setError(message); // Usar setError em vez de toast
   };
 

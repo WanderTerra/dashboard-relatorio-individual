@@ -47,14 +47,22 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const { data: carteiraStructure } = useQuery({
     queryKey: ['carteiraStructure', avaliacaoId],
     queryFn: async () => {
-      // Buscar a estrutura da carteira para obter a ordem e categorização
-      const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
-      if (!response.ok) {
-        throw new Error('Erro ao buscar estrutura da carteira');
+      try {
+        // Tentar buscar a estrutura da carteira para obter a ordem e categorização
+        const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
+        if (!response.ok) {
+          // Se o endpoint não existir, retornar null para usar fallback
+          console.warn('Endpoint de estrutura de carteira não disponível, usando organização padrão');
+          return null;
+        }
+        return response.json();
+      } catch (error) {
+        console.warn('Erro ao buscar estrutura da carteira, usando organização padrão:', error);
+        return null;
       }
-      return response.json();
     },
-    enabled: !!avaliacaoId
+    enabled: !!avaliacaoId,
+    retry: false // Não tentar novamente se falhar
   });
 
   // Função para organizar itens baseado na estrutura da carteira
