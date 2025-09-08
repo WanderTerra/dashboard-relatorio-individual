@@ -626,25 +626,55 @@ const Feedback: React.FC = () => {
   };
 
   const handleEnviarAnalise = async (aceitar: boolean) => {
-    if (!contestacaoParaAnalisar) return;
+    // Se estamos no modal de análise (contestacaoParaAnalisar existe), usar ele
+    // Senão, usar o feedback selecionado diretamente
+    const contestacao = contestacaoParaAnalisar || (selectedFeedback ? {
+      id: selectedFeedback.contestacaoId,
+      avaliacao_id: selectedFeedback.avaliacaoId,
+      criterio_nome: selectedFeedback.criterio
+    } : null);
+
+    if (!contestacao) return;
 
     try {
       const analise = {
         aceitar_contestacao: aceitar,
-        novo_resultado: aceitar ? novoResultado : undefined
+        novo_resultado: aceitar ? 'CONFORME' as const : undefined  // Sempre usar CONFORME quando aceitar
       };
 
-      await analisarContestacao(contestacaoParaAnalisar.id, analise);
+      console.log('Enviando análise:', { contestacaoId: contestacao.id, analise });
+
+      await analisarContestacao(Number(contestacao.id), analise);
       alert(`Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!`);
+      
+      // Fechar modais se estiverem abertos
       setShowAnaliseModal(false);
       setContestacaoParaAnalisar(null);
+      
+      // Atualizar feedback selecionado se estiver aberto
+      if (selectedFeedback && selectedFeedback.contestacaoId === contestacao.id) {
+        setSelectedFeedback(prev => prev ? {
+          ...prev,
+          contestacaoStatus: aceitar ? 'ACEITA' : 'REJEITADA'
+        } : null);
+      }
+      
       refetchFeedbacks();
     } catch (error: any) {
+      console.error('Erro ao analisar contestação:', error);
       alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
     }
   };
 
   const isMonitor = isAdmin; // Apenas administradores são considerados monitores
+  
+  // Debug: Log das permissões do usuário
+  console.log('Debug permissões:', {
+    user,
+    isAdmin,
+    isMonitor,
+    permissions: user?.permissions
+  });
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
@@ -1684,6 +1714,42 @@ const Feedback: React.FC = () => {
                           </button>
                         </>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Ações para Contestação - Só aparece para monitores quando há contestação pendente */}
+              {(() => {
+                console.log('Debug contestação:', {
+                  isMonitor,
+                  contestacaoId: selectedFeedback.contestacaoId,
+                  contestacaoStatus: selectedFeedback.contestacaoStatus,
+                  selectedFeedback: selectedFeedback
+                });
+                return isMonitor && selectedFeedback.contestacaoId && selectedFeedback.contestacaoStatus === 'PENDENTE';
+              })() && (
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="text-sm text-orange-700">
+                      <p className="font-medium">Analise a contestação do agente e tome uma decisão:</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => handleEnviarAnalise(true)}
+                        className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        Aceitar Contestação
+                      </button>
+                      <button
+                        onClick={() => handleEnviarAnalise(false)}
+                        className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
+                      >
+                        <XCircle className="h-5 w-5" />
+                        Rejeitar Contestação
+                      </button>
                     </div>
                   </div>
                 </div>
