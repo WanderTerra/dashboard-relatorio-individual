@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import type { Filters } from '../hooks/use-filters';
  
 //
@@ -662,7 +662,7 @@ export const getAgentNotifications = async (agentId: string) => {
   return response.json();
 };
 
-// API para marcar notificação como lida
+
 export const markNotificationAsRead = async (notificationId: string) => {
   const response = await fetch(`/api/notifications/${notificationId}/read`, {
     method: 'PUT',
@@ -670,3 +670,240 @@ export const markNotificationAsRead = async (notificationId: string) => {
   if (!response.ok) throw new Error('Erro ao marcar notificação como lida');
   return response.json();
 };
+
+export interface ContestacaoCreate {
+  feedback_id: number;
+  comentario_agente: string;
+}
+
+export interface ContestacaoOut {
+  id: number;
+  feedback_id: number;
+  avaliacao_id: number;
+  agent_id: string;
+  comentario_agente: string;
+  status: string;
+  criado_em: string;
+  analisado_por?: number;
+  analisado_em?: string;
+  feedback_comentario: string;
+  criterio_nome: string;
+  agent_name: string;
+}
+
+export interface ContestacaoAnalise {
+  aceitar_contestacao: boolean;
+  novo_resultado?: 'CONFORME' | 'NAO_CONFORME' | 'NAO_SE_APLICA';
+  observacao?: string;
+}
+
+export interface AvaliacaoFeedbackStatus {
+  avaliacao_id: number;
+  total_feedbacks: number;
+  feedbacks_aceitos: number;
+  feedbacks_pendentes: number;
+  feedbacks_contestados: number;
+  contestacoes_pendentes: number;
+}
+
+// Funções da API para contestação
+export const aceitarTodosFeedbacks = (avaliacaoId: number) =>
+  api.post(`/feedback/avaliacao/${avaliacaoId}/aceitar-todos`).then(r => r.data);
+
+export const contestarFeedback = (feedbackId: number, comentario: string) =>
+  api.post(`/feedback/${feedbackId}/contestar`, {
+    feedback_id: feedbackId,
+    comentario_agente: comentario
+  }).then(r => r.data);
+
+export const getContestacoesPendentes = (): Promise<ContestacaoOut[]> =>
+  api.get('/feedback/contestacoes/pendentes').then(r => r.data);
+
+export const analisarContestacao = (contestacaoId: number, analise: ContestacaoAnalise) =>
+  api.put(`/feedback/contestacao/${contestacaoId}/analisar`, analise).then(r => r.data);
+
+export const getAvaliacaoFeedbackStatus = (avaliacaoId: number): Promise<AvaliacaoFeedbackStatus> =>
+  api.get(`/feedback/avaliacao/${avaliacaoId}/status`).then(r => r.data);
+
+// Adicionar no final do arquivo api.ts
+
+// ✅ NOVA FUNÇÃO - Carregar feedbacks em lote (otimizada)
+export const getFeedbacksBatch = async (avaliacaoIds: string[]): Promise<Record<string, any[]>> => {
+  try {
+    // Fazer uma única requisição para o backend
+    const response = await api.post('/avaliacao/feedbacks/batch', {
+      avaliacao_ids: avaliacaoIds
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erro ao carregar feedbacks em lote:', error);
+    // Fallback: carregar individualmente se o endpoint não existir
+    const promises = avaliacaoIds.map(id => 
+      getFeedbacksByAvaliacao(id).then(data => ({ id, data }))
+    );
+    const results = await Promise.all(promises);
+    return results.reduce((acc, { id, data }) => {
+      acc[id] = data;
+      return acc;
+    }, {} as Record<string, any[]>);
+  }
+};
+
+// ✅ NOVA FUNÇÃO - Carregar feedbacks com paginação
+export const getFeedbacksPaginated = async (
+  avaliacaoIds: string[], 
+  page: number = 1, 
+  pageSize: number = 20
+): Promise<{ feedbacks: Record<string, any[]>; total: number; hasMore: boolean }> => {
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const pageIds = avaliacaoIds.slice(start, end);
+  
+  const feedbacks = await getFeedbacksBatch(pageIds);
+  
+  return {
+    feedbacks,
+    total: avaliacaoIds.length,
+    hasMore: end < avaliacaoIds.length
+  };
+};
+
+// ✅ NOVA FUNÇÃO - Carregar feedbacks com debounce
+export const getFeedbacksDebounced = (() => {
+  let timeoutId: NodeJS.Timeout;
+  
+  return (avaliacaoIds: string[], callback: (feedbacks: Record<string, any[]>) => void, delay: number = 300) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(async () => {
+      try {
+        const feedbacks = await getFeedbacksBatch(avaliacaoIds);
+        callback(feedbacks);
+      } catch (error) {
+        console.error('❌ Erro no debounce:', error);
+        callback({});
+      }
+    }, delay);
+  };
+})();
+
+// Função para atualizar a ordem dos critérios em uma carteira
+export const atualizarOrdemCriterios = (carteiraId: number, criteriosOrdem: Array<{ id: number; ordem: number }>) =>
+  api.put(`/carteira_criterios/carteira/${carteiraId}/ordem`, { criterios: criteriosOrdem }).then(r => r.data);
+
+// ==================== CONQUISTAS (ACHIEVEMENTS) ====================
+
+// Configurar conquistas padrão
+export const setupDefaultAchievements = async () => {
+  try {
+    const response = await api.post('/achievements/setup-defaults');
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao configurar conquistas padrão:', error);
+    throw error;
+  }
+};
+
+// Verificar conquistas automaticamente quando o agente acessar
+export const checkAgentAchievements = async (agentId: string) => {
+  try {
+    const response = await api.post(`/achievements/check/${agentId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao verificar conquistas:', error);
+    return { achievements_unlocked: [] };
+  }
+};
+
+// Buscar conquistas do agente
+export const getAgentAchievements = async (agentId: string) => {
+  try {
+    const response = await api.get(`/achievements/agent/${agentId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar conquistas:', error);
+    return [];
+  }
+};
+
+// Buscar ranking de conquistas
+export const getAchievementsLeaderboard = async () => {
+  try {
+    const response = await api.get('/achievements/leaderboard');
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar ranking de conquistas:', error);
+    return [];
+  }
+};
+
+// Desbloquear conquista manualmente
+export const unlockAchievement = async (agentId: string, achievementId: string) => {
+  try {
+    const response = await api.post(`/achievements/unlock/${agentId}`, {
+      achievement_id: achievementId
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao desbloquear conquista:', error);
+    throw error;
+  }
+};
+
+// Tipos para conquistas
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  xp_reward: number;
+  icon: string;
+  category: 'evaluation' | 'performance' | 'consistency' | 'milestone';
+  requirements: {
+    type: string;
+    value: number;
+    description: string;
+  };
+  unlocked_at?: string;
+  progress?: number;
+  is_unlocked: boolean;
+}
+
+export interface AgentAchievement {
+  agent_id: string;
+  agent_name: string;
+  total_xp: number;
+  achievements: Achievement[];
+  level: number;
+  rank: number;
+}
+
+export interface AchievementUnlocked {
+  achievement: Achievement;
+  xp_gained: number;
+  new_level: number;
+  message: string;
+}
+
+// Função para atualizar progresso do agente após conquistas
+export const updateAgentProgress = async (agentId: string, xpGained: number) => {
+  try {
+    const response = await api.post(`/gamification/agent/${agentId}/update-progress`, {
+      xp_gained: xpGained
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao atualizar progresso do agente:', error);
+    throw error;
+  }
+};
+
+// Função para sincronizar conquistas com progresso
+export const syncAchievementsWithProgress = async (agentId: string) => {
+  try {
+    const response = await api.post(`/gamification/agent/${agentId}/sync-achievements`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao sincronizar conquistas com progresso:', error);
+    throw error;
+  }
+};
+
