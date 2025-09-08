@@ -47,9 +47,9 @@ const Agents: React.FC = () => {
     enabled: true, // Sempre habilitado
   });
 
-  // Para cada agente, dispara uma query para obter o pior item (limitado a 10 para performance)
+  // Para cada agente, dispara uma query para obter o pior item
   const worstItemQueries = useQueries({
-    queries: agents?.slice(0, 10).map((agent: any) => ({
+    queries: agents?.map((agent: any) => ({
       queryKey: ['agent-worst-item', agent.agent_id, apiFilters],
       queryFn: () => getAgentWorstItem(agent.agent_id, apiFilters),
       enabled: !!agents,
@@ -240,9 +240,9 @@ const Agents: React.FC = () => {
                   const originalIndex = startIndex + idx;
                   const wi = worstItemQueries[originalIndex];
                   let piorLabel = '—';
-                  if (wi.isLoading) piorLabel = '…';
-                  else if (wi.isError) piorLabel = 'Erro';
-                  else if (wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
+                  if (wi && wi.isLoading) piorLabel = '…';
+                  else if (wi && wi.isError) piorLabel = 'Erro';
+                  else if (wi && wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
                     const data = wi.data as { categoria: string; taxa_nao_conforme: number };
                     piorLabel = `${formatItemName(data.categoria)} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
                   }
