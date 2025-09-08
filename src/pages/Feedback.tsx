@@ -1602,7 +1602,7 @@ const Feedback: React.FC = () => {
                       </button>
                     )}
                     
-                    {selectedFeedback.status === 'pendente' && (
+                    {!isMonitor && selectedFeedback.status === 'pendente' && (
                       <>
                         <button
                           onClick={() => handleAceitarFeedback(selectedFeedback)}
