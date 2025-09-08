@@ -64,6 +64,10 @@ interface FeedbackItem {
   comentario?: string;
   callId?: string;
   avaliacaoId?: string;
+  contestacaoId?: string;
+  contestacaoComentario?: string;
+  contestacaoStatus?: string;
+  contestacaoCriadoEm?: string;
 }
 
 const Feedback: React.FC = () => {
@@ -198,7 +202,11 @@ const Feedback: React.FC = () => {
           status: statusVisual,
           dataCriacao: fb.criado_em,
           origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
-          comentario: fb.comentario
+          comentario: fb.comentario,
+          contestacaoId: fb.contestacao_id,
+          contestacaoComentario: fb.contestacao_comentario,
+          contestacaoStatus: fb.contestacao_status,
+          contestacaoCriadoEm: fb.contestacao_criado_em
         };
       });
 
@@ -593,6 +601,18 @@ const Feedback: React.FC = () => {
       setShowContestacaoModal(false);
       setFeedbackParaContestar(null);
       setComentarioContestacao('');
+      
+      // Atualizar o feedback selecionado se estiver aberto
+      if (selectedFeedback && selectedFeedback.id === feedbackParaContestar.id) {
+        setSelectedFeedback(prev => prev ? {
+          ...prev,
+          contestacaoId: 'temp', // ID temporário até o refetch
+          contestacaoComentario: comentarioContestacao,
+          contestacaoStatus: 'PENDENTE',
+          contestacaoCriadoEm: new Date().toISOString()
+        } : null);
+      }
+      
       refetchFeedbacks();
     } catch (error: any) {
       alert(`Erro ao contestar feedback: ${error.response?.data?.detail || error.message}`);
@@ -1361,7 +1381,7 @@ const Feedback: React.FC = () => {
                                    </button>
                                    
                                    {/* Botões específicos para agentes */}
-                                   {!isAdmin && feedback.status === 'pendente' && (
+                                   {!isAdmin && feedback.status === 'pendente' && !feedback.contestacaoId && (
                                      <>
                                        <button
                                          onClick={() => handleAceitarFeedback(feedback)}
@@ -1378,6 +1398,17 @@ const Feedback: React.FC = () => {
                                          Contestar
                                        </button>
                                      </>
+                                   )}
+                                   
+                                   {/* Indicador de contestação */}
+                                   {feedback.contestacaoId && (
+                                     <div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 px-4 py-2 rounded-xl border border-orange-200">
+                                       <MessageCircle className="h-4 w-4" />
+                                       <span className="text-sm font-semibold">
+                                         Contestado ({feedback.contestacaoStatus === 'PENDENTE' ? 'Pendente' :
+                                                      feedback.contestacaoStatus === 'ACEITA' ? 'Aceito' : 'Rejeitado'})
+                                       </span>
+                                     </div>
                                    )}
                                  </div>
                                </div>
@@ -1514,6 +1545,38 @@ const Feedback: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Card de Contestação */}
+                  {selectedFeedback.contestacaoId && (
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-orange-100 rounded-xl">
+                          <MessageCircle className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <h4 className="text-lg font-bold text-orange-800">Contestação do Agente</h4>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          selectedFeedback.contestacaoStatus === 'PENDENTE' 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : selectedFeedback.contestacaoStatus === 'ACEITA'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {selectedFeedback.contestacaoStatus === 'PENDENTE' ? 'Pendente' :
+                           selectedFeedback.contestacaoStatus === 'ACEITA' ? 'Aceita' : 'Rejeitada'}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl p-4 border border-orange-200">
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line text-base">
+                          {selectedFeedback.contestacaoComentario}
+                        </p>
+                        {selectedFeedback.contestacaoCriadoEm && (
+                          <p className="text-sm text-gray-500 mt-3">
+                            Contestação enviada em: {new Date(selectedFeedback.contestacaoCriadoEm).toLocaleString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Coluna Direita - Metadados */}
@@ -1584,45 +1647,47 @@ const Feedback: React.FC = () => {
                 </div>
               </div>
 
-              {/* Ações */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium">Clique em uma das ações abaixo para prosseguir:</p>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-3">
-                    {isMonitor && (
-                      <button
-                        onClick={() => handleEditarFeedback(selectedFeedback)}
-                        className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
-                      >
-                        <Edit3 className="h-5 w-5" />
-                        Editar Feedback
-                      </button>
-                    )}
+              {/* Ações - Só aparece se houver ações disponíveis */}
+              {(isMonitor || (!isMonitor && selectedFeedback.status === 'pendente' && !selectedFeedback.contestacaoId)) && (
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium">Clique em uma das ações abaixo para prosseguir:</p>
+                    </div>
                     
-                    {!isMonitor && selectedFeedback.status === 'pendente' && (
-                      <>
+                    <div className="flex flex-wrap gap-3">
+                      {isMonitor && (
                         <button
-                          onClick={() => handleAceitarFeedback(selectedFeedback)}
-                          className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                          onClick={() => handleEditarFeedback(selectedFeedback)}
+                          className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
                         >
-                          <ThumbsUp className="h-5 w-5" />
-                          Aceitar
+                          <Edit3 className="h-5 w-5" />
+                          Editar Feedback
                         </button>
-                        <button
-                          onClick={() => handleRejeitarFeedback(selectedFeedback)}
-                          className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
-                        >
-                          <ThumbsDown className="h-5 w-5" />
-                          Rejeitar
-                        </button>
-                      </>
-                    )}
+                      )}
+                      
+                      {!isMonitor && selectedFeedback.status === 'pendente' && !selectedFeedback.contestacaoId && (
+                        <>
+                          <button
+                            onClick={() => handleAceitarFeedback(selectedFeedback)}
+                            className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                          >
+                            <ThumbsUp className="h-5 w-5" />
+                            Aceitar
+                          </button>
+                          <button
+                            onClick={() => handleRejeitarFeedback(selectedFeedback)}
+                            className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
+                          >
+                            <ThumbsDown className="h-5 w-5" />
+                            Rejeitar
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
