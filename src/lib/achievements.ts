@@ -1,4 +1,6 @@
 // Sistema de conquistas automáticas baseadas no desempenho
+import { getAgentAchievements, ACHIEVEMENT_CONFIGS } from './achievements-api';
+
 export interface AutomaticAchievement {
   id: string;
   name: string;
@@ -22,8 +24,54 @@ interface AgentData {
   summary: any;
 }
 
-// Conquistas automáticas baseadas em critérios reais
-export const getAutomaticAchievements = (agentData: AgentData): AutomaticAchievement[] => {
+// Função para obter conquistas reais do backend
+export const getRealAchievements = async (agentId: string): Promise<AutomaticAchievement[]> => {
+  try {
+    const achievements = await getAgentAchievements(agentId);
+    
+    return achievements.map(achievement => ({
+      id: achievement.id.toString(),
+      name: achievement.achievement_name,
+      description: achievement.description,
+      icon: getAchievementIcon(achievement.achievement_type),
+      category: getAchievementCategory(achievement.achievement_type),
+      xp_reward: achievement.xp_reward,
+      condition: () => true, // Já desbloqueada
+      is_unlocked: true,
+      unlocked_at: achievement.unlocked_at
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar conquistas reais:', error);
+    return [];
+  }
+};
+
+// Função para calcular conquistas automáticas baseadas na performance
+export const getAutomaticAchievements = async (agentId: string, agentData: AgentData): Promise<AutomaticAchievement[]> => {
+  try {
+    // Buscar conquistas já desbloqueadas do backend
+    const realAchievements = await getRealAchievements(agentId);
+    
+    // Calcular conquistas locais baseadas na performance atual
+    const localAchievements = getLocalAchievements(agentData);
+    
+    // Combinar as duas listas
+    const allAchievements = [...realAchievements, ...localAchievements];
+    
+    // Remover duplicatas baseado no ID
+    const uniqueAchievements = allAchievements.filter((achievement, index, self) => 
+      index === self.findIndex(a => a.id === achievement.id)
+    );
+    
+    return uniqueAchievements;
+  } catch (error) {
+    console.error('Erro ao calcular conquistas automáticas:', error);
+    return [];
+  }
+};
+
+// Função síncrona para calcular conquistas baseadas em dados locais (para compatibilidade)
+export const getLocalAchievements = (agentData: AgentData): AutomaticAchievement[] => {
   const achievements: AutomaticAchievement[] = [
     // Conquistas de Performance
     {
@@ -39,113 +87,41 @@ export const getAutomaticAchievements = (agentData: AgentData): AutomaticAchieve
       is_unlocked: false
     },
     {
-      id: 'excellent_performance',
-      name: 'Excelência em Performance',
-      description: 'Mantenha média acima de 90% por 5 ligações consecutivas',
+      id: 'high_performance',
+      name: 'Alta Performance',
+      description: 'Mantenha uma média acima de 90% por 5 ligações',
       icon: '⭐',
       category: 'performance',
       xp_reward: 100,
       condition: (data) => {
         if (!data.calls || data.calls.length < 5) return false;
         const last5Calls = data.calls.slice(-5);
-        const average = last5Calls.reduce((sum: number, call: any) => sum + (call.nota || 0), 0) / 5;
+        const average = last5Calls.reduce((sum: number, call: any) => sum + (call.nota || 0), 0) / last5Calls.length;
         return average >= 90;
       },
       is_unlocked: false
     },
     {
-      id: 'consistency_master',
-      name: 'Mestre da Consistência',
-      description: 'Mantenha média acima de 80% por 10 ligações consecutivas',
-      icon: '🏅',
+      id: 'consistency',
+      name: 'Consistência',
+      description: 'Mantenha uma média acima de 80% por 10 ligações',
+      icon: '📈',
       category: 'performance',
       xp_reward: 150,
       condition: (data) => {
         if (!data.calls || data.calls.length < 10) return false;
         const last10Calls = data.calls.slice(-10);
-        const average = last10Calls.reduce((sum: number, call: any) => sum + (call.nota || 0), 0) / 10;
+        const average = last10Calls.reduce((sum: number, call: any) => sum + (call.nota || 0), 0) / last10Calls.length;
         return average >= 80;
       },
       is_unlocked: false
     },
-
-    // Conquistas de Milestone
-    {
-      id: 'first_100_xp',
-      name: 'Primeiros Passos',
-      description: 'Alcance 100 XP total',
-      icon: '👶',
-      category: 'milestone',
-      xp_reward: 25,
-      condition: (data) => data.total_xp_earned >= 100,
-      is_unlocked: false
-    },
-    {
-      id: 'bronze_level',
-      name: 'Nível Bronze',
-      description: 'Alcance o nível Bronze',
-      icon: '🥉',
-      category: 'milestone',
-      xp_reward: 50,
-      condition: (data) => data.current_level >= 1,
-      is_unlocked: false
-    },
-    {
-      id: 'silver_level',
-      name: 'Nível Prata',
-      description: 'Alcance o nível Prata',
-      icon: '🥈',
-      category: 'milestone',
-      xp_reward: 100,
-      condition: (data) => data.current_level >= 2,
-      is_unlocked: false
-    },
-    {
-      id: 'gold_level',
-      name: 'Nível Ouro',
-      description: 'Alcance o nível Ouro',
-      icon: '🥇',
-      category: 'milestone',
-      xp_reward: 200,
-      condition: (data) => data.current_level >= 3,
-      is_unlocked: false
-    },
-    {
-      id: 'platinum_level',
-      name: 'Nível Platina',
-      description: 'Alcance o nível Platina',
-      icon: '💎',
-      category: 'milestone',
-      xp_reward: 500,
-      condition: (data) => data.current_level >= 4,
-      is_unlocked: false
-    },
-    {
-      id: 'diamond_level',
-      name: 'Nível Diamante',
-      description: 'Alcance o nível Diamante',
-      icon: '💎',
-      category: 'milestone',
-      xp_reward: 1000,
-      condition: (data) => data.current_level >= 5,
-      is_unlocked: false
-    },
-    {
-      id: 'legendary_level',
-      name: 'Nível Lendário',
-      description: 'Alcance o nível Secreto',
-      icon: '🕵️‍♂️',
-      category: 'milestone',
-      xp_reward: 2000,
-      condition: (data) => data.current_level >= 6,
-      is_unlocked: false
-    },
-
+    
     // Conquistas de Sequência
     {
       id: 'streak_3',
       name: 'Sequência de 3',
-      description: 'Mantenha 3 ligações consecutivas acima de 85%',
+      description: 'Realize 3 ligações consecutivas com nota acima de 85%',
       icon: '🔥',
       category: 'streak',
       xp_reward: 75,
@@ -159,7 +135,7 @@ export const getAutomaticAchievements = (agentData: AgentData): AutomaticAchieve
     {
       id: 'streak_5',
       name: 'Sequência de 5',
-      description: 'Mantenha 5 ligações consecutivas acima de 80%',
+      description: 'Realize 5 ligações consecutivas com nota acima de 80%',
       icon: '🔥',
       category: 'streak',
       xp_reward: 150,
@@ -170,54 +146,91 @@ export const getAutomaticAchievements = (agentData: AgentData): AutomaticAchieve
       },
       is_unlocked: false
     },
+    
+    // Conquistas de Marco
     {
-      id: 'streak_10',
-      name: 'Sequência de 10',
-      description: 'Mantenha 10 ligações consecutivas acima de 75%',
-      icon: '🔥',
-      category: 'streak',
-      xp_reward: 300,
+      id: 'first_call',
+      name: 'Primeira Ligação',
+      description: 'Complete sua primeira ligação',
+      icon: '🎉',
+      category: 'milestone',
+      xp_reward: 25,
       condition: (data) => {
-        if (!data.calls || data.calls.length < 10) return false;
-        const last10Calls = data.calls.slice(-10);
-        return last10Calls.every((call: any) => (call.nota || 0) >= 75);
+        return data.calls && data.calls.length >= 1;
       },
       is_unlocked: false
     },
-
+    {
+      id: 'calls_10',
+      name: 'Dedicação Inicial',
+      description: 'Complete 10 ligações',
+      icon: '📞',
+      category: 'milestone',
+      xp_reward: 50,
+      condition: (data) => {
+        return data.calls && data.calls.length >= 10;
+      },
+      is_unlocked: false
+    },
+    {
+      id: 'calls_50',
+      name: 'Dedicação',
+      description: 'Complete 50 ligações',
+      icon: '⭐',
+      category: 'milestone',
+      xp_reward: 100,
+      condition: (data) => {
+        return data.calls && data.calls.length >= 50;
+      },
+      is_unlocked: false
+    },
+    {
+      id: 'calls_100',
+      name: 'Veterano',
+      description: 'Complete 100 ligações',
+      icon: '🏆',
+      category: 'milestone',
+      xp_reward: 250,
+      condition: (data) => {
+        return data.calls && data.calls.length >= 100;
+      },
+      is_unlocked: false
+    },
+    
     // Conquistas Especiais
     {
-      id: 'improvement_master',
-      name: 'Mestre da Melhoria',
-      description: 'Melhore sua média em 20% comparado ao mês anterior',
-      icon: '📈',
+      id: 'perfect_week',
+      name: 'Semana Perfeita',
+      description: 'Realize 5 ligações em uma semana com média acima de 95%',
+      icon: '🌟',
       category: 'special',
       xp_reward: 200,
       condition: (data) => {
-        // Esta seria uma lógica mais complexa que precisaria de dados históricos
-        // Por enquanto, vamos simular baseado no total de XP
-        return data.total_xp_earned >= 500;
+        if (!data.calls || data.calls.length < 5) return false;
+        const lastWeek = data.calls.filter((call: any) => {
+          const callDate = new Date(call.data_ligacao || call.created_at);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return callDate >= weekAgo;
+        });
+        
+        if (lastWeek.length < 5) return false;
+        const average = lastWeek.reduce((sum: number, call: any) => sum + (call.nota || 0), 0) / lastWeek.length;
+        return average >= 95;
       },
       is_unlocked: false
     },
     {
-      id: 'dedication',
-      name: 'Dedicação',
-      description: 'Realize mais de 50 ligações',
-      icon: '💪',
+      id: 'improvement',
+      name: 'Melhoria Contínua',
+      description: 'Melhore sua média em 10% comparado ao mês anterior',
+      icon: '📊',
       category: 'special',
-      xp_reward: 100,
-      condition: (data) => (data.calls?.length || 0) >= 50,
-      is_unlocked: false
-    },
-    {
-      id: 'veteran',
-      name: 'Veterano',
-      description: 'Realize mais de 100 ligações',
-      icon: '🏆',
-      category: 'special',
-      xp_reward: 250,
-      condition: (data) => (data.calls?.length || 0) >= 100,
+      xp_reward: 300,
+      condition: (data) => {
+        // Esta seria uma lógica mais complexa que precisaria de dados históricos
+        return false; // Por enquanto, sempre false
+      },
       is_unlocked: false
     }
   ];
@@ -225,25 +238,43 @@ export const getAutomaticAchievements = (agentData: AgentData): AutomaticAchieve
   // Verificar quais conquistas foram desbloqueadas
   return achievements.map(achievement => ({
     ...achievement,
-    is_unlocked: achievement.condition(agentData),
-    unlocked_at: achievement.condition(agentData) ? new Date().toISOString() : undefined
+    is_unlocked: achievement.condition(agentData)
   }));
-};
-
-// Função para calcular XP total baseado nas conquistas desbloqueadas
-export const calculateTotalXpFromAchievements = (achievements: AutomaticAchievement[]): number => {
-  return achievements
-    .filter(achievement => achievement.is_unlocked)
-    .reduce((total, achievement) => total + achievement.xp_reward, 0);
 };
 
 // Função para obter conquistas por categoria
 export const getAchievementsByCategory = (achievements: AutomaticAchievement[]) => {
-  return achievements.reduce((acc, achievement) => {
-    if (!acc[achievement.category]) {
-      acc[achievement.category] = [];
-    }
-    acc[achievement.category].push(achievement);
-    return acc;
-  }, {} as Record<string, AutomaticAchievement[]>);
-}; 
+  const categories = {
+    performance: achievements.filter(a => a.category === 'performance'),
+    streak: achievements.filter(a => a.category === 'streak'),
+    milestone: achievements.filter(a => a.category === 'milestone'),
+    special: achievements.filter(a => a.category === 'special')
+  };
+  
+  return categories;
+};
+
+// Função auxiliar para obter ícone da conquista
+function getAchievementIcon(achievementType: string): string {
+  const config = ACHIEVEMENT_CONFIGS[achievementType as keyof typeof ACHIEVEMENT_CONFIGS];
+  return config?.icon || '🏆';
+}
+
+// Função auxiliar para obter categoria da conquista
+function getAchievementCategory(achievementType: string): 'performance' | 'streak' | 'milestone' | 'special' {
+  const categoryMap: Record<string, 'performance' | 'streak' | 'milestone' | 'special'> = {
+    'primeira_ligacao': 'milestone',
+    'dedicacao': 'milestone',
+    'veterano': 'milestone',
+    'perfeccionista': 'performance',
+    'consistencia': 'performance',
+    'excelencia': 'performance',
+    'primeira_semana': 'streak',
+    'maratonista': 'streak',
+    'jogador_equipe': 'special',
+    'mentor': 'special',
+    'campeao': 'special'
+  };
+  
+  return categoryMap[achievementType] || 'milestone';
+}

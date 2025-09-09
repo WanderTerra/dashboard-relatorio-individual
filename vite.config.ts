@@ -6,7 +6,7 @@ export default ({ mode }: { mode: string }) => {
   // carrega todas as variáveis VITE_… do .env
   const env = loadEnv(mode, process.cwd(), '');
   console.log('Configurando proxy para backend em: http://localhost:8000');
-  
+
   return defineConfig({
     plugins: [react()],
     resolve: {

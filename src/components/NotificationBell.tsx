@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Notification {
-  id: string;
-  type: 'feedback' | 'evaluation' | 'achievement';
-  title: string;
-  message: string;
-  date: string;
-  isRead: boolean;
-  isAccepted?: boolean;
-  feedbackId?: string;
-  callId?: string;
-  evaluationDate?: string;
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  getAgentNotifications, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead,
+  type Notification 
+} from '../lib/notifications-api';
 
 interface NotificationBellProps {
   agentId: string;
@@ -22,63 +16,117 @@ interface NotificationBellProps {
 const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
+  const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // ✅ Mock temporário de notificações
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'feedback',
-      title: 'Feedback da Ligação #6598',
-      message: 'Você tem um novo feedback para revisar sobre sua performance na ligação de hoje.',
-      date: new Date().toISOString(),
-      isRead: false,
-      callId: '6598',
-      evaluationDate: new Date().toISOString().split('T')[0]
+  // Buscar notificações do agente
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ['notifications', agentId],
+    queryFn: () => getAgentNotifications(agentId),
+    refetchInterval: 30000, // Refetch a cada 30 segundos
+    staleTime: 10000, // 10 segundos
+  });
+
+  // Sincronizar notificações locais com as da API
+  useEffect(() => {
+    console.log('🔄 Sincronizando notificações locais com API:', {
+      apiNotifications: notifications.length,
+      localNotifications: localNotifications.length
+    });
+    setLocalNotifications(notifications);
+  }, [notifications]);
+
+  // Mutação para marcar notificação como lida
+  const markAsReadMutation = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', agentId] });
     },
-    {
-      id: '2',
-      type: 'evaluation',
-      title: 'Avaliação Semanal',
-      message: 'Sua avaliação semanal está disponível para consulta.',
-      date: new Date(Date.now() - 86400000).toISOString(),
-      isRead: false,
-      evaluationDate: new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  });
+
+  // Mutação para marcar todas como lidas
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () => markAllNotificationsAsRead(agentId),
+    onSuccess: () => {
+      console.log('✅ API: Todas as notificações marcadas como lidas com sucesso');
+      // Invalidar query para sincronizar com o servidor
+      queryClient.invalidateQueries({ queryKey: ['notifications', agentId] });
     },
-    {
-      id: '3',
-      type: 'achievement',
-      title: 'Nova Conquista Desbloqueada!',
-      message: 'Parabéns! Você desbloqueou a conquista "Primeira Semana".',
-      date: new Date(Date.now() - 172800000).toISOString(),
-      isRead: true
+    onError: (error) => {
+      console.error('❌ Erro ao marcar todas as notificações como lidas:', error);
     }
-  ]);
+  });
 
-  // Contar notificações não lidas
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Usar notificações locais para renderização
+  const displayNotifications = localNotifications;
+  const unreadCount = displayNotifications.filter(n => !n.isRead).length;
+
+  // Debug: Log quando as notificações mudam
+  useEffect(() => {
+    console.log(' Estado das notificações:', {
+      notificationsFromAPI: notifications.length,
+      localNotifications: localNotifications.length,
+      displayNotifications: displayNotifications.length,
+      unreadCount,
+      isBlinking,
+      isLoading: markAllAsReadMutation.isPending
+    });
+  }, [notifications, localNotifications, displayNotifications, unreadCount, isBlinking, markAllAsReadMutation.isPending]);
 
   // Efeito de piscar quando há notificações não lidas
   useEffect(() => {
+    console.log('🔔 Verificando se deve piscar:', { unreadCount, isBlinking });
+    
     if (unreadCount > 0) {
+      console.log('🔴 Iniciando piscar do sino - notificações não lidas:', unreadCount);
       setIsBlinking(true);
-      const timer = setTimeout(() => setIsBlinking(false), 5000);
+      const timer = setTimeout(() => {
+        console.log('⏰ Parando piscar do sino (timeout)');
+        setIsBlinking(false);
+      }, 5000);
       return () => clearTimeout(timer);
+    } else {
+      console.log('✅ Parando piscar do sino - todas as notificações foram lidas');
+      setIsBlinking(false);
     }
   }, [unreadCount]);
 
   // Função para marcar notificação como lida
   const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, isRead: true } : n
-      )
-    );
+    markAsReadMutation.mutate(notificationId);
+  };
+
+  // Função para marcar todas como lidas
+  const markAllAsRead = () => {
+    console.log('🔔 Marcando todas as notificações como lidas...', {
+      agentId,
+      notificationsCount: notifications.length,
+      localNotificationsCount: localNotifications.length,
+      unreadCount
+    });
+    
+    // Atualizar estado local imediatamente (otimista)
+    setLocalNotifications(prev => {
+      const updated = prev.map(notification => ({ ...notification, isRead: true }));
+      console.log(' Estado local atualizado:', {
+        before: prev.length,
+        after: updated.length,
+        unreadBefore: prev.filter(n => !n.isRead).length,
+        unreadAfter: updated.filter(n => !n.isRead).length
+      });
+      return updated;
+    });
+    
+    // Chamar API
+    markAllAsReadMutation.mutate();
   };
 
   // Função para navegar para feedback específico
   const handleNotificationClick = (notification: Notification) => {
-    markAsRead(notification.id);
+    if (!notification.isRead) {
+      markAsRead(notification.id);
+    }
     
     if (notification.type === 'feedback' && notification.callId) {
       navigate(`/feedback?callId=${notification.callId}&date=${notification.evaluationDate}`);
@@ -114,22 +162,40 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notificações</h3>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    disabled={markAllAsReadMutation.isPending}
+                  >
+                    {markAllAsReadMutation.isPending ? 'Marcando...' : 'Marcar todas como lidas'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="p-4 text-center text-gray-500">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                </div>
+              </div>
+            ) : displayNotifications.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 Nenhuma notificação
               </div>
             ) : (
-              notifications.map((notification) => (
+              displayNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
