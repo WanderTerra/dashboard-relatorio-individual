@@ -15,15 +15,11 @@ const STORAGE_KEYS = {
   CARTEIRA: 'dashboard_carteira'
 } as const;
 
-// Função para calcular data padrão (6 meses atrás)
+// Função para calcular data padrão (sem filtro por padrão)
 const getDefaultDates = () => {
-  const today = new Date();
-  const sixMonthsAgo = new Date(today);
-  sixMonthsAgo.setMonth(today.getMonth() - 6);
-  
   return {
-    start: formatISO(sixMonthsAgo, { representation: 'date' }),
-    end: formatISO(today, { representation: 'date' })
+    start: '',  // Sem filtro de data por padrão
+    end: ''     // Sem filtro de data por padrão
   };
 };
 

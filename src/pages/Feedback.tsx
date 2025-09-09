@@ -112,10 +112,10 @@ const Feedback: React.FC = () => {
 
 
 
-  // Filtros para API - com fallback para datas padrão
+  // Filtros para API - sem filtro de data por padrão
   const apiFilters = {
-    start: filters.start || '2024-01-01',
-    end: filters.end || '2025-12-31',
+    start: filters.start || '',
+    end: filters.end || '',
     carteira: filters.carteira
   };
 
@@ -589,7 +589,7 @@ const Feedback: React.FC = () => {
     setShowContestacaoModal(true);
   };
 
-  const handleEnviarContestacao = async () => {
+  const siarContestacao = async () => {
     if (!feedbackParaContestar || !comentarioContestacao.trim()) {
       alert(tipoAcao === 'contestar' ? 'Por favor, escreva um comentário para a contestação.' : 'Por favor, escreva o motivo da rejeição.');
       return;
@@ -698,11 +698,6 @@ const Feedback: React.FC = () => {
     refetchAgents();
     refetchFeedbacks();
   };
-
-  // Efeito para aplicar filtros automaticamente
-  useEffect(() => {
-    applyFilters();
-  }, [filters.start, filters.end, filters.carteira, statusFilter, searchTerm]);
 
   // Função para buscar feedback geral de uma ligação
   const fetchFeedbackGeral = async (avaliacaoId: string) => {
@@ -1874,7 +1869,7 @@ const Feedback: React.FC = () => {
                   Cancelar
                 </button>
                 <button
-                  onClick={handleEnviarContestacao}
+                  onClick={siarContestacao}
                   className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
                 >
                   {tipoAcao === 'contestar' ? 'Enviar Contestação' : 'Enviar Rejeição'}
