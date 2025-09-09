@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { formatISO } from 'date-fns';
 
 export interface Filters {
-  start: string;    // ISO YYYY-MM-DD
-  end: string;      // ISO YYYY-MM-DD
+  start?: string;    // ISO YYYY-MM-DD (opcional)
+  end?: string;      // ISO YYYY-MM-DD (opcional)
   carteira?: string;
   activeOnly?: boolean; // Filtrar apenas agentes ativos
 }

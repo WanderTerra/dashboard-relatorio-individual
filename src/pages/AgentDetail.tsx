@@ -42,9 +42,8 @@ const setPersistedDate = (key: string, value: string) =>
   localStorage.setItem(key, value);
 
 function getDefaultStartDate() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 10);
+  // Remover filtro de data padrão para mostrar todas as avaliações
+  return '';
 }
 const today = new Date().toISOString().slice(0, 10);
 
@@ -60,12 +59,8 @@ const AgentDetail: React.FC = () => {
   const { filters } = useFilters();
 
   // Persistência do filtro de datas
-  const [startDate, setStartDate] = useState(() =>
-    getPersistedDate('agent_filter_start', getDefaultStartDate())
-  );
-  const [endDate, setEndDate] = useState(() =>
-    getPersistedDate('agent_filter_end', today)
-  );
+  const [startDate, setStartDate] = useState(() => '');
+  const [endDate, setEndDate] = useState(() => '');
 
   // ✅ Modificado: detectar aba da URL
   const urlParams = new URLSearchParams(location.search);
@@ -88,13 +83,44 @@ const AgentDetail: React.FC = () => {
     setPersistedDate('agent_filter_end', endDate);
   }, [endDate]);
 
-  // Use startDate e endDate nos filtros das queries
-  const apiFilters = { 
-    start: startDate, 
-    end: endDate, 
+  // Use startDate e endDate nos filtros das queries (apenas se não estiverem vazios)
+  const apiFilters: any = { 
+    ...(startDate ? { start: startDate } : {}),
+    ...(endDate ? { end: endDate } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
+
+  // Limpar filtros persistidos na primeira carga
+  React.useEffect(() => {
+    // Limpar filtros persistidos para mostrar todas as avaliações
+    localStorage.removeItem('agent_filter_start');
+    localStorage.removeItem('agent_filter_end');
+    setStartDate('');
+    setEndDate('');
+  }, []);
+
+  // Debug: verificar filtros aplicados
+  React.useEffect(() => {
+    console.log('DEBUG AgentDetail - Filtros aplicados:', {
+      startDate,
+      endDate,
+      apiFilters,
+      agentId
+    });
+  }, [startDate, endDate, apiFilters, agentId]);
   
+  // Buscar dados do agente do endpoint mixed/agents (sempre funciona)
+  const { data: agentFromMixed } = useQuery({
+    queryKey: ['mixed-agents-single', agentId],
+    queryFn: () => {
+      return fetch('/api/mixed/agents')
+        .then(res => res.json())
+        .then(agents => agents.find((a: any) => a.agent_id === agentId));
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
+
   // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ['agentSummary', agentId, apiFilters],
@@ -292,12 +318,23 @@ const AgentDetail: React.FC = () => {
     if (criteriaError) {
       console.error('Erro ao buscar critérios do agente:', criteriaError);
     }
-  }, [summaryError, callsError, criteriaError, summary, criteria, calls]);
+    
+    // Debug: verificar dados recebidos
+    console.log('DEBUG AgentDetail - Dados recebidos:', {
+      summary,
+      calls: calls?.length || 0,
+      criteria: criteria?.length || 0,
+      agentFromMixed,
+      callsRaw: calls,
+      criteriaRaw: criteria
+    });
+  }, [summaryError, callsError, criteriaError, summary, criteria, calls, agentFromMixed]);
+
 
   return (
     <div>
       <GamifiedAgentHeader 
-        agentName={summary ? formatAgentName(summary) : `Agente ${agentId}`}
+        agentName={summary ? formatAgentName(summary) : (agentFromMixed ? formatAgentName(agentFromMixed) : formatAgentName({ agent_id: agentId, nome: `Agente ${agentId}` }))}
         agentId={agentId}
       />
 
@@ -723,10 +760,10 @@ const AgentDetail: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-red-900">
-                          {formatItemName(worstItem.categoria)}
+                          {formatItemName((worstItem as any).categoria)}
                         </h3>
                         <p className="text-sm text-red-700">
-                          Taxa de não conformidade: <span className="font-bold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
+                          Taxa de não conformidade: <span className="font-bold">{((worstItem as any).taxa_nao_conforme * 100).toFixed(1)}%</span>
                         </p>
                       </div>
                     </div>

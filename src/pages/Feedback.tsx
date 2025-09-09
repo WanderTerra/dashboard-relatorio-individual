@@ -143,7 +143,12 @@ const Feedback: React.FC = () => {
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ['feedbacks-agents-mixed', apiFilters],
     queryFn: () => {
-      return fetch(`/api/mixed/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
+      const params = new URLSearchParams();
+      if (apiFilters.start) params.append('start', apiFilters.start);
+      if (apiFilters.end) params.append('end', apiFilters.end);
+      if (apiFilters.carteira) params.append('carteira', apiFilters.carteira);
+      
+      return fetch(`/api/mixed/agents?${params.toString()}`)
         .then(res => res.json())
         .catch(err => {
           throw err;

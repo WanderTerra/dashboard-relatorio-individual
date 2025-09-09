@@ -5,6 +5,7 @@ import path from 'path';
 export default ({ mode }: { mode: string }) => {
   // carrega todas as variáveis VITE_… do .env
   const env = loadEnv(mode, process.cwd(), '');
+  console.log('Configurando proxy para backend em: http://localhost:8000');
   
   return defineConfig({
     plugins: [react()],
@@ -25,13 +26,9 @@ export default ({ mode }: { mode: string }) => {
           target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
-          rewrite: path => path.replace(/^\/api/, ''),
+          // Removido o rewrite para manter /api no path
         },
-        '/auth': {
-          target: 'http://localhost:8000',
-          changeOrigin: true,
-          secure: false,
-        },
+        // '/auth' removido - agora é coberto pelo proxy '/api'
         '/admin': {
           target: 'http://localhost:8000',
           changeOrigin: true,

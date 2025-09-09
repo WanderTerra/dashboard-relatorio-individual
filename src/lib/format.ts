@@ -262,9 +262,10 @@ export function formatAgentName(agent: any): string {
     return agentIdNameMap[agentId];
   }
   
-  // Verificar se existe nome no formato esperado (pode estar em 'nome' ou 'name')
+  // Verificar se existe nome no formato esperado (pode estar em 'nome', 'name' ou 'nome_agente')
   if (agent.nome) return agent.nome;
   if (agent.name) return agent.name;
+  if (agent.nome_agente) return agent.nome_agente;
   
   // Se o nome não existe em nenhum formato conhecido, retorna um valor padrão com o ID
   return agentId ? `Agente ${agentId}` : "Agente sem nome";

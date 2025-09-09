@@ -1,10 +1,12 @@
 import axios from 'axios';
 import type { Filters } from '../hooks/use-filters';
- 
+
 //
-// baseURL vazio: tudo já vai no proxy do Vite em /api/…
+// Base URL da API
+// - Em desenvolvimento, usamos o proxy do Vite apontando para "/api"
+// - Em produção (ou quando não há proxy), permita configurar via VITE_API_BASE_URL
 //
-export const baseURL = '/api';
+export const baseURL = (import.meta as any)?.env?.VITE_API_BASE_URL || '/api';
 
 // Exporting the api instance to be used consistently across all files
 export const api = axios.create({
@@ -31,7 +33,7 @@ export const getKpis           = (f: Filters)        => api.get('/kpis',    { pa
 export const getTrend          = (f: Filters)        => api.get('/trend',   { params: f }).then(r => r.data);
 export const getAgents         = (f: Filters)        => api.get('/agents',  { params: f }).then(r => r.data);
 export const getMonthlyComparison = (f: Filters)     => api.get('/monthly-comparison', { params: f }).then(r => r.data);
-export const getAgentSummary   = (id: string, f: Filters) => api.get(`/agent/${id}/summary`, { params: f }).then(r => r.data);
+export const getAgentSummary   = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/summary`, { params: f }).then(r => r.data);
 export const getAgentCalls     = (id: string, f: Filters) => api.get(`/agent/${id}/calls`,   { params: f }).then(r => r.data);
 export const getCallItems      = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/items`).then(r => r.data);
 export const getTranscription  = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/transcription`).then(r => r.data);

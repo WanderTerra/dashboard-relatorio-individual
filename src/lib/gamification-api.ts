@@ -11,7 +11,7 @@ export interface GamificationData {
 
 export const getAgentGamification = async (agentId: string): Promise<GamificationData | null> => {
   try {
-    const response = await fetch(`/api/agents/${agentId}/gamification`);
+    const response = await fetch(`/api/gamification/agent/${agentId}`);
     
     if (!response.ok) {
       if (response.status === 404) {
