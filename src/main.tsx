@@ -5,14 +5,14 @@ import { Toaster } from 'sonner';
 
 import AppRouter from './AppRouter';
 import './index.css';
+import { queryClientConfig } from './lib/performance';
 
-const qc = new QueryClient();
+// Configuração otimizada do QueryClient para performance
+const qc = new QueryClient(queryClientConfig);
 
 createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={qc}>
-      <AppRouter />
-      <Toaster position="top-right" richColors />
-    </QueryClientProvider>
-  </React.StrictMode>,
+  <QueryClientProvider client={qc}>
+    <AppRouter />
+    <Toaster position="top-right" richColors />
+  </QueryClientProvider>,
 );

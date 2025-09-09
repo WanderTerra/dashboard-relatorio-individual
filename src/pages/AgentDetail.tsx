@@ -204,8 +204,7 @@ const AgentDetail: React.FC = () => {
     
     // Log para debug - verificar estrutura dos dados
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 Dados brutos dos critérios:', criteriaData.slice(0, 3));
-      console.log(' Campos disponíveis no primeiro critério:', Object.keys(criteriaData[0] || {}));
+      
     }
     
     // Primeiro, deduplicar os critérios
@@ -248,14 +247,7 @@ const AgentDetail: React.FC = () => {
     deduplicatedCriteria.forEach((item, index) => {
       const standardized = standardizeCriteria(item);
       
-      // Log detalhado para debug
-      if (process.env.NODE_ENV === 'development' && index < 3) {
-        console.log(` Critério ${index + 1}:`, {
-          rawData: item,
-          standardized: standardized,
-          extractedCategory: extractCategoryFromName(standardized.name)
-        });
-      }
+
       
       // Pular critérios que não se aplicam
       if (standardized.isNotApplicable) return;
@@ -290,15 +282,7 @@ const AgentDetail: React.FC = () => {
       .sort((a, b) => b.count - a.count) // Ordenar por número de critérios (mais importantes primeiro)
       .slice(0, 8); // Limitar a 8 categorias para o radar ficar legível
 
-    // Log para debug
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Dados formatados por categoria para radar:', {
-        original: criteriaData.length,
-        deduplicated: deduplicatedCriteria.length,
-        categories: formatted.length,
-        categoriesData: formatted.map(f => ({ category: f.subject, count: f.count, avg: f.value }))
-      });
-    }
+
 
     return formatted;
   };

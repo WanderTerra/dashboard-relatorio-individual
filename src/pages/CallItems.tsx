@@ -43,19 +43,60 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryFn : () => getMixedCallItems(avaliacaoId!),
   });
 
-  // // Buscar a estrutura da carteira baseada no avaliacaoId
-  // const { data: carteiraStructure } = useQuery({
-  //   queryKey: ['carteiraStructure', avaliacaoId],
-  //   queryFn: async () => {
-  //     // Buscar a estrutura da carteira para obter a ordem e categorização
-  //     const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
-  //     if (!response.ok) {
-  //       throw new Error('Erro ao buscar estrutura da carteira');
-  //     }
-  //     return response.json();
-  //   },
-  //   enabled: !!avaliacaoId
-  // });
+  // Buscar a estrutura da carteira baseada no avaliacaoId
+  const { data: carteiraStructure } = useQuery({
+    queryKey: ['carteiraStructure', avaliacaoId],
+    queryFn: async () => {
+      try {
+        // Tentar buscar a estrutura da carteira para obter a ordem e categorização
+        const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
+        if (!response.ok) {
+          // Se o endpoint não existir, retornar null para usar fallback
+          console.warn('Endpoint de estrutura de carteira não disponível, usando organização padrão');
+          return null;
+        }
+        return response.json();
+      } catch (error) {
+        console.warn('Erro ao buscar estrutura da carteira, usando organização padrão:', error);
+        return null;
+      }
+    },
+    enabled: !!avaliacaoId,
+    retry: false // Não tentar novamente se falhar
+  });
+
+  // Função para organizar itens baseado na estrutura da carteira
+  const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+    if (!carteiraStructure || !carteiraStructure.categories) {
+      // Fallback para organização padrão se não houver estrutura
+      return organizeItemsByCategory(items);
+    }
+
+    // Criar um mapa dos itens por ID do critério
+    const itemsById = items.reduce((acc, item) => {
+      acc[item.id] = item;
+      return acc;
+    }, {});
+
+    // Organizar baseado na estrutura da carteira
+    const organizedCategories = carteiraStructure.categories
+      .map(category => {
+        const categoryItems = category.criteria
+          .map(criteria => itemsById[criteria.id])
+          .filter(Boolean); // Remove itens não encontrados
+
+        return {
+          category: category.name,
+          items: categoryItems,
+          order: category.order || 0
+        };
+      })
+      .filter(category => category.items.length > 0) // Remove categorias vazias
+      .sort((a, b) => a.order - b.order);
+
+    return organizedCategories;
+  };
+
 
   // Buscar informações do agente para obter o nome
   const { data: agentInfo } = useQuery({
@@ -428,7 +469,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             </div>
           ) : (
             <div className="space-y-6">
-              {organizeItemsByCategory(data).map((categoryGroup: any) => (
+              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup) => (
                 <div key={categoryGroup.category} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   {/* Header da categoria */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -446,7 +487,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   {/* Itens da categoria */}
                   <div className="p-6">
                     <ul className="space-y-4">
-                     {categoryGroup.items.map((it: Item, idx: number) => (
+                      {categoryGroup.items.map((it, idx) => (
                         <li 
                           key={idx} 
                           className={`rounded-xl bg-gray-50 p-5 shadow-sm hover:shadow-md transition-all duration-300 ${

@@ -26,9 +26,15 @@ import {
   ThumbsDown,
   Phone,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  MessageCircle,
+  Shield,
+  AlertCircle,
+  CheckCheck,
+  XCircle,
+  Settings
 } from 'lucide-react';
-import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao } from '../lib/api';
+import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
@@ -58,6 +64,10 @@ interface FeedbackItem {
   comentario?: string;
   callId?: string;
   avaliacaoId?: string;
+  contestacaoId?: string;
+  contestacaoComentario?: string;
+  contestacaoStatus?: string;
+  contestacaoCriadoEm?: string;
 }
 
 const Feedback: React.FC = () => {
@@ -85,24 +95,27 @@ const Feedback: React.FC = () => {
   // Estado para feedbacks gerais das ligações
   const [feedbacksGerais, setFeedbacksGerais] = useState<{[callId: string]: any}>({});
 
+  // Estados para contestação
+  const [showContestacaoModal, setShowContestacaoModal] = useState(false);
+  const [feedbackParaContestar, setFeedbackParaContestar] = useState<FeedbackItem | null>(null);
+  const [comentarioContestacao, setComentarioContestacao] = useState('');
+  const [tipoAcao, setTipoAcao] = useState<'contestar' | 'rejeitar'>('contestar');
+  const [showAnaliseModal, setShowAnaliseModal] = useState(false);
+  const [contestacaoParaAnalisar, setContestacaoParaAnalisar] = useState<any>(null);
+  const [novoResultado, setNovoResultado] = useState<'CONFORME' | 'NAO_CONFORME' | 'NAO_SE_APLICA'>('CONFORME');
+
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
   const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
   const isAgentUser = currentAgentId && !isAdmin;
 
-  console.log('[DEBUG] Permissões do usuário:', {
-    userId: user?.id,
-    permissions: user?.permissions,
-    isAdmin,
-    currentAgentId,
-    isAgentUser
-  });
 
-  // Filtros para API - com fallback para datas padrão
+
+  // Filtros para API - sem filtro de data por padrão
   const apiFilters = {
-    start: filters.start || '2024-01-01',
-    end: filters.end || '2025-12-31',
+    start: filters.start || '',
+    end: filters.end || '',
     carteira: filters.carteira
   };
 
@@ -110,18 +123,9 @@ const Feedback: React.FC = () => {
   const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
     queryKey: ['feedbacks-with-scores', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /feedbacks/with-scores');
       return fetch('/api/feedbacks/with-scores')
-        .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /feedbacks/with-scores:', res.status, res.statusText);
-          return res.json();
-        })
-        .then(data => {
-          console.log('[DEBUG] Frontend: Dados recebidos:', data);
-          return data;
-        })
+        .then(res => res.json())
         .catch(err => {
-          console.error('[DEBUG] Frontend: Erro ao buscar feedbacks com pontuações:', err);
           throw err;
         });
     },
@@ -139,18 +143,9 @@ const Feedback: React.FC = () => {
   const { data: agents, isLoading: agentsLoading, error: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ['feedbacks-agents-mixed', apiFilters],
     queryFn: () => {
-      console.log('[DEBUG] Frontend: Chamando endpoint /mixed/agents');
       return fetch(`/api/mixed/agents?start=${apiFilters.start}&end=${apiFilters.end}${apiFilters.carteira ? `&carteira=${apiFilters.carteira}` : ''}`)
-        .then(res => {
-          console.log('[DEBUG] Frontend: Resposta do /mixed/agents:', res.status, res.statusText);
-          return res.json();
-        })
-        .then(data => {
-          console.log('[DEBUG] Frontend: Dados de agentes recebidos:', data);
-          return data;
-        })
+        .then(res => res.json())
         .catch(err => {
-          console.error('[DEBUG] Frontend: Erro ao buscar agentes:', err);
           throw err;
         });
     },
@@ -171,24 +166,18 @@ const Feedback: React.FC = () => {
 
   // Usar feedbacks reais se disponíveis, senão gerar baseado nos agentes
   const feedbackData = useMemo(() => {
-    console.log('[DEBUG] Frontend: Processando feedbackData com:', { feedbacks, agents, isAgentUser, currentAgentId });
-    
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
-      console.log('[DEBUG] Frontend: Usando feedbacks reais da tabela feedbacks');
       let filteredFeedbacks = feedbacks;
       
       // Se for um agente (não admin), filtrar apenas feedbacks do próprio agente
       if (isAgentUser && currentAgentId) {
-        console.log(`[DEBUG] Frontend: Filtrando feedbacks apenas para agente ${currentAgentId}`);
         filteredFeedbacks = feedbacks.filter((fb: any) => String(fb.agent_id) === String(currentAgentId));
-        console.log(`[DEBUG] Frontend: Feedbacks filtrados: ${filteredFeedbacks.length} de ${feedbacks.length} total`);
       }
       
       const mapped = filteredFeedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
         const performanceAtual = fb.performance_atual || 0;
-        console.log(`[DEBUG] Frontend: Pontuação recebida do backend para feedback ${fb.id}: ${performanceAtual}%`);
         
         // Normalizar nome do agente como na página Agents
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
@@ -213,7 +202,11 @@ const Feedback: React.FC = () => {
           status: statusVisual,
           dataCriacao: fb.criado_em,
           origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
-          comentario: fb.comentario
+          comentario: fb.comentario,
+          contestacaoId: fb.contestacao_id,
+          contestacaoComentario: fb.contestacao_comentario,
+          contestacaoStatus: fb.contestacao_status,
+          contestacaoCriadoEm: fb.contestacao_criado_em
         };
       });
 
@@ -240,15 +233,12 @@ const Feedback: React.FC = () => {
       );
     } else if (agents && agents.length > 0) {
       // Fallback: gerar feedbacks baseado nos agentes (lógica existente)
-      console.log('[DEBUG] Frontend: Usando fallback - gerando feedbacks baseado nos agentes');
       const feedback: FeedbackItem[] = [];
       
       // Filtrar agentes se for um agente comum
       let filteredAgents = agents;
       if (isAgentUser && currentAgentId) {
-        console.log(`[DEBUG] Frontend: Filtrando agentes apenas para agente ${currentAgentId}`);
         filteredAgents = agents.filter((agent: any) => String(agent.id) === String(currentAgentId));
-        console.log(`[DEBUG] Frontend: Agentes filtrados: ${filteredAgents.length} de ${agents.length} total`);
       }
       
       // Identificar agentes com notas baixas (performance < 70%)
@@ -325,22 +315,10 @@ const Feedback: React.FC = () => {
       return feedback;
     }
     
-    console.log('[DEBUG] Frontend: Nenhum dado disponível para feedbacks');
     return [];
   }, [feedbacks, agents, trend, isAgentUser, currentAgentId]);
 
-  // Debug dos dados
-  useEffect(() => {
-    console.log('[DEBUG] Frontend: Estado dos feedbacks:', {
-      feedbacks,
-      feedbacksLoading,
-      feedbacksError,
-      feedbacksParaExibir: feedbackData?.length || 0,
-      agents: agents?.length || 0,
-      agentsLoading,
-      agentsError
-    });
-  }, [feedbacks, feedbacksLoading, feedbacksError, feedbackData, agents, agentsLoading, agentsError]);
+
 
   // Filtrar feedback
   const filteredFeedback = useMemo(() => {
@@ -539,9 +517,11 @@ const Feedback: React.FC = () => {
   };
 
   const handleRejeitarFeedback = (feedback: FeedbackItem) => {
-    // Aqui você implementaria a lógica para rejeitar o feedback
-    console.log('Feedback rejeitado:', feedback.id);
-    alert('Feedback rejeitado. Será enviado para revisão.');
+    // Rejeitar = contestar (mesmo fluxo, mas com texto diferente)
+    setFeedbackParaContestar(feedback);
+    setComentarioContestacao('');
+    setTipoAcao('rejeitar');
+    setShowContestacaoModal(true);
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
@@ -588,44 +568,136 @@ const Feedback: React.FC = () => {
 
   const handleCriarFeedback = () => {
     // Aqui você implementaria a lógica para criar novo feedback
-    console.log('Criando novo feedback');
     alert('Funcionalidade de criação será implementada!');
   };
 
+  // Funções para contestação
+  const handleAceitarTodos = async (avaliacaoId: string) => {
+    try {
+      await aceitarTodosFeedbacks(Number(avaliacaoId));
+      alert('Todos os feedbacks foram aceitos com sucesso!');
+      refetchFeedbacks();
+    } catch (error: any) {
+      alert(`Erro ao aceitar feedbacks: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
+  const handleContestarFeedback = (feedback: FeedbackItem) => {
+    setFeedbackParaContestar(feedback);
+    setComentarioContestacao('');
+    setTipoAcao('contestar');
+    setShowContestacaoModal(true);
+  };
+
+  const siarContestacao = async () => {
+    if (!feedbackParaContestar || !comentarioContestacao.trim()) {
+      alert(tipoAcao === 'contestar' ? 'Por favor, escreva um comentário para a contestação.' : 'Por favor, escreva o motivo da rejeição.');
+      return;
+    }
+
+    try {
+      await contestarFeedback(Number(feedbackParaContestar.id), comentarioContestacao);
+      alert(tipoAcao === 'contestar' ? 'Contestação enviada com sucesso!' : 'Rejeição enviada com sucesso!');
+      setShowContestacaoModal(false);
+      setFeedbackParaContestar(null);
+      setComentarioContestacao('');
+      
+      // Atualizar o feedback selecionado se estiver aberto
+      if (selectedFeedback && selectedFeedback.id === feedbackParaContestar.id) {
+        setSelectedFeedback(prev => prev ? {
+          ...prev,
+          contestacaoId: 'temp', // ID temporário até o refetch
+          contestacaoComentario: comentarioContestacao,
+          contestacaoStatus: 'PENDENTE',
+          contestacaoCriadoEm: new Date().toISOString()
+        } : null);
+      }
+      
+      refetchFeedbacks();
+    } catch (error: any) {
+      alert(`Erro ao contestar feedback: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
+  const handleAnalisarContestacao = (contestacao: any) => {
+    setContestacaoParaAnalisar(contestacao);
+    setNovoResultado('CONFORME');
+    setShowAnaliseModal(true);
+  };
+
+  const handleEnviarAnalise = async (aceitar: boolean) => {
+    // Se estamos no modal de análise (contestacaoParaAnalisar existe), usar ele
+    // Senão, usar o feedback selecionado diretamente
+    const contestacao = contestacaoParaAnalisar || (selectedFeedback ? {
+      id: selectedFeedback.contestacaoId,
+      avaliacao_id: selectedFeedback.avaliacaoId,
+      criterio_nome: selectedFeedback.criterio
+    } : null);
+
+    if (!contestacao) return;
+
+    try {
+      const analise = {
+        aceitar_contestacao: aceitar,
+        novo_resultado: aceitar ? 'CONFORME' as const : undefined  // Sempre usar CONFORME quando aceitar
+      };
+
+      console.log('Enviando análise:', { contestacaoId: contestacao.id, analise });
+
+      await analisarContestacao(Number(contestacao.id), analise);
+      alert(`Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!`);
+      
+      // Fechar modais se estiverem abertos
+      setShowAnaliseModal(false);
+      setContestacaoParaAnalisar(null);
+      
+      // Atualizar feedback selecionado se estiver aberto
+      if (selectedFeedback && selectedFeedback.contestacaoId === contestacao.id) {
+        setSelectedFeedback(prev => prev ? {
+          ...prev,
+          contestacaoStatus: aceitar ? 'ACEITA' : 'REJEITADA'
+        } : null);
+      }
+      
+      refetchFeedbacks();
+    } catch (error: any) {
+      console.error('Erro ao analisar contestação:', error);
+      alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   const isMonitor = isAdmin; // Apenas administradores são considerados monitores
+  
+  // Debug: Log das permissões do usuário
+  console.log('Debug permissões:', {
+    user,
+    isAdmin,
+    isMonitor,
+    permissions: user?.permissions
+  });
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
-    console.log('[DEBUG] Frontend: Status filter mudou para:', newStatus);
     setStatusFilter(newStatus as any);
   };
 
   // Filtros de busca
   const handleSearchChange = (searchTerm: string) => {
-    console.log('[DEBUG] Frontend: Search filter mudou para:', searchTerm);
     setSearchTerm(searchTerm);
   };
 
   // Filtros de data
   const handleDateChange = (startDate: string, endDate: string) => {
-    console.log('[DEBUG] Frontend: Date filter mudou para:', startDate, 'até', endDate);
     setStartDate(startDate);
     setEndDate(endDate);
   };
 
   // Aplicar filtros
   const applyFilters = () => {
-    console.log('[DEBUG] Frontend: Aplicando filtros:', { filters, statusFilter, searchTerm });
     // Forçar refetch dos dados com novos filtros
     refetchAgents();
     refetchFeedbacks();
   };
-
-  // Efeito para aplicar filtros automaticamente
-  useEffect(() => {
-    console.log('[DEBUG] Frontend: Filtros mudaram, aplicando automaticamente:', { filters, statusFilter, searchTerm });
-    applyFilters();
-  }, [filters.start, filters.end, filters.carteira, statusFilter, searchTerm]);
 
   // Função para buscar feedback geral de uma ligação
   const fetchFeedbackGeral = async (avaliacaoId: string) => {
@@ -635,19 +707,15 @@ const Feedback: React.FC = () => {
       const callIdReal = feedbacksAvaliacao[0]?.call_id; // Pegar o call_id real do backend
       
       if (!callIdReal) {
-        console.log(`[DEBUG] Não foi possível encontrar call_id real para avaliação ${avaliacaoId}`);
         return;
       }
       
-      console.log(`[DEBUG] Buscando feedback geral para avaliação ${avaliacaoId} (call_id: ${callIdReal})`);
       const feedbackGeral = await getFeedbackGeralLigacao(callIdReal);
       setFeedbacksGerais(prev => ({
         ...prev,
         [avaliacaoId]: feedbackGeral
       }));
-      console.log(`[DEBUG] Feedback geral recebido para avaliação ${avaliacaoId}:`, feedbackGeral);
     } catch (error: any) {
-      console.error(`[DEBUG] Erro ao buscar feedback geral para avaliação ${avaliacaoId}:`, error);
       // Se erro 403 (sem permissão), não mostrar erro - apenas não exibir o feedback
       if (error?.response?.status !== 403) {
         setFeedbacksGerais(prev => ({
@@ -1260,14 +1328,27 @@ const Feedback: React.FC = () => {
                          )}
                          
                          {/* Cabeçalho dos Critérios */}
-                         <div className="flex items-center gap-4 mb-6">
-                           <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
-                           <h5 className="text-xl font-bold text-gray-800">
-                             Critérios Analisados
-                           </h5>
-                           <span className="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full border border-blue-200">
-                             {ligacao.totalFeedbacks} critérios
-                           </span>
+                         <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-4">
+                             <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+                             <h5 className="text-xl font-bold text-gray-800">
+                               Critérios Analisados
+                             </h5>
+                             <span className="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full border border-blue-200">
+                               {ligacao.totalFeedbacks} critérios
+                             </span>
+                           </div>
+                           
+                           {/* Botão Aceitar Todos para agentes */}
+                           {!isAdmin && ligacao.feedbacksPendentes > 0 && (
+                             <button
+                               onClick={() => handleAceitarTodos(ligacao.callId)}
+                               className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                             >
+                               <CheckCheck className="h-4 w-4" />
+                               Aceitar Todos
+                             </button>
+                           )}
                          </div>
                          
                          {/* Grid de Critérios */}
@@ -1314,15 +1395,46 @@ const Feedback: React.FC = () => {
                                    </div>
                                  </div>
 
-                                 {/* Botão de Ação */}
+                                 {/* Botões de Ação */}
                                  <div className="flex items-center gap-3">
                                    <button
                                      onClick={() => handleVerDetalhes(feedback)}
-                                     className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-2xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
+                                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
                                    >
-                                     <Eye className="h-5 w-5" />
-                                     Ver Detalhes
+                                     <Eye className="h-4 w-4" />
+                                     Ver
                                    </button>
+                                   
+                                   {/* Botões específicos para agentes */}
+                                   {!isAdmin && feedback.status === 'pendente' && !feedback.contestacaoId && (
+                                     <>
+                                       <button
+                                         onClick={() => handleAceitarFeedback(feedback)}
+                                         className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                                       >
+                                         <CheckCircle className="h-4 w-4" />
+                                         Aceitar
+                                       </button>
+                                       <button
+                                         onClick={() => handleContestarFeedback(feedback)}
+                                         className="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                                       >
+                                         <MessageCircle className="h-4 w-4" />
+                                         Contestar
+                                       </button>
+                                     </>
+                                   )}
+                                   
+                                   {/* Indicador de contestação */}
+                                   {feedback.contestacaoId && (
+                                     <div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 px-4 py-2 rounded-xl border border-orange-200">
+                                       <MessageCircle className="h-4 w-4" />
+                                       <span className="text-sm font-semibold">
+                                         Contestado ({feedback.contestacaoStatus === 'PENDENTE' ? 'Pendente' :
+                                                      feedback.contestacaoStatus === 'ACEITA' ? 'Aceito' : 'Rejeitado'})
+                                       </span>
+                                     </div>
+                                   )}
                                  </div>
                                </div>
                              </div>
@@ -1458,6 +1570,38 @@ const Feedback: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Card de Contestação */}
+                  {selectedFeedback.contestacaoId && (
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-orange-100 rounded-xl">
+                          <MessageCircle className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <h4 className="text-lg font-bold text-orange-800">Contestação do Agente</h4>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          selectedFeedback.contestacaoStatus === 'PENDENTE' 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : selectedFeedback.contestacaoStatus === 'ACEITA'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {selectedFeedback.contestacaoStatus === 'PENDENTE' ? 'Pendente' :
+                           selectedFeedback.contestacaoStatus === 'ACEITA' ? 'Aceita' : 'Rejeitada'}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-xl p-4 border border-orange-200">
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line text-base">
+                          {selectedFeedback.contestacaoComentario}
+                        </p>
+                        {selectedFeedback.contestacaoCriadoEm && (
+                          <p className="text-sm text-gray-500 mt-3">
+                            Contestação enviada em: {new Date(selectedFeedback.contestacaoCriadoEm).toLocaleString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Coluna Direita - Metadados */}
@@ -1528,45 +1672,83 @@ const Feedback: React.FC = () => {
                 </div>
               </div>
 
-              {/* Ações */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium">Clique em uma das ações abaixo para prosseguir:</p>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-3">
-                    {isMonitor && (
-                      <button
-                        onClick={() => handleEditarFeedback(selectedFeedback)}
-                        className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
-                      >
-                        <Edit3 className="h-5 w-5" />
-                        Editar Feedback
-                      </button>
-                    )}
+              {/* Ações - Só aparece se houver ações disponíveis */}
+              {(isMonitor || (!isMonitor && selectedFeedback.status === 'pendente' && !selectedFeedback.contestacaoId)) && (
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium">Clique em uma das ações abaixo para prosseguir:</p>
+                    </div>
                     
-                    {selectedFeedback.status === 'pendente' && (
-                      <>
+                    <div className="flex flex-wrap gap-3">
+                      {isMonitor && (
                         <button
-                          onClick={() => handleAceitarFeedback(selectedFeedback)}
-                          className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                          onClick={() => handleEditarFeedback(selectedFeedback)}
+                          className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
                         >
-                          <ThumbsUp className="h-5 w-5" />
-                          Aceitar
+                          <Edit3 className="h-5 w-5" />
+                          Editar Feedback
                         </button>
-                        <button
-                          onClick={() => handleRejeitarFeedback(selectedFeedback)}
-                          className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
-                        >
-                          <ThumbsDown className="h-5 w-5" />
-                          Rejeitar
-                        </button>
-                      </>
-                    )}
+                      )}
+                      
+                      {!isMonitor && selectedFeedback.status === 'pendente' && !selectedFeedback.contestacaoId && (
+                        <>
+                          <button
+                            onClick={() => handleAceitarFeedback(selectedFeedback)}
+                            className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                          >
+                            <ThumbsUp className="h-5 w-5" />
+                            Aceitar
+                          </button>
+                          <button
+                            onClick={() => handleRejeitarFeedback(selectedFeedback)}
+                            className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
+                          >
+                            <ThumbsDown className="h-5 w-5" />
+                            Rejeitar
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Ações para Contestação - Só aparece para monitores quando há contestação pendente */}
+              {(() => {
+                console.log('Debug contestação:', {
+                  isMonitor,
+                  contestacaoId: selectedFeedback.contestacaoId,
+                  contestacaoStatus: selectedFeedback.contestacaoStatus,
+                  selectedFeedback: selectedFeedback
+                });
+                return isMonitor && selectedFeedback.contestacaoId && selectedFeedback.contestacaoStatus === 'PENDENTE';
+              })() && (
+                <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="text-sm text-orange-700">
+                      <p className="font-medium">Analise a contestação do agente e tome uma decisão:</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => handleEnviarAnalise(true)}
+                        className="flex items-center gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-green-500"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        Aceitar Contestação
+                      </button>
+                      <button
+                        onClick={() => handleEnviarAnalise(false)}
+                        className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-red-500"
+                      >
+                        <XCircle className="h-5 w-5" />
+                        Rejeitar Contestação
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1622,6 +1804,171 @@ const Feedback: React.FC = () => {
                 >
                   <Edit3 className="h-4 w-4" />
                   Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Contestação */}
+      {showContestacaoModal && feedbackParaContestar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
+            <div className="bg-gradient-to-r from-orange-600 to-red-700 px-8 py-6 text-white rounded-t-3xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                    <MessageCircle className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">
+                      {tipoAcao === 'contestar' ? 'Contestar Feedback' : 'Rejeitar Feedback'}
+                    </h3>
+                    <p className="text-orange-100 text-lg">{feedbackParaContestar.criterio}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowContestacaoModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="mb-6">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">Feedback Original:</h4>
+                <div className="bg-gray-50 rounded-xl p-4 border">
+                  <p className="text-gray-700 leading-relaxed">{feedbackParaContestar.observacao}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-lg font-bold text-gray-800 mb-3">
+                  {tipoAcao === 'contestar' ? 'Sua Contestação:' : 'Motivo da Rejeição:'}
+                </label>
+                <textarea
+                  value={comentarioContestacao}
+                  onChange={(e) => setComentarioContestacao(e.target.value)}
+                  rows={6}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
+                  placeholder={tipoAcao === 'contestar' 
+                    ? "Explique por que você não concorda com este feedback..."
+                    : "Explique por que você está rejeitando este feedback..."
+                  }
+                />
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowContestacaoModal(false)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={siarContestacao}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                >
+                  {tipoAcao === 'contestar' ? 'Enviar Contestação' : 'Enviar Rejeição'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Análise de Contestação (para admins) */}
+      {showAnaliseModal && contestacaoParaAnalisar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-6 text-white rounded-t-3xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                    <Shield className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Analisar Contestação</h3>
+                    <p className="text-purple-100 text-lg">{contestacaoParaAnalisar.criterio_nome}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAnaliseModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-3">Feedback Original:</h4>
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.feedback_comentario}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-3">Contestação do Agente:</h4>
+                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.comentario_agente}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">Decisão:</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      id="aceitar"
+                      name="decisao"
+                      checked={true}
+                      className="w-4 h-4 text-green-600"
+                    />
+                    <label htmlFor="aceitar" className="text-gray-700 font-medium">
+                      Aceitar contestação e alterar resultado
+                    </label>
+                  </div>
+                  <div className="ml-7">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Novo resultado:
+                    </label>
+                    <select
+                      value={novoResultado}
+                      onChange={(e) => setNovoResultado(e.target.value as any)}
+                      className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="CONFORME">CONFORME</option>
+                      <option value="NAO_SE_APLICA">NÃO SE APLICA</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowAnaliseModal(false)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleEnviarAnalise(false)}
+                  className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                >
+                  Rejeitar Contestação
+                </button>
+                <button
+                  onClick={() => handleEnviarAnalise(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                >
+                  Aceitar Contestação
                 </button>
               </div>
             </div>

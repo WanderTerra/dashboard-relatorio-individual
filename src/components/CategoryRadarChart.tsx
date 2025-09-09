@@ -37,10 +37,8 @@ export const CategoryRadarChart: React.FC<CategoryRadarChartProps> = ({
       try {
         setLoadingCategories(true);
         const categoriesData = await getCriteriosCategorias();
-        console.log('✅ Categorias carregadas:', categoriesData);
         setCategories(categoriesData);
       } catch (err) {
-        console.error('❌ Erro ao buscar categorias:', err);
         // Fallback: extrair categorias dos dados existentes
         if (data && data.length > 0) {
           const uniqueCategories = new Set<string>();

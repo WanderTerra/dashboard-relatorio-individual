@@ -13,9 +13,10 @@ import {
   type DownloadJob 
 } from '../lib/api';
 import { getAllCarteiras } from '../lib/api';
-import { toast } from '../hooks/use-toast';
+import { useToast } from '../hooks/use-toast';
 
 const Downloads: React.FC = () => {
+  const { toast } = useToast();
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [carteiras, setCarteiras] = useState<Array<{id: number, nome: string}>>([]);
   const [loading, setLoading] = useState(false);

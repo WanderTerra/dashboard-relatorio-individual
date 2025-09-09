@@ -114,7 +114,6 @@ export const isAuthenticated = (): boolean => {
 // Set up axios interceptor to add token to requests
 api.interceptors.request.use(
   (config) => {
-    console.log('🌐 Requisição:', config.method?.toUpperCase(), config.url);
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -122,7 +121,6 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Erro na requisição:', error);
     return Promise.reject(error);
   }
 );
@@ -143,15 +141,10 @@ api.interceptors.response.use(
 
 // Authentication API functions
 export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  console.log('🔐 Iniciando login...', { username: credentials.username });
-  
   // OAuth2 password flow requires form data
   const formData = new URLSearchParams();
   formData.append('username', credentials.username);
   formData.append('password', credentials.password);
-  
-  console.log('📝 Form data criado, enviando requisição...');
-  console.log('🌐 URL completa:', `${api.defaults.baseURL}/auth/token`);
   
   try {
     const response = await api.post('/auth/token', formData, {
@@ -161,18 +154,14 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
       timeout: 10000, // 10 seconds timeout
     });
     
-    console.log('✅ Resposta recebida:', response.status);
     const data = response.data;
-    console.log('👤 Dados do usuário:', data.user);
     
     // Store token and user info
     setAuthToken(data.access_token);
     localStorage.setItem('user_info', JSON.stringify(data.user));
     
-    console.log('💾 Token armazenado com sucesso');
     return data;
   } catch (error) {
-    console.error('❌ Erro no login:', error);
     throw error;
   }
 };
