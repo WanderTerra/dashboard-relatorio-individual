@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Calendar, FileText, MessageSquare, ChevronLeft, ChevronRight, Search, CheckCircle, XCircle } from 'lucide-react';
 import { formatItemName } from '../lib/format';
 import { getFeedbacksByAvaliacao } from '../lib/api';
+import { useFeedbacks } from '../hooks/useFeedbacks';
 import type { UserInfo } from '../lib/api';
 
 export interface CallRow {
@@ -20,7 +21,6 @@ interface CallListProps {
 
 const CallList: React.FC<CallListProps> = ({ calls, user }) => {
   const { agentId } = useParams<{ agentId: string }>();
-  const [feedbackStatus, setFeedbackStatus] = React.useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = React.useState(false);
   const [selectedAvaliacao, setSelectedAvaliacao] = React.useState<string | null>(null);
   
@@ -33,6 +33,23 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
 
   // Permissão: admin ou monitor
   const isMonitor = user && (user.permissions?.includes('admin') || user.permissions?.includes('monitor'));
+
+  // ✅ NOVA IMPLEMENTAÇÃO - Usar o hook otimizado
+  const {
+    feedbacks,
+    loading: feedbacksLoading,
+    error: feedbacksError,
+    currentPage: feedbacksPage,
+    paginationData: feedbacksPagination,
+    nextPage: nextFeedbacksPage,
+    prevPage: prevFeedbacksPage,
+    goToPage: goToFeedbacksPage,
+    refresh: refreshFeedbacks
+  } = useFeedbacks({
+    avaliacaoIds: calls.map(c => c.avaliacao_id),
+    pageSize: 20,
+    enablePagination: true
+  });
 
   // Filtrar e paginar chamadas
   const filteredCalls = React.useMemo(() => {
@@ -81,33 +98,19 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, scoreFilter]);
 
-  React.useEffect(() => {
-    async function fetchFeedbacks() {
-      const statusMap: Record<string, string> = {};
-      await Promise.all(
-        calls.map(async (c) => {
-          try {
-            const feedbacks = await getFeedbacksByAvaliacao(c.avaliacao_id);
-            if (feedbacks && feedbacks.length > 0) {
-              // Pega o feedback mais recente
-              const latest = feedbacks[0];
-              statusMap[c.avaliacao_id] = latest.status || 'Enviado';
-            } else {
-              statusMap[c.avaliacao_id] = 'Sem feedback';
-            }
-          } catch (e) {
-            statusMap[c.avaliacao_id] = 'Erro';
-          }
-        })
-      );
-      setFeedbackStatus(statusMap);
+  // ✅ FUNÇÃO OTIMIZADA - Obter status do feedback
+  const getFeedbackStatus = (avaliacaoId: string): string => {
+    const avaliacaoFeedbacks = feedbacks[avaliacaoId] || [];
+    if (avaliacaoFeedbacks.length === 0) {
+      return 'Sem feedback';
     }
-    if (calls.length > 0) fetchFeedbacks();
-  }, [calls]);
+    // Pega o feedback mais recente
+    const latest = avaliacaoFeedbacks[0];
+    return latest.status || 'Enviado';
+  };
 
   // Modal de feedback (simples)
   const [comentario, setComentario] = React.useState('');
-  // Status fixo: ENVIADO
   const [enviando, setEnviando] = React.useState(false);
   const [erro, setErro] = React.useState<string | null>(null);
   const [sucesso, setSucesso] = React.useState(false);
@@ -138,8 +141,8 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
       setSucesso(true);
       setComentario('');
       setModalOpen(false);
-      // Atualizar status do feedback na tabela
-      setFeedbackStatus(prev => ({ ...prev, [selectedAvaliacao]: 'ENVIADO' }));
+      // Atualizar feedbacks
+      refreshFeedbacks();
     } catch (e: any) {
       setErro(e.message || 'Erro desconhecido');
     } finally {
@@ -155,6 +158,24 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Lista de Chamadas</h3>
             <p className="text-sm text-gray-600 mt-1">Gerencie e visualize as chamadas do agente</p>
+            {/* ✅ NOVO - Status dos feedbacks */}
+            {feedbacksLoading && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                <span className="text-sm text-blue-600">Carregando feedbacks...</span>
+              </div>
+            )}
+            {feedbacksError && (
+              <div className="text-sm text-red-600 mt-2">
+                Erro ao carregar feedbacks: {feedbacksError}
+                <button 
+                  onClick={refreshFeedbacks}
+                  className="ml-2 text-blue-600 underline hover:text-blue-800"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="relative w-80">
@@ -334,7 +355,8 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {feedbackStatus[c.avaliacao_id] || '...'}
+                  {/* ✅ NOVA IMPLEMENTAÇÃO - Usar função otimizada */}
+                  {getFeedbackStatus(c.avaliacao_id)}
                 </td>
               </tr>
             ))}
@@ -429,4 +451,3 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
 }
 
 export default CallList;
-

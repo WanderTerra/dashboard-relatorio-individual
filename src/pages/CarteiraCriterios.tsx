@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { api, clonarCriterioParaCarteira } from "../lib/api";
-import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2 } from "lucide-react";
+import { api, clonarCriterioParaCarteira, atualizarOrdemCriterios } from "../lib/api";
+import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2, ArrowUpDown, Check, X } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useToast } from "../hooks/use-toast";
 
@@ -94,6 +94,12 @@ const CarteiraCriterios: React.FC = () => {
     }>;
   } | null>(null);
 
+  // Adicionar novos estados para melhorar o drag and drop
+  const [dragOverCriterio, setDragOverCriterio] = useState<number | null>(null);
+  const [dragOverCategoria, setDragOverCategoria] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPreview, setDragPreview] = useState<{ id: number; nome: string; categoria: string } | null>(null);
+
   // Categorias serão carregadas dinamicamente do banco de dados
 
   // Estados dos formulários
@@ -162,17 +168,56 @@ const CarteiraCriterios: React.FC = () => {
 
   // Funções para drag & drop dos critérios
   const handleCriterioDragStart = (e: React.DragEvent, criterioId: number, categoria: string) => {
+    const criterio = criterios.find(c => c.id === criterioId);
     setDraggedCriterio({ id: criterioId, categoria });
+    setDragPreview({ id: criterioId, nome: criterio?.nome || '', categoria });
+    setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
+    
+    // Criar uma imagem personalizada para o drag preview
+    const dragImage = e.currentTarget.cloneNode(true) as HTMLElement;
+    dragImage.style.transform = 'rotate(5deg)';
+    dragImage.style.opacity = '0.8';
+    dragImage.style.border = '2px solid #3b82f6';
+    dragImage.style.borderRadius = '8px';
+    dragImage.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
   };
 
-  const handleCriterioDragOver = (e: React.DragEvent) => {
+  const handleCriterioDragOver = (e: React.DragEvent, criterioId?: number, categoria?: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    
+    if (criterioId) {
+      setDragOverCriterio(criterioId);
+    }
+    if (categoria) {
+      setDragOverCategoria(categoria);
+    }
   };
 
-  const handleCriterioDrop = (e: React.DragEvent, targetCriterioId: number, categoria: string) => {
+  const handleCriterioDragLeave = (e: React.DragEvent) => {
+    // Só limpar se realmente saiu do elemento
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverCriterio(null);
+      setDragOverCategoria(null);
+    }
+  };
+
+  const handleCriterioDragEnd = () => {
+    setDraggedCriterio(null);
+    setDragOverCriterio(null);
+    setDragOverCategoria(null);
+    setIsDragging(false);
+    setDragPreview(null);
+  };
+
+  const handleCriterioDrop = async (e: React.DragEvent, targetCriterioId: number, categoria: string) => {
     e.preventDefault();
+    setDragOverCriterio(null);
+    setDragOverCategoria(null);
     
     if (draggedCriterio && draggedCriterio.id !== targetCriterioId && draggedCriterio.categoria === categoria) {
       const currentOrder = criterioOrder.get(categoria) || [];
@@ -195,9 +240,14 @@ const CarteiraCriterios: React.FC = () => {
       
       setCriterioOrder(prev => new Map(prev).set(categoria, newOrder));
       console.log(`🔄 Critério ${draggedCriterio.id} movido para antes de ${targetCriterioId} na categoria ${categoria}`);
+      
+      // Salvar a nova ordem no backend
+      await salvarOrdemCriterios(categoria, newOrder);
     }
     
     setDraggedCriterio(null);
+    setIsDragging(false);
+    setDragPreview(null);
   };
 
   const resetarOrdemCriterios = (categoria?: string) => {
@@ -218,6 +268,49 @@ const CarteiraCriterios: React.FC = () => {
       toast({
         title: "🔄 Ordem resetada!",
         description: "Todos os critérios voltaram à ordem padrão.",
+      });
+    }
+  };
+
+  // Adicionar função para salvar a ordem no backend
+  const salvarOrdemCriterios = async (categoria: string, novaOrdem: number[]) => {
+    if (!expandedCarteira) return;
+    
+    // Obter as associações da carteira atual
+    const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+    
+    // Filtrar apenas os critérios da categoria atual
+    const criteriosDaCategoria = associacoesDaCarteira.filter(assoc => {
+      const criterio = criterios.find(c => c.id === assoc.criterio_id);
+      return criterio?.categoria === categoria;
+    });
+    
+    // Criar array com a nova ordem
+    const criteriosOrdem = novaOrdem.map((criterioId, index) => {
+      const associacao = criteriosDaCategoria.find(assoc => assoc.criterio_id === criterioId);
+      return {
+        id: associacao?.id || 0,
+        ordem: index + 1
+      };
+    }).filter(item => item.id > 0);
+    
+    if (criteriosOrdem.length > 0) {
+      await atualizarOrdemCriterios(expandedCarteira, criteriosOrdem);
+      
+      // Atualizar o cache local
+      const associacoesAtualizadas = associacoesDaCarteira.map(assoc => {
+        const novaOrdemItem = criteriosOrdem.find(item => item.id === assoc.id);
+        if (novaOrdemItem) {
+          return { ...assoc, ordem: novaOrdemItem.ordem };
+        }
+        return assoc;
+      });
+      
+      setAssociacoesCache(prev => new Map(prev).set(expandedCarteira, associacoesAtualizadas));
+      
+      toast({
+        title: "✅ Ordem salva!",
+        description: `A ordem dos critérios da categoria "${categoria}" foi salva com sucesso.`,
       });
     }
   };
@@ -1083,6 +1176,8 @@ const CarteiraCriterios: React.FC = () => {
                                       draggable
                                       onDragStart={(e) => handleCriterioDragStart(e, criterio.id, categoria)}
                                       onDragOver={handleCriterioDragOver}
+                                      onDragLeave={handleCriterioDragLeave}
+                                      onDragEnd={handleCriterioDragEnd}
                                       onDrop={(e) => handleCriterioDrop(e, criterio.id, categoria)}
                                     >
                                       <div className="flex items-center gap-3">

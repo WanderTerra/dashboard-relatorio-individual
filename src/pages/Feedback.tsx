@@ -26,15 +26,9 @@ import {
   ThumbsDown,
   Phone,
   ChevronDown,
-  ChevronRight,
-  MessageCircle,
-  Shield,
-  AlertCircle,
-  CheckCheck,
-  XCircle,
-  Settings
+  ChevronRight
 } from 'lucide-react';
-import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus } from '../lib/api';
+import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
@@ -90,15 +84,6 @@ const Feedback: React.FC = () => {
   
   // Estado para feedbacks gerais das ligações
   const [feedbacksGerais, setFeedbacksGerais] = useState<{[callId: string]: any}>({});
-
-  // Estados para contestação
-  const [showContestacaoModal, setShowContestacaoModal] = useState(false);
-  const [feedbackParaContestar, setFeedbackParaContestar] = useState<FeedbackItem | null>(null);
-  const [comentarioContestacao, setComentarioContestacao] = useState('');
-  const [tipoAcao, setTipoAcao] = useState<'contestar' | 'rejeitar'>('contestar');
-  const [showAnaliseModal, setShowAnaliseModal] = useState(false);
-  const [contestacaoParaAnalisar, setContestacaoParaAnalisar] = useState<any>(null);
-  const [novoResultado, setNovoResultado] = useState<'CONFORME' | 'NAO_CONFORME' | 'NAO_SE_APLICA'>('CONFORME');
 
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
@@ -554,12 +539,9 @@ const Feedback: React.FC = () => {
   };
 
   const handleRejeitarFeedback = (feedback: FeedbackItem) => {
-    // Rejeitar = contestar (mesmo fluxo, mas com texto diferente)
-    console.log('[DEBUG] Rejeitando feedback:', feedback.id);
-    setFeedbackParaContestar(feedback);
-    setComentarioContestacao('');
-    setTipoAcao('rejeitar');
-    setShowContestacaoModal(true);
+    // Aqui você implementaria a lógica para rejeitar o feedback
+    console.log('Feedback rejeitado:', feedback.id);
+    alert('Feedback rejeitado. Será enviado para revisão.');
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
@@ -608,74 +590,6 @@ const Feedback: React.FC = () => {
     // Aqui você implementaria a lógica para criar novo feedback
     console.log('Criando novo feedback');
     alert('Funcionalidade de criação será implementada!');
-  };
-
-  // Funções para contestação
-  const handleAceitarTodos = async (avaliacaoId: string) => {
-    try {
-      console.log(`[DEBUG] Aceitando todos os feedbacks da avaliação ${avaliacaoId}`);
-      await aceitarTodosFeedbacks(Number(avaliacaoId));
-      alert('Todos os feedbacks foram aceitos com sucesso!');
-      refetchFeedbacks();
-    } catch (error: any) {
-      console.error('[DEBUG] Erro ao aceitar todos os feedbacks:', error);
-      alert(`Erro ao aceitar feedbacks: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
-  const handleContestarFeedback = (feedback: FeedbackItem) => {
-    setFeedbackParaContestar(feedback);
-    setComentarioContestacao('');
-    setTipoAcao('contestar');
-    setShowContestacaoModal(true);
-  };
-
-  const handleEnviarContestacao = async () => {
-    if (!feedbackParaContestar || !comentarioContestacao.trim()) {
-      alert(tipoAcao === 'contestar' ? 'Por favor, escreva um comentário para a contestação.' : 'Por favor, escreva o motivo da rejeição.');
-      return;
-    }
-
-    try {
-      console.log(`[DEBUG] Contestando feedback ${feedbackParaContestar.id}`);
-      await contestarFeedback(Number(feedbackParaContestar.id), comentarioContestacao);
-      alert(tipoAcao === 'contestar' ? 'Contestação enviada com sucesso!' : 'Rejeição enviada com sucesso!');
-      setShowContestacaoModal(false);
-      setFeedbackParaContestar(null);
-      setComentarioContestacao('');
-      refetchFeedbacks();
-    } catch (error: any) {
-      console.error('[DEBUG] Erro ao contestar feedback:', error);
-      alert(`Erro ao contestar feedback: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
-  const handleAnalisarContestacao = (contestacao: any) => {
-    setContestacaoParaAnalisar(contestacao);
-    setNovoResultado('CONFORME');
-    setShowAnaliseModal(true);
-  };
-
-  const handleEnviarAnalise = async (aceitar: boolean) => {
-    if (!contestacaoParaAnalisar) return;
-
-    try {
-      console.log(`[DEBUG] Analisando contestação ${contestacaoParaAnalisar.id}: ${aceitar ? 'aceitar' : 'rejeitar'}`);
-      
-      const analise = {
-        aceitar_contestacao: aceitar,
-        novo_resultado: aceitar ? novoResultado : undefined
-      };
-
-      await analisarContestacao(contestacaoParaAnalisar.id, analise);
-      alert(`Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!`);
-      setShowAnaliseModal(false);
-      setContestacaoParaAnalisar(null);
-      refetchFeedbacks();
-    } catch (error: any) {
-      console.error('[DEBUG] Erro ao analisar contestação:', error);
-      alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
-    }
   };
 
   const isMonitor = isAdmin; // Apenas administradores são considerados monitores
@@ -1346,27 +1260,14 @@ const Feedback: React.FC = () => {
                          )}
                          
                          {/* Cabeçalho dos Critérios */}
-                         <div className="flex items-center justify-between mb-6">
-                           <div className="flex items-center gap-4">
-                             <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
-                             <h5 className="text-xl font-bold text-gray-800">
-                               Critérios Analisados
-                             </h5>
-                             <span className="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full border border-blue-200">
-                               {ligacao.totalFeedbacks} critérios
-                             </span>
-                           </div>
-                           
-                           {/* Botão Aceitar Todos para agentes */}
-                           {!isAdmin && ligacao.feedbacksPendentes > 0 && (
-                             <button
-                               onClick={() => handleAceitarTodos(ligacao.callId)}
-                               className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                             >
-                               <CheckCheck className="h-4 w-4" />
-                               Aceitar Todos
-                             </button>
-                           )}
+                         <div className="flex items-center gap-4 mb-6">
+                           <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+                           <h5 className="text-xl font-bold text-gray-800">
+                             Critérios Analisados
+                           </h5>
+                           <span className="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full border border-blue-200">
+                             {ligacao.totalFeedbacks} critérios
+                           </span>
                          </div>
                          
                          {/* Grid de Critérios */}
@@ -1413,35 +1314,15 @@ const Feedback: React.FC = () => {
                                    </div>
                                  </div>
 
-                                 {/* Botões de Ação */}
+                                 {/* Botão de Ação */}
                                  <div className="flex items-center gap-3">
                                    <button
                                      onClick={() => handleVerDetalhes(feedback)}
-                                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                                     className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-2xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500"
                                    >
-                                     <Eye className="h-4 w-4" />
-                                     Ver
+                                     <Eye className="h-5 w-5" />
+                                     Ver Detalhes
                                    </button>
-                                   
-                                   {/* Botões específicos para agentes */}
-                                   {!isAdmin && feedback.status === 'pendente' && (
-                                     <>
-                                       <button
-                                         onClick={() => handleAceitarFeedback(feedback)}
-                                         className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                                       >
-                                         <CheckCircle className="h-4 w-4" />
-                                         Aceitar
-                                       </button>
-                                       <button
-                                         onClick={() => handleContestarFeedback(feedback)}
-                                         className="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                                       >
-                                         <MessageCircle className="h-4 w-4" />
-                                         Contestar
-                                       </button>
-                                     </>
-                                   )}
                                  </div>
                                </div>
                              </div>
@@ -1741,171 +1622,6 @@ const Feedback: React.FC = () => {
                 >
                   <Edit3 className="h-4 w-4" />
                   Salvar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Contestação */}
-      {showContestacaoModal && feedbackParaContestar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
-            <div className="bg-gradient-to-r from-orange-600 to-red-700 px-8 py-6 text-white rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <MessageCircle className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">
-                      {tipoAcao === 'contestar' ? 'Contestar Feedback' : 'Rejeitar Feedback'}
-                    </h3>
-                    <p className="text-orange-100 text-lg">{feedbackParaContestar.criterio}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowContestacaoModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8">
-              <div className="mb-6">
-                <h4 className="text-lg font-bold text-gray-800 mb-3">Feedback Original:</h4>
-                <div className="bg-gray-50 rounded-xl p-4 border">
-                  <p className="text-gray-700 leading-relaxed">{feedbackParaContestar.observacao}</p>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-lg font-bold text-gray-800 mb-3">
-                  {tipoAcao === 'contestar' ? 'Sua Contestação:' : 'Motivo da Rejeição:'}
-                </label>
-                <textarea
-                  value={comentarioContestacao}
-                  onChange={(e) => setComentarioContestacao(e.target.value)}
-                  rows={6}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
-                  placeholder={tipoAcao === 'contestar' 
-                    ? "Explique por que você não concorda com este feedback..."
-                    : "Explique por que você está rejeitando este feedback..."
-                  }
-                />
-              </div>
-
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => setShowContestacaoModal(false)}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleEnviarContestacao}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
-                >
-                  {tipoAcao === 'contestar' ? 'Enviar Contestação' : 'Enviar Rejeição'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Análise de Contestação (para admins) */}
-      {showAnaliseModal && contestacaoParaAnalisar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-6 text-white rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Shield className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Analisar Contestação</h3>
-                    <p className="text-purple-100 text-lg">{contestacaoParaAnalisar.criterio_nome}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowAnaliseModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">Feedback Original:</h4>
-                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.feedback_comentario}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">Contestação do Agente:</h4>
-                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.comentario_agente}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="text-lg font-bold text-gray-800 mb-3">Decisão:</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      id="aceitar"
-                      name="decisao"
-                      checked={true}
-                      className="w-4 h-4 text-green-600"
-                    />
-                    <label htmlFor="aceitar" className="text-gray-700 font-medium">
-                      Aceitar contestação e alterar resultado
-                    </label>
-                  </div>
-                  <div className="ml-7">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Novo resultado:
-                    </label>
-                    <select
-                      value={novoResultado}
-                      onChange={(e) => setNovoResultado(e.target.value as any)}
-                      className="border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="CONFORME">CONFORME</option>
-                      <option value="NAO_SE_APLICA">NÃO SE APLICA</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => setShowAnaliseModal(false)}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleEnviarAnalise(false)}
-                  className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
-                >
-                  Rejeitar Contestação
-                </button>
-                <button
-                  onClick={() => handleEnviarAnalise(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
-                >
-                  Aceitar Contestação
                 </button>
               </div>
             </div>

@@ -32,8 +32,9 @@ import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDu
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
-import { getAutomaticAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
+import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
 import NotificationBell from '../components/NotificationBell';
+import AchievementsPanel from '../components/AchievementsPanel';
 
 // Funções utilitárias para LocalStorage
 const getPersistedDate = (key: string, fallback: string) =>
@@ -47,6 +48,11 @@ function getDefaultStartDate() {
   return d.toISOString().slice(0, 10);
 }
 const today = new Date().toISOString().slice(0, 10);
+
+interface WorstItem {
+  categoria: string;
+  taxa_nao_conforme: number;
+}
 
 const AgentDetail: React.FC = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -130,11 +136,11 @@ const AgentDetail: React.FC = () => {
   });
 
   // Calcular o pior item localmente usando os critérios
-  const worstItem = React.useMemo(() => {
+  const worstItem = React.useMemo((): WorstItem | null => {
     if (!criteria || criteria.length === 0) return null;
     
     const deduplicatedCriteria = deduplicateCriteria(criteria);
-    let worstCriterion = null;
+    let worstCriterion: WorstItem | null = null;
     let worstValue = 100;
     
     deduplicatedCriteria.forEach((criterion: any) => {
@@ -544,7 +550,7 @@ const AgentDetail: React.FC = () => {
                     summary: summary
                   };
                   
-                  const achievements = getAutomaticAchievements(agentData);
+                  const achievements = getLocalAchievements(agentData);
                   const unlockedAchievements = achievements.filter(a => a.is_unlocked);
                   
                   return (
@@ -629,7 +635,7 @@ const AgentDetail: React.FC = () => {
                     summary: summary
                   };
                   
-                  const achievements = getAutomaticAchievements(agentData);
+                  const achievements = getLocalAchievements(agentData);
                   const lockedAchievements = achievements.filter(a => !a.is_unlocked);
                   
                   return (
@@ -909,7 +915,7 @@ const AgentDetail: React.FC = () => {
 
       {/* Conteúdo da Aba Feedbacks */}
       {activeTab === 'feedback' && (
-        <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 !text-gray-900">
+        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Verificação de Segurança */}
           {!isAgent && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
@@ -975,6 +981,9 @@ const AgentDetail: React.FC = () => {
               </p>
             </div>
           )}
+
+          {/* Painel de Conquistas */}
+          <AchievementsPanel agentId={agentId} />
         </div>
       )}
 

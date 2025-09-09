@@ -1,4 +1,11 @@
 // Mapeamento de nomes técnicos para nomes amigáveis
+
+// Adicionar após as importações (se houver) ou no topo:
+interface CategoryGroup {
+  category: string;
+  items: any[];
+  order?: number;
+}
 export const itemNameMap: Record<string, string> = {
   // Itens de avaliação - variações principais
   "fraseologia_explica_motivo": "Explicação do Motivo",
@@ -369,7 +376,7 @@ export const categorizeCriteria = (criteriaName: string): string => {
 
 // Função para organizar itens por categoria
 export const organizeItemsByCategory = (items: any[]) => {
-  const categories = {
+  const categories: Record<string, any[]> = {
     "Abordagem": [],
     "Confirmação de dados": [],
     "Check-list": [],
@@ -381,8 +388,8 @@ export const organizeItemsByCategory = (items: any[]) => {
   
   items.forEach(item => {
     const category = categorizeCriteria(item.categoria);
-    if (categories[category as keyof typeof categories]) {
-      categories[category as keyof typeof categories].push(item);
+    if (categories[category]) {
+      categories[category].push(item);
     }
   });
   
@@ -396,29 +403,29 @@ export const organizeItemsByCategory = (items: any[]) => {
 };
 
 // Função para organizar itens baseado na estrutura da carteira
-export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any): CategoryGroup[] => {
   if (!carteiraStructure || !carteiraStructure.categories) {
     // Fallback para organização padrão se não houver estrutura
     return organizeItemsByCategory(items);
   }
 
   // Criar um mapa dos itens por categoria
-  const itemsByCategory = items.reduce((acc, item) => {
+  const itemsByCategory: Record<string, any[]> = items.reduce((acc, item) => {
     const category = item.categoria || 'Outros';
     if (!acc[category]) acc[category] = [];
     acc[category].push(item);
     return acc;
-  }, {});
+  }, {} as Record<string, any[]>);
 
   // Organizar baseado na estrutura da carteira
-  const organizedCategories = carteiraStructure.categories
-    .filter(category => itemsByCategory[category.name]?.length > 0)
-    .map(category => ({
+  const organizedCategories: CategoryGroup[] = carteiraStructure.categories
+    .filter((category: any) => itemsByCategory[category.name]?.length > 0)
+    .map((category: any) => ({
       category: category.name,
       items: itemsByCategory[category.name] || [],
       order: category.order || 0
     }))
-    .sort((a, b) => a.order - b.order);
+    .sort((a: CategoryGroup, b: CategoryGroup) => (a.order || 0) - (b.order || 0));
 
   return organizedCategories;
 };
