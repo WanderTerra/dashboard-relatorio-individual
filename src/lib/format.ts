@@ -289,6 +289,7 @@ export const agentIdNameMap: Record<string, string> = {
   "1143": "Elias Balcazar",
   "1016": "Elizabeth Souza",
   "1029": "Ewerton Lino",
+  "1111": "Patrick Espindola",
   "1148": "Gabriel Arguelho",
   "1155": "Gabriela Poquiviqui",
   "1151": "Gabriele Vitoria",
