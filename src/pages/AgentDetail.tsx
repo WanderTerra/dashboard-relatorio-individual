@@ -90,11 +90,11 @@ const AgentDetail: React.FC = () => {
   }, [endDate]);
 
   // Use startDate e endDate nos filtros das queries (apenas se não estiverem vazios)
-  const apiFilters: any = { 
+  const apiFilters: any = React.useMemo(() => ({ 
     ...(startDate ? { start: startDate } : {}),
     ...(endDate ? { end: endDate } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
-  };
+  }), [startDate, endDate, filters.carteira]);
 
   // Limpar filtros persistidos na primeira carga
   React.useEffect(() => {
@@ -105,15 +105,6 @@ const AgentDetail: React.FC = () => {
     setEndDate('');
   }, []);
 
-  // Debug: verificar filtros aplicados
-  React.useEffect(() => {
-    console.log('DEBUG AgentDetail - Filtros aplicados:', {
-      startDate,
-      endDate,
-      apiFilters,
-      agentId
-    });
-  }, [startDate, endDate, apiFilters, agentId]);
   
   // Buscar dados do agente do endpoint mixed/agents (sempre funciona)
   const { data: agentFromMixed } = useQuery({
@@ -150,7 +141,7 @@ const AgentDetail: React.FC = () => {
     queryKey: ['agentCalls', agentId, apiFilters],
     queryFn: () => {
       return getAgentCalls(agentId, apiFilters);
-    },
+    }
   });
 
   // agent criteria for radar chart
@@ -325,15 +316,6 @@ const AgentDetail: React.FC = () => {
       console.error('Erro ao buscar critérios do agente:', criteriaError);
     }
     
-    // Debug: verificar dados recebidos
-    console.log('DEBUG AgentDetail - Dados recebidos:', {
-      summary,
-      calls: calls?.length || 0,
-      criteria: criteria?.length || 0,
-      agentFromMixed,
-      callsRaw: calls,
-      criteriaRaw: criteria
-    });
   }, [summaryError, callsError, criteriaError, summary, criteria, calls, agentFromMixed]);
 
 
