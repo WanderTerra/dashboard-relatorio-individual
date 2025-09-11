@@ -111,6 +111,54 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
     return latest.status || 'Enviado';
   };
 
+  // Função para gerar números de página visíveis
+  const getVisiblePages = () => {
+    const delta = 2; // Número de páginas antes e depois da página atual
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  // Função para ir para página específica
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Função para ir para próxima página
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Função para ir para página anterior
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   // Modal de feedback (simples)
   const [comentario, setComentario] = React.useState('');
   const [enviando, setEnviando] = React.useState(false);
@@ -366,7 +414,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
         </table>
       </div>
 
-      {/* Controles de paginação */}
+      {/* Controles de paginação melhorados */}
       {totalPages > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
@@ -376,8 +424,9 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
               <span className="font-medium">{filteredCalls.length}</span> chamadas
             </div>
             <div className="flex items-center space-x-2">
+              {/* Botão Anterior */}
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={goToPreviousPage}
                 disabled={currentPage === 1}
                 className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
@@ -385,24 +434,31 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                 Anterior
               </button>
               
+              {/* Números de página com navegação inteligente */}
               <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
+                {getVisiblePages().map((page, index) => (
+                  <React.Fragment key={index}>
+                    {page === '...' ? (
+                      <span className="px-3 py-2 text-sm text-gray-500">...</span>
+                    ) : (
+                      <button
+                        onClick={() => goToPage(page as number)}
+                        className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
               
+              {/* Botão Próxima */}
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={goToNextPage}
                 disabled={currentPage === totalPages}
                 className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
