@@ -1211,6 +1211,15 @@ const Feedback: React.FC = () => {
                                       </div>
                                       
                                       <div className="flex items-center gap-3">
+                                        {/* Botão de Transcrição */}
+                                        <button
+                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
+                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-3 py-2 rounded-lg transition-all duration-300 text-xs font-semibold shadow-md hover:shadow-lg"
+                                        >
+                                          <Mic className="h-3 w-3" />
+                                          Transcrição
+                                        </button>
+                                        
                                         <div className="flex items-center gap-2">
                                           <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
                                           <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
