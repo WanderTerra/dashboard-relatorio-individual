@@ -167,11 +167,11 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     if (gamificationData && previousLevel !== null) {
       const newLevel = currentLevelInfo.level;
       if (newLevel > previousLevel) {
-        showLevelUp({
-          level: newLevel,
-          levelName: currentLevelInfo.name,
-          xpGained: currentXp - (previousXp || 0)
-        });
+        showLevelUp(
+          newLevel,
+          currentXp - (previousXp || 0),
+          currentXp
+        );
       }
     }
     setPreviousLevel(currentLevelInfo.level);
