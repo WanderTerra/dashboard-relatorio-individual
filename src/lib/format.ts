@@ -183,12 +183,12 @@ export function deduplicateCriteria(criteria: any[]): any[] {
   
   if (analysis.duplicates > 0) {
     console.group(`🔍 Análise de Duplicatas - ${analysis.total} critérios`);
-    console.log(`📊 Total: ${analysis.total}, Únicos: ${analysis.unique}, Duplicatas: ${analysis.duplicates}`);
+  
     
     analysis.duplicateGroups.forEach(group => {
       console.group(`🔄 Grupo de duplicatas: "${group.normalizedName}"`);
       group.items.forEach(item => {
-        console.log(`  - "${item.originalName}" (índice ${item.index})`);
+
       });
       console.groupEnd();
     });
@@ -235,12 +235,12 @@ export function deduplicateCriteria(criteria: any[]): any[] {
     });
   });
   
-  console.log(`✅ Deduplicação concluída: ${criteria.length} → ${deduplicated.length} critérios únicos`);
+
   
   // Log detalhado dos critérios removidos
   if (criteria.length !== deduplicated.length) {
     const removedCount = criteria.length - deduplicated.length;
-    console.log(`⚠️ ${removedCount} critérios duplicados foram removidos automaticamente`);
+
   }
   
   return deduplicated;
@@ -269,9 +269,10 @@ export function formatAgentName(agent: any): string {
     return agentIdNameMap[agentId];
   }
   
-  // Verificar se existe nome no formato esperado (pode estar em 'nome' ou 'name')
+  // Verificar se existe nome no formato esperado (pode estar em 'nome', 'name' ou 'nome_agente')
   if (agent.nome) return agent.nome;
   if (agent.name) return agent.name;
+  if (agent.nome_agente) return agent.nome_agente;
   
   // Se o nome não existe em nenhum formato conhecido, retorna um valor padrão com o ID
   return agentId ? `Agente ${agentId}` : "Agente sem nome";
@@ -288,6 +289,7 @@ export const agentIdNameMap: Record<string, string> = {
   "1143": "Elias Balcazar",
   "1016": "Elizabeth Souza",
   "1029": "Ewerton Lino",
+  "1111": "Patrick Espindola",
   "1148": "Gabriel Arguelho",
   "1155": "Gabriela Poquiviqui",
   "1151": "Gabriele Vitoria",
@@ -314,7 +316,6 @@ export const agentIdNameMap: Record<string, string> = {
   "1156": "Nathaly Cruz",
   "1118": "Octávio de Almeida",
   "1115": "Pablo Henrique",
-  "1111": "Patrick Espindola",
   "1153": "Pedro Henrique",
   "1145": "Pedro Sales",
   "1150": "Sara Esselin",
@@ -429,3 +430,74 @@ export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure
 
   return organizedCategories;
 };
+
+// Função para formatar datas de forma mais apresentável
+export function formatDateTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: DD/MM/YYYY HH:MM
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.warn('Erro ao formatar data:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}
+
+// Função para formatar apenas a data (sem hora)
+export function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: DD/MM/YYYY
+    return date.toLocaleDateString('pt-BR');
+  } catch (error) {
+    console.warn('Erro ao formatar data:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}
+
+// Função para formatar apenas a hora
+export function formatTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: HH:MM
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.warn('Erro ao formatar hora:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}

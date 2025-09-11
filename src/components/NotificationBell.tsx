@@ -8,6 +8,7 @@ import {
   markAllNotificationsAsRead,
   type Notification 
 } from '../lib/notifications-api';
+import { formatDateTime } from '../lib/format';
 
 interface NotificationBellProps {
   agentId: string;
@@ -221,7 +222,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
                         {notification.message}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {new Date(notification.date).toLocaleString('pt-BR')}
+                        {formatDateTime(notification.date)}
                       </p>
                     </div>
                     {!notification.isRead && (

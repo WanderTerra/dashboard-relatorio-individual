@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip
 } from 'recharts';
-import { formatItemName, formatAgentName } from '../lib/format';
+import { formatItemName, formatAgentName, formatDateTime } from '../lib/format';
 
 const AgentReport = () => {
   const { agentId } = useParams<{ agentId: string }>();
@@ -135,17 +135,7 @@ const AgentReport = () => {
       fullMark: 100
     }));
 
-  // Formatar data e hora
-  const formatDateTime = (dateTimeString: string) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Usar a função de formatação centralizada
 
   // Obter status visual
   const getStatusBadge = (status: string) => {

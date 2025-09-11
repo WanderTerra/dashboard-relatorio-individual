@@ -29,13 +29,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check for stored user info on app load
-    console.log('🔍 AuthContext: Verificando usuário armazenado...');
     const storedUser = getUserInfoFromStorage();
     if (storedUser) {
-      console.log('👤 AuthContext: Usuário encontrado:', storedUser);
       setUser(storedUser);
-    } else {
-      console.log('❌ AuthContext: Nenhum usuário armazenado encontrado');
     }
     setIsLoading(false);
   }, []);

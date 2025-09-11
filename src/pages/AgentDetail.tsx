@@ -28,7 +28,7 @@ import { getAgentGamification } from '../lib/gamification-api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
 import GamifiedAgentHeader from '../components/GamifiedAgentHeader';
-import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria } from '../lib/format';
+import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria, formatDate } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
@@ -43,9 +43,8 @@ const setPersistedDate = (key: string, value: string) =>
   localStorage.setItem(key, value);
 
 function getDefaultStartDate() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 10);
+  // Remover filtro de data padrão para mostrar todas as avaliações
+  return '';
 }
 const today = new Date().toISOString().slice(0, 10);
 
@@ -66,12 +65,8 @@ const AgentDetail: React.FC = () => {
   const { filters } = useFilters();
 
   // Persistência do filtro de datas
-  const [startDate, setStartDate] = useState(() =>
-    getPersistedDate('agent_filter_start', getDefaultStartDate())
-  );
-  const [endDate, setEndDate] = useState(() =>
-    getPersistedDate('agent_filter_end', today)
-  );
+  const [startDate, setStartDate] = useState(() => '');
+  const [endDate, setEndDate] = useState(() => '');
 
   // ✅ Modificado: detectar aba da URL
   const urlParams = new URLSearchParams(location.search);
@@ -94,13 +89,35 @@ const AgentDetail: React.FC = () => {
     setPersistedDate('agent_filter_end', endDate);
   }, [endDate]);
 
-  // Use startDate e endDate nos filtros das queries
-  const apiFilters = { 
-    start: startDate, 
-    end: endDate, 
+  // Use startDate e endDate nos filtros das queries (apenas se não estiverem vazios)
+  const apiFilters: any = React.useMemo(() => ({ 
+    ...(startDate ? { start: startDate } : {}),
+    ...(endDate ? { end: endDate } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
-  };
+  }), [startDate, endDate, filters.carteira]);
+
+  // Limpar filtros persistidos na primeira carga
+  React.useEffect(() => {
+    // Limpar filtros persistidos para mostrar todas as avaliações
+    localStorage.removeItem('agent_filter_start');
+    localStorage.removeItem('agent_filter_end');
+    setStartDate('');
+    setEndDate('');
+  }, []);
+
   
+  // Buscar dados do agente do endpoint mixed/agents (sempre funciona)
+  const { data: agentFromMixed } = useQuery({
+    queryKey: ['mixed-agents-single', agentId],
+    queryFn: () => {
+      return fetch('/api/mixed/agents')
+        .then(res => res.json())
+        .then(agents => agents.find((a: any) => a.agent_id === agentId));
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
+
   // summary
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ['agentSummary', agentId, apiFilters],
@@ -122,10 +139,9 @@ const AgentDetail: React.FC = () => {
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
     queryKey: ['agentCalls', agentId, apiFilters],
-    queryFn: () => {
-      return getAgentCalls(agentId, apiFilters);
-    },
+    queryFn: () => getAgentCalls(agentId, apiFilters)
   });
+
 
   // agent criteria for radar chart
   const { data: criteria, isLoading: criteriaLoading, error: criteriaError } = useQuery({
@@ -173,7 +189,7 @@ const AgentDetail: React.FC = () => {
     const monthlyGroups = callsData.reduce((acc: any, call: any) => {
       const date = new Date(call.data_ligacao);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+      const monthLabel = formatDate(call.data_ligacao).split('/')[1] + '/' + formatDate(call.data_ligacao).split('/')[2];
       
       if (!acc[monthKey]) {
         acc[monthKey] = { month: monthLabel, monthKey: monthKey, scores: [], count: 0 };
@@ -204,8 +220,7 @@ const AgentDetail: React.FC = () => {
     
     // Log para debug - verificar estrutura dos dados
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 Dados brutos dos critérios:', criteriaData.slice(0, 3));
-      console.log(' Campos disponíveis no primeiro critério:', Object.keys(criteriaData[0] || {}));
+      
     }
     
     // Primeiro, deduplicar os critérios
@@ -248,14 +263,7 @@ const AgentDetail: React.FC = () => {
     deduplicatedCriteria.forEach((item, index) => {
       const standardized = standardizeCriteria(item);
       
-      // Log detalhado para debug
-      if (process.env.NODE_ENV === 'development' && index < 3) {
-        console.log(` Critério ${index + 1}:`, {
-          rawData: item,
-          standardized: standardized,
-          extractedCategory: extractCategoryFromName(standardized.name)
-        });
-      }
+
       
       // Pular critérios que não se aplicam
       if (standardized.isNotApplicable) return;
@@ -290,15 +298,7 @@ const AgentDetail: React.FC = () => {
       .sort((a, b) => b.count - a.count) // Ordenar por número de critérios (mais importantes primeiro)
       .slice(0, 8); // Limitar a 8 categorias para o radar ficar legível
 
-    // Log para debug
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Dados formatados por categoria para radar:', {
-        original: criteriaData.length,
-        deduplicated: deduplicatedCriteria.length,
-        categories: formatted.length,
-        categoriesData: formatted.map(f => ({ category: f.subject, count: f.count, avg: f.value }))
-      });
-    }
+
 
     return formatted;
   };
@@ -314,12 +314,14 @@ const AgentDetail: React.FC = () => {
     if (criteriaError) {
       console.error('Erro ao buscar critérios do agente:', criteriaError);
     }
-  }, [summaryError, callsError, criteriaError, summary, criteria, calls]);
+    
+  }, [summaryError, callsError, criteriaError, summary, criteria, calls, agentFromMixed]);
+
 
   return (
     <div>
       <GamifiedAgentHeader 
-        agentName={summary ? formatAgentName(summary) : `Agente ${agentId}`}
+        agentName={summary ? formatAgentName(summary) : (agentFromMixed ? formatAgentName(agentFromMixed) : formatAgentName({ agent_id: agentId, nome: `Agente ${agentId}` }))}
         agentId={agentId}
       />
 
@@ -745,10 +747,10 @@ const AgentDetail: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-red-900">
-                          {formatItemName(worstItem.categoria)}
+                          {formatItemName((worstItem as any).categoria)}
                         </h3>
                         <p className="text-sm text-red-700">
-                          Taxa de não conformidade: <span className="font-bold">{(worstItem.taxa_nao_conforme * 100).toFixed(1)}%</span>
+                          Taxa de não conformidade: <span className="font-bold">{((worstItem as any).taxa_nao_conforme * 100).toFixed(1)}%</span>
                         </p>
                       </div>
                     </div>

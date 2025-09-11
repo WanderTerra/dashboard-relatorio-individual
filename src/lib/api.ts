@@ -1,10 +1,12 @@
 ﻿import axios from 'axios';
 import type { Filters } from '../hooks/use-filters';
- 
+
 //
-// baseURL vazio: tudo já vai no proxy do Vite em /api/…
+// Base URL da API
+// - Em desenvolvimento, usamos o proxy do Vite apontando para "/api"
+// - Em produção (ou quando não há proxy), permita configurar via VITE_API_BASE_URL
 //
-export const baseURL = '/api';
+export const baseURL = (import.meta as any)?.env?.VITE_API_BASE_URL || '/api';
 
 // Exporting the api instance to be used consistently across all files
 export const api = axios.create({
@@ -31,7 +33,7 @@ export const getKpis           = (f: Filters)        => api.get('/kpis',    { pa
 export const getTrend          = (f: Filters)        => api.get('/trend',   { params: f }).then(r => r.data);
 export const getAgents         = (f: Filters)        => api.get('/agents',  { params: f }).then(r => r.data);
 export const getMonthlyComparison = (f: Filters)     => api.get('/monthly-comparison', { params: f }).then(r => r.data);
-export const getAgentSummary   = (id: string, f: Filters) => api.get(`/agent/${id}/summary`, { params: f }).then(r => r.data);
+export const getAgentSummary   = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/summary`, { params: f }).then(r => r.data);
 export const getAgentCalls     = (id: string, f: Filters) => api.get(`/agent/${id}/calls`,   { params: f }).then(r => r.data);
 export const getCallItems      = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/items`).then(r => r.data);
 export const getTranscription  = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/transcription`).then(r => r.data);
@@ -114,7 +116,6 @@ export const isAuthenticated = (): boolean => {
 // Set up axios interceptor to add token to requests
 api.interceptors.request.use(
   (config) => {
-    console.log('🌐 Requisição:', config.method?.toUpperCase(), config.url);
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -122,7 +123,6 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Erro na requisição:', error);
     return Promise.reject(error);
   }
 );
@@ -143,15 +143,10 @@ api.interceptors.response.use(
 
 // Authentication API functions
 export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  console.log('🔐 Iniciando login...', { username: credentials.username });
-  
   // OAuth2 password flow requires form data
   const formData = new URLSearchParams();
   formData.append('username', credentials.username);
   formData.append('password', credentials.password);
-  
-  console.log('📝 Form data criado, enviando requisição...');
-  console.log('🌐 URL completa:', `${api.defaults.baseURL}/auth/token`);
   
   try {
     const response = await api.post('/auth/token', formData, {
@@ -161,18 +156,14 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
       timeout: 10000, // 10 seconds timeout
     });
     
-    console.log('✅ Resposta recebida:', response.status);
     const data = response.data;
-    console.log('👤 Dados do usuário:', data.user);
     
     // Store token and user info
     setAuthToken(data.access_token);
     localStorage.setItem('user_info', JSON.stringify(data.user));
     
-    console.log('💾 Token armazenado com sucesso');
     return data;
   } catch (error) {
-    console.error('❌ Erro no login:', error);
     throw error;
   }
 };

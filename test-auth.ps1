@@ -32,7 +32,7 @@ $loginData = @{
 $formData = @()
 $formData += "username=$($loginData.username)"
 $formData += "password=$($loginData.password)"
-$body = $formData -join "&"
+$body = $formData -join '&'
 
 try {
     $loginResponse = Invoke-RestMethod -Uri "$baseUrl/auth/token" -Method POST -Body $body -ContentType "application/x-www-form-urlencoded"

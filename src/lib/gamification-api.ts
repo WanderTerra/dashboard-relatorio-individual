@@ -17,22 +17,21 @@ export interface GamificationData {
 export const getLevelInfo = (level: number) => {
   const levels = [
     { name: 'Bronze', color: '#CD7F32', icon: '🥉' },
-    { name: 'Prata', color: '#C0C0C0', icon: '��' },
+    { name: 'Prata', color: '#C0C0C0', icon: '🥈' },
     { name: 'Ouro', color: '#FFD700', icon: '🥇' },
-    { name: 'Platina', color: '#E5E4E2', icon: '��' },
-    { name: 'Diamante', color: '#B9F2FF', icon: '��' },
-    { name: 'Lendário', color: '#FF6B35', icon: '��' }
+    { name: 'Platina', color: '#E5E4E2', icon: '💎' },
+    { name: 'Diamante', color: '#B9F2FF', icon: '💠' },
+    { name: 'Lendário', color: '#FF6B35', icon: '⚡' }
   ];
-  
+
   const levelIndex = Math.min(level - 1, levels.length - 1);
   return levels[levelIndex] || levels[0];
 };
 
 export const getAgentGamification = async (agentId: string): Promise<GamificationData | null> => {
   try {
-    // ✅ Corrigido: usar proxy do Vite
     const response = await fetch(`/api/gamification/agent/${agentId}`);
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         // Retornar dados padrão se o agente não tiver dados de gamificação
@@ -52,10 +51,10 @@ export const getAgentGamification = async (agentId: string): Promise<Gamificatio
       }
       throw new Error('Erro ao buscar dados de gamificação');
     }
-    
+
     const data = await response.json();
     const levelInfo = getLevelInfo(data.current_level || 1);
-    
+
     return {
       agent_id: agentId,
       current_level: data.current_level || 1,
