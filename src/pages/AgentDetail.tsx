@@ -28,7 +28,7 @@ import { getAgentGamification } from '../lib/gamification-api';
 import CallList     from '../components/CallList';
 import SummaryCard  from '../components/ui/SummaryCard';
 import GamifiedAgentHeader from '../components/GamifiedAgentHeader';
-import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria } from '../lib/format';
+import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria, formatDate } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
@@ -139,10 +139,9 @@ const AgentDetail: React.FC = () => {
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
     queryKey: ['agentCalls', agentId, apiFilters],
-    queryFn: () => {
-      return getAgentCalls(agentId, apiFilters);
-    }
+    queryFn: () => getAgentCalls(agentId, apiFilters)
   });
+
 
   // agent criteria for radar chart
   const { data: criteria, isLoading: criteriaLoading, error: criteriaError } = useQuery({
@@ -190,7 +189,7 @@ const AgentDetail: React.FC = () => {
     const monthlyGroups = callsData.reduce((acc: any, call: any) => {
       const date = new Date(call.data_ligacao);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthLabel = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+      const monthLabel = formatDate(call.data_ligacao).split('/')[1] + '/' + formatDate(call.data_ligacao).split('/')[2];
       
       if (!acc[monthKey]) {
         acc[monthKey] = { month: monthLabel, monthKey: monthKey, scores: [], count: 0 };

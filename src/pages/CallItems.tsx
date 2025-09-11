@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMixedCallItems, getMixedAgentSummary, getMixedCallerInfo, getFeedbacksByAvaliacao, getAvaliacaoById } from '../lib/api';
-import { formatItemName, formatAgentName, organizeItemsByCategory } from '../lib/format';
+import { formatItemName, formatAgentName, organizeItemsByCategory, formatDate } from '../lib/format';
 import ItemEditModal from '../components/ItemEditModal';
 import TranscriptionModal from '../components/TranscriptionModal';
 import PageHeader from '../components/PageHeader';
@@ -339,7 +339,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   <div>
                     <p className="text-sm text-gray-500">Data da Ligação</p>
                     <p className="font-medium text-gray-900">
-                      {new Date(callData.data_ligacao).toLocaleDateString('pt-BR')}
+                      {formatDate(callData.data_ligacao)}
                     </p>
                   </div>
                 </div>

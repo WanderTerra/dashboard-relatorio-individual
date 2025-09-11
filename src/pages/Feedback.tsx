@@ -32,7 +32,8 @@ import {
   AlertCircle,
   CheckCheck,
   XCircle,
-  Settings
+  Settings,
+  Mic
 } from 'lucide-react';
 import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
@@ -40,6 +41,7 @@ import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
 import { useAuth } from '../contexts/AuthContext';
+import TranscriptionModal from '../components/TranscriptionModal';
 
 interface Agente {
   id: string;
@@ -107,6 +109,10 @@ const Feedback: React.FC = () => {
   const [contestacoesPendentes, setContestacoesPendentes] = useState<any[]>([]);
   const [showContestacoesModal, setShowContestacoesModal] = useState(false);
   const [showAceitarModal, setShowAceitarModal] = useState(false);
+  
+  // Estados para transcrição
+  const [expandedCallWithTranscription, setExpandedCallWithTranscription] = useState<string | null>(null);
+  const [selectedCallForTranscription, setSelectedCallForTranscription] = useState<{callId: string, avaliacaoId: string} | null>(null);
 
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
@@ -533,6 +539,14 @@ const Feedback: React.FC = () => {
     setShowContestacaoModal(true);
   };
 
+  // Função para expandir ligação com transcrição
+  const handleShowTranscriptionSplit = (callId: string, avaliacaoId: string) => {
+    setSelectedCallForTranscription({ callId, avaliacaoId });
+    setExpandedCallWithTranscription(avaliacaoId);
+    // Garantir que a ligação esteja expandida
+    setExpandedCalls(prev => new Set([...prev, callId]));
+  };
+
   const handleEditarFeedback = (feedback: FeedbackItem) => {
     // Preenche o formulário com os dados atuais
     setEditForm({
@@ -856,7 +870,7 @@ const Feedback: React.FC = () => {
                 <input
                   type="date"
                   value={filters.start}
-                  onChange={e => handleDateChange(e.target.value, filters.end)}
+                  onChange={e => handleDateChange(e.target.value, filters.end || '')}
                   className="h-12 border-2 border-gray-200 rounded-xl px-4 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300"
                 />
               </div>
@@ -868,7 +882,7 @@ const Feedback: React.FC = () => {
                 <input
                   type="date"
                   value={filters.end}
-                  onChange={e => handleDateChange(filters.start, e.target.value)}
+                  onChange={e => handleDateChange(filters.start || '', e.target.value)}
                   className="h-12 border-2 border-gray-200 rounded-xl px-4 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300"
                 />
               </div>
@@ -1412,16 +1426,27 @@ const Feedback: React.FC = () => {
                              </span>
                            </div>
                            
-                           {/* Botão Aceitar Todos para agentes */}
-                           {!isAdmin && ligacao.feedbacksPendentes > 0 && (
+                           <div className="flex items-center gap-3">
+                             {/* Botão de Transcrição */}
                              <button
-                               onClick={() => handleAceitarTodos(ligacao.callId)}
-                               className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                               onClick={() => handleShowTranscriptionSplit(ligacao.callId, ligacao.callId)}
+                               className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
                              >
-                               <CheckCheck className="h-4 w-4" />
-                               Aceitar Todos
+                               <Mic className="h-4 w-4" />
+                               Ver Transcrição
                              </button>
-                           )}
+                             
+                             {/* Botão Aceitar Todos para agentes */}
+                             {!isAdmin && ligacao.feedbacksPendentes > 0 && (
+                               <button
+                                 onClick={() => handleAceitarTodos(ligacao.callId)}
+                                 className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                               >
+                                 <CheckCheck className="h-4 w-4" />
+                                 Aceitar Todos
+                               </button>
+                             )}
+                           </div>
                          </div>
                          
                          {/* Grid de Critérios */}
@@ -2368,6 +2393,50 @@ const Feedback: React.FC = () => {
                   Confirmar Aceitação
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Transcrição Separado */}
+      {expandedCallWithTranscription && (
+        <div className="fixed inset-0 flex items-end justify-end z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            {/* Header do Modal de Transcrição */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-6 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                    <Mic className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Transcrição da Ligação</h3>
+                    <p className="text-purple-100 text-lg">Ligação #{expandedCallWithTranscription}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setExpandedCallWithTranscription(null);
+                    setSelectedCallForTranscription(null);
+                  }}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 group"
+                >
+                  <X className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo da Transcrição */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <TranscriptionModal
+                isOpen={true}
+                onClose={() => {
+                  setExpandedCallWithTranscription(null);
+                  setSelectedCallForTranscription(null);
+                }}
+                avaliacaoId={expandedCallWithTranscription}
+                callId={expandedCallWithTranscription}
+              />
             </div>
           </div>
         </div>

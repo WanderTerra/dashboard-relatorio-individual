@@ -316,7 +316,6 @@ export const agentIdNameMap: Record<string, string> = {
   "1156": "Nathaly Cruz",
   "1118": "Octávio de Almeida",
   "1115": "Pablo Henrique",
-  "1111": "Patrick Espindola",
   "1153": "Pedro Henrique",
   "1145": "Pedro Sales",
   "1150": "Sara Esselin",
@@ -431,3 +430,74 @@ export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure
 
   return organizedCategories;
 };
+
+// Função para formatar datas de forma mais apresentável
+export function formatDateTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: DD/MM/YYYY HH:MM
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.warn('Erro ao formatar data:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}
+
+// Função para formatar apenas a data (sem hora)
+export function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: DD/MM/YYYY
+    return date.toLocaleDateString('pt-BR');
+  } catch (error) {
+    console.warn('Erro ao formatar data:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}
+
+// Função para formatar apenas a hora
+export function formatTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Verificar se a data é válida
+    if (isNaN(date.getTime())) {
+      return dateString; // Retorna o valor original se não conseguir parsear
+    }
+    
+    // Formato: HH:MM
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    console.warn('Erro ao formatar hora:', dateString, error);
+    return dateString; // Retorna o valor original em caso de erro
+  }
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Calendar, FileText, MessageSquare, ChevronLeft, ChevronRight, Search, CheckCircle, XCircle } from 'lucide-react';
-import { formatItemName } from '../lib/format';
+import { formatItemName, formatDate } from '../lib/format';
 import { getFeedbacksByAvaliacao } from '../lib/api';
 import { useFeedbacks } from '../hooks/useFeedbacks';
 import type { UserInfo } from '../lib/api';
@@ -65,12 +65,13 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
     // Filtro por pontuação
     if (scoreFilter !== 'todos') {
       filtered = filtered.filter(call => {
+        const pontuacao = call.pontuacao || 0;
         if (scoreFilter === 'alta') {
-          return call.pontuacao >= 80;
+          return pontuacao >= 80;
         } else if (scoreFilter === 'media') {
-          return call.pontuacao >= 60 && call.pontuacao < 80;
+          return pontuacao >= 60 && pontuacao < 80;
         } else if (scoreFilter === 'baixa') {
-          return call.pontuacao < 60;
+          return pontuacao < 60;
         }
         return true;
       });
@@ -79,12 +80,13 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
     // Filtro por pesquisa (data ou pontuação)
     if (searchTerm) {
       filtered = filtered.filter(call => 
-        new Date(call.data_ligacao).toLocaleDateString().includes(searchTerm) ||
-        call.pontuacao.toString().includes(searchTerm)
+        formatDate(call.data_ligacao).includes(searchTerm) ||
+        (call.pontuacao || 0).toString().includes(searchTerm)
       );
     }
     
-    return filtered;
+    // Ordenar por data mais recente primeiro
+    return filtered.sort((a, b) => new Date(b.data_ligacao).getTime() - new Date(a.data_ligacao).getTime());
   }, [calls, statusFilter, scoreFilter, searchTerm]);
 
   // Calcular paginação
@@ -300,20 +302,20 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedCalls.map(c => (
-              <tr key={c.call_id} className="hover:bg-gray-50 transition-colors">
+            {paginatedCalls.map((c, index) => (
+              <tr key={`${c.call_id}-${c.avaliacao_id}-${index}`} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {new Date(c.data_ligacao).toLocaleDateString('pt-BR')}
+                  {formatDate(c.data_ligacao)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium shadow-sm ${
-                    c.pontuacao >= 80 
+                    (c.pontuacao || 0) >= 80 
                       ? 'bg-green-100 text-green-800' 
-                      : c.pontuacao >= 60 
+                      : (c.pontuacao || 0) >= 60 
                       ? 'bg-yellow-100 text-yellow-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {c.pontuacao.toFixed(1)}%
+                    {(c.pontuacao || 0).toFixed(1)}%
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

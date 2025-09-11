@@ -12,6 +12,7 @@ import {
   ReferenceLine
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { formatDate } from '../lib/format';
 
 interface Props {
   data: { dia: string; media: number }[];
@@ -38,18 +39,7 @@ const TrendLineChart: React.FC<Props> = ({ data }) => {
     return Math.round((sum / data.length) * 10) / 10;
   }, [data]);
 
-  // Formatar data para exibição
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit' 
-      });
-    } catch {
-      return dateStr;
-    }
-  };
+  // Usar a função de formatação centralizada
 
   // Cores baseadas na tendência
   const getTrendColors = () => {

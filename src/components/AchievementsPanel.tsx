@@ -6,6 +6,7 @@ import { useToast } from '../hooks/use-toast';
 import AchievementAnimation from './AchievementAnimation';
 import ConfettiEffect from './ConfettiEffect';
 import { useAchievementAnimation } from '../hooks/useAchievementAnimation';
+import { formatDate } from '../lib/format';
 
 interface AchievementsPanelProps {
   agentId: string;
@@ -271,7 +272,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
                             {achievement.is_unlocked && achievement.unlocked_at && (
                               <div className="mt-2 text-xs text-green-600 flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
-                                Desbloqueado em {new Date(achievement.unlocked_at).toLocaleDateString('pt-BR')}
+                                Desbloqueado em {formatDate(achievement.unlocked_at)}
                               </div>
                             )}
                           </div>

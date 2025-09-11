@@ -14,6 +14,7 @@ import {
 } from '../lib/api';
 import { getAllCarteiras } from '../lib/api';
 import { useToast } from '../hooks/use-toast';
+import { formatDateTime, formatDate } from '../lib/format';
 
 const Downloads: React.FC = () => {
   const { toast } = useToast();
@@ -242,7 +243,7 @@ const Downloads: React.FC = () => {
                       {getStatusBadge(job.status)}
                     </div>
                     <div className="text-sm text-gray-500">
-                      Criado em: {new Date(job.created_at).toLocaleString()}
+                      Criado em: {formatDateTime(job.created_at)}
                     </div>
                   </div>
                   
@@ -254,7 +255,7 @@ const Downloads: React.FC = () => {
                       <span className="font-medium">Fila:</span> {job.fila_like}
                     </div>
                     <div>
-                      <span className="font-medium">Período:</span> {new Date(job.data_inicio).toLocaleDateString()} - {new Date(job.data_fim).toLocaleDateString()}
+                      <span className="font-medium">Período:</span> {formatDate(job.data_inicio)} - {formatDate(job.data_fim)}
                     </div>
                     <div>
                       <span className="font-medium">Progresso:</span> {job.total_processados}/{job.total_calls}

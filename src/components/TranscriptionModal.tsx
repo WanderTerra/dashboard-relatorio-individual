@@ -123,9 +123,12 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
           <p className="text-sm mt-2">Não foi possível carregar a transcrição desta ligação.</p>
         </div>
       );
-    }    if (data) {
+    }
+
+    if (data) {
       return (
-        <>          {resolvedCallId && (
+        <>
+          {resolvedCallId && (
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50 p-4 rounded-lg">
               <div>
                 <p className="text-sm text-gray-600 mb-1">ID da Ligação: <span className="font-medium">{resolvedCallId}</span></p>
@@ -224,8 +227,8 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   // Renderização inline para divisão de tela
   if (isInline) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+      <div className="flex flex-col h-full bg-white min-h-0 relative z-10">
+        <div className="flex items-center justify-between p-4 border-b bg-gray-50 flex-shrink-0">
           <h2 className="text-lg font-bold text-gray-800">Transcrição da Ligação</h2>
           <button 
             onClick={onClose}
@@ -237,7 +240,7 @@ const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0 relative">
           {renderContent()}
         </div>
       </div>
