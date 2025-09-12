@@ -142,7 +142,7 @@ const Downloads: React.FC = () => {
       {/* Formulário para criar novo job */}
       <Card>
         <CardHeader>
-          <CardTitle>Novo Job de Download</CardTitle>
+          <CardTitle>Novo download</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
