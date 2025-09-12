@@ -1009,9 +1009,9 @@ const Feedback: React.FC = () => {
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
-              </div>
+                </div>
+             </div>
             </div>
-          </div>
         </div>
 
         {/* Lista de Feedbacks - Por Agente (Admin) ou Por Ligação (Outros) */}
@@ -1226,6 +1226,7 @@ const Feedback: React.FC = () => {
                                           <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
                                           <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
                                         </div>
+                                        
                                         {expandedCalls.has(avaliacao.avaliacaoId) ? (
                                           <ChevronDown className="h-4 w-4 text-blue-600" />
                                         ) : (
