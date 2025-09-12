@@ -1352,7 +1352,6 @@ const Feedback: React.FC = () => {
                                       </div>
                                       
                                       <div className="flex items-center gap-3">
-<<<<<<< HEAD
                                         {/* Botão de Transcrição */}
                                         <button
                                           onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
@@ -1366,16 +1365,8 @@ const Feedback: React.FC = () => {
                                           <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
                                           <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
                                           <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
-                                          <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
-=======
-                                        {/* Botão de Transcrição - APENAS AQUI */}
-                                        {/* <button
-                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
-                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
-                                        >
-                                          <Mic className="h-4 w-4" />
-                                          Ver Transcrição
-                                        </button> */}
+                                          <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>  
+                                        </div>
                                         
                                         <div className="flex items-center gap-3">
                                           {expandedCalls.has(avaliacao.avaliacaoId) ? (
@@ -1383,7 +1374,6 @@ const Feedback: React.FC = () => {
                                           ) : (
                                             <ChevronRight className="h-4 w-4 text-blue-600" />
                                           )}
->>>>>>> nova-branch-main
                                         </div>
                                       </div>
                                     </div>
