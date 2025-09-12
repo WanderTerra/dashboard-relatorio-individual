@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
     <div>
       <PageHeader 
         title="Dashboard de Avaliação" 
-        subtitle="Análise de performance e qualidade de ligações (Jobs + Uploads)"
+        subtitle="Análise de performance e qualidade de ligações"
         actions={
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -106,7 +106,7 @@ const Dashboard: React.FC = () => {
 
         {/* Gráfico de linha */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal (Jobs + Uploads)</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
           <div className="min-h-[500px]">
             <TrendLineChart data={trend ?? []} />
           </div>
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
 
         {/* Gráfico de comparativo mensal */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal (Jobs + Uploads)</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
           <p className="text-sm text-gray-600 mb-6">
             Análise da média mensal de pontuação das ligações (incluindo uploads)
           </p>
