@@ -553,10 +553,8 @@ const Feedback: React.FC = () => {
 
   // Função para expandir ligação com transcrição
   const handleShowTranscriptionSplit = (callId: string, avaliacaoId: string) => {
-    setSelectedCallForTranscription({ callId, avaliacaoId });
-    setExpandedCallWithTranscription(avaliacaoId);
-    // Garantir que a ligação esteja expandida
-    setExpandedCalls(prev => new Set([...prev, callId]));
+    // Chamar a função correta para abrir o modal de transcrição
+    handleOpenTranscriptionModal(avaliacaoId);
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
@@ -989,27 +987,7 @@ const Feedback: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Painel de Feedbacks" 
-        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"
-        actions={
-          isMonitor && (
-            <div className="flex gap-3">
-              <button
-                onClick={handleBuscarContestacoesPendentes}
-                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-              >
-                <MessageCircle className="h-5 w-5" />
-                Contestações Pendentes
-              </button>
-              <button
-                onClick={handleCriarFeedback}
-                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-              >
-                <Plus className="h-5 w-5" />
-                Criar Feedback
-              </button>
-            </div>
-          )
-        }
+        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"        
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1360,23 +1338,36 @@ const Feedback: React.FC = () => {
                                           <div className="flex items-center gap-6 mt-1">
                                             <span className="text-sm text-gray-600">{avaliacao.totalFeedbacks} critérios</span>
                                             <span className="text-sm text-gray-600">Performance: {avaliacao.performanceMedia}%</span>
-                                            <span className="text-sm text-gray-500">{avaliacao.dataLigacao}</span>
+                                            <span className="text-sm text-gray-500">
+                                              {new Date(avaliacao.dataLigacao).toLocaleDateString('pt-BR', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </span>
                                           </div>
                                         </div>
                                       </div>
                                       
                                       <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
-                                          <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
-                                          <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
-                                          <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
+                                        {/* Botão de Transcrição - APENAS AQUI */}
+                                        {/* <button
+                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
+                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
+                                        >
+                                          <Mic className="h-4 w-4" />
+                                          Ver Transcrição
+                                        </button> */}
+                                        
+                                        <div className="flex items-center gap-3">
+                                          {expandedCalls.has(avaliacao.avaliacaoId) ? (
+                                            <ChevronDown className="h-4 w-4 text-blue-600" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4 text-blue-600" />
+                                          )}
                                         </div>
-                                        {expandedCalls.has(avaliacao.avaliacaoId) ? (
-                                          <ChevronDown className="h-4 w-4 text-blue-600" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-blue-600" />
-                                        )}
                                       </div>
                                     </div>
                                   </CollapsibleTrigger>
@@ -1406,6 +1397,17 @@ const Feedback: React.FC = () => {
                                           </div>
                                         </div>
                                       )}
+                                      
+                                      {/* Botão de Transcrição - DENTRO DA AVALIAÇÃO */}
+                                      <div className="flex justify-center mb-4">
+                                        <button
+                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
+                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
+                                        >
+                                          <Mic className="h-4 w-4" />
+                                          Ver Transcrição da Ligação
+                                        </button>
+                                      </div>
                                       
                                       {/* Lista de Critérios */}
                                       <div className="grid gap-3">
@@ -1437,15 +1439,6 @@ const Feedback: React.FC = () => {
                                                 >
                                                   <Eye className="h-4 w-4" />
                                                   Ver
-                                                </button>
-                                                
-                                                {/* Botão de Transcrição */}
-                                                <button
-                                                  onClick={() => handleOpenTranscriptionModal(avaliacao.avaliacaoId)}
-                                                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                                                >
-                                                  <Mic className="h-4 w-4" />
-                                                  Ver Transcrição
                                                 </button>
                                               </div>
                                             </div>
