@@ -33,9 +33,10 @@ import {
   CheckCheck,
   XCircle,
   Settings,
-  Mic
+  Mic,
+  ChevronUp
 } from 'lucide-react';
-import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus } from '../lib/api';
+import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus, getTranscription } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import PageHeader from '../components/PageHeader';
 import { formatAgentName } from '../lib/format';
@@ -113,6 +114,17 @@ const Feedback: React.FC = () => {
   // Estados para transcrição
   const [expandedCallWithTranscription, setExpandedCallWithTranscription] = useState<string | null>(null);
   const [selectedCallForTranscription, setSelectedCallForTranscription] = useState<{callId: string, avaliacaoId: string} | null>(null);
+  
+  // Estados para transcrição lado a lado nas avaliações
+  const [showTranscriptionSideBySide, setShowTranscriptionSideBySide] = useState(false);
+  const [selectedAvaliacaoForTranscription, setSelectedAvaliacaoForTranscription] = useState<{avaliacaoId: string, callId: string} | null>(null);
+
+  // Adicionar novos estados após a linha 120
+  const [showFeedbackTranscriptionModal, setShowFeedbackTranscriptionModal] = useState(false);
+  const [selectedFeedbackForTranscription, setSelectedFeedbackForTranscription] = useState<FeedbackItem | null>(null);
+  const [transcriptionData, setTranscriptionData] = useState<any>(null);
+  const [transcriptionLoading, setTranscriptionLoading] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
@@ -541,10 +553,8 @@ const Feedback: React.FC = () => {
 
   // Função para expandir ligação com transcrição
   const handleShowTranscriptionSplit = (callId: string, avaliacaoId: string) => {
-    setSelectedCallForTranscription({ callId, avaliacaoId });
-    setExpandedCallWithTranscription(avaliacaoId);
-    // Garantir que a ligação esteja expandida
-    setExpandedCalls(prev => new Set([...prev, callId]));
+    // Chamar a função correta para abrir o modal de transcrição
+    handleOpenTranscriptionModal(avaliacaoId);
   };
 
   const handleEditarFeedback = (feedback: FeedbackItem) => {
@@ -830,31 +840,154 @@ const Feedback: React.FC = () => {
     setExpandedCalls(newExpandedCalls);
   };
 
+  // Função para mostrar transcrição lado a lado
+  const handleShowTranscriptionSideBySide = (avaliacaoId: string, callId: string) => {
+    setSelectedAvaliacaoForTranscription({ avaliacaoId, callId });
+    setShowTranscriptionSideBySide(true);
+  };
+
+  // Função para fechar transcrição lado a lado
+  const handleCloseTranscriptionSideBySide = () => {
+    setShowTranscriptionSideBySide(false);
+    setSelectedAvaliacaoForTranscription(null);
+  };
+
+  // Corrigir a função handleOpenTranscriptionModal para adicionar logs de debug
+  const handleOpenTranscriptionModal = async (avaliacaoId: string) => {
+    console.log('🎙️ Abrindo modal de transcrição para avaliação:', avaliacaoId);
+    setShowFeedbackTranscriptionModal(true);
+    setTranscriptionLoading(true);
+    setTranscriptionError(null);
+    
+    try {
+      console.log('📡 Chamando API getTranscription...');
+      const transcription = await getTranscription(avaliacaoId);
+      console.log('✅ Transcrição recebida:', transcription);
+      setTranscriptionData(transcription);
+    } catch (error) {
+      console.error('❌ Erro ao carregar transcrição:', error);
+      setTranscriptionError('Não foi possível carregar a transcrição desta avaliação.');
+    } finally {
+      setTranscriptionLoading(false);
+    }
+  };
+
+  // Adicionar logs na função processTranscription
+  const processTranscription = (content: string) => {
+    console.log('🔄 Processando transcrição:', content);
+    
+    if (!content || typeof content !== 'string') {
+      console.log('❌ Conteúdo inválido ou vazio');
+      return [];
+    }
+
+    // Limpar e normalizar o conteúdo
+    const cleanContent = content
+      .replace(/\r\n/g, '\n')  // Normalizar quebras de linha
+      .replace(/\r/g, '\n')    // Normalizar quebras de linha
+      .trim();
+
+    console.log('🧹 Conteúdo limpo:', cleanContent);
+
+    // Dividir por linhas e filtrar linhas vazias
+    const lines = cleanContent.split('\n').filter(line => line.trim());
+    console.log('📝 Linhas encontradas:', lines.length);
+
+    const messages: Array<{ 
+      speaker: 'Agente' | 'Cliente'; 
+      text: string;
+      timestamp?: string;
+      isSystemMessage?: boolean;
+    }> = [];
+    
+    let currentSpeaker: 'Agente' | 'Cliente' | null = null;
+    let currentText = '';
+    
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      
+      // Detectar mudança de speaker
+      if (trimmedLine.startsWith('Agente:') || trimmedLine.startsWith('Agente -') || trimmedLine.startsWith('AGENTE:')) {
+        // Salvar mensagem anterior se existir
+        if (currentSpeaker && currentText.trim()) {
+          messages.push({
+            speaker: currentSpeaker,
+            text: currentText.trim()
+          });
+        }
+        
+        // Iniciar nova mensagem do agente
+        currentSpeaker = 'Agente';
+        currentText = trimmedLine.replace(/^(Agente:|Agente -|AGENTE:)\s*/, '').trim();
+      } else if (trimmedLine.startsWith('Cliente:') || trimmedLine.startsWith('Cliente -') || trimmedLine.startsWith('CLIENTE:')) {
+        // Salvar mensagem anterior se existir
+        if (currentSpeaker && currentText.trim()) {
+          messages.push({
+            speaker: currentSpeaker,
+            text: currentText.trim()
+          });
+        }
+        
+        // Iniciar nova mensagem do cliente
+        currentSpeaker = 'Cliente';
+        currentText = trimmedLine.replace(/^(Cliente:|Cliente -|CLIENTE:)\s*/, '').trim();
+      } else if (trimmedLine.startsWith('Sistema:') || trimmedLine.startsWith('SISTEMA:')) {
+        // Salvar mensagem anterior se existir
+        if (currentSpeaker && currentText.trim()) {
+          messages.push({
+            speaker: currentSpeaker,
+            text: currentText.trim()
+          });
+        }
+        
+        // Iniciar nova mensagem do sistema
+        currentSpeaker = 'Agente'; // Tratar como agente para exibição
+        currentText = trimmedLine.replace(/^(Sistema:|SISTEMA:)\s*/, '').trim();
+      } else if (trimmedLine.startsWith('[') && trimmedLine.includes(']')) {
+        // Detectar timestamp [HH:MM:SS]
+        const timestampMatch = trimmedLine.match(/\[(\d{2}:\d{2}:\d{2})\]/);
+        if (timestampMatch) {
+          // Se já temos um speaker e texto, adicionar timestamp
+          if (currentSpeaker && currentText.trim()) {
+            messages.push({
+              speaker: currentSpeaker,
+              text: currentText.trim(),
+              timestamp: timestampMatch[1]
+            });
+            currentText = '';
+          }
+        }
+      } else if (trimmedLine.length > 0) {
+        // Continuar texto da mensagem atual
+        if (currentSpeaker) {
+          currentText += (currentText ? ' ' : '') + trimmedLine;
+        } else {
+          // Se não temos speaker definido, assumir como agente
+          currentSpeaker = 'Agente';
+          currentText = trimmedLine;
+        }
+      }
+    });
+    
+    // Adicionar última mensagem se existir
+    if (currentSpeaker && currentText.trim()) {
+      messages.push({
+        speaker: currentSpeaker,
+        text: currentText.trim()
+      });
+    }
+    
+    console.log(' Mensagens processadas:', messages.length);
+    console.log('📋 Primeiras 3 mensagens:', messages.slice(0, 3));
+    
+    return messages;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Painel de Feedbacks" 
-        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"
-        actions={
-          isMonitor && (
-            <div className="flex gap-3">
-              <button
-                onClick={handleBuscarContestacoesPendentes}
-                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-              >
-                <MessageCircle className="h-5 w-5" />
-                Contestações Pendentes
-              </button>
-              <button
-                onClick={handleCriarFeedback}
-                className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-              >
-                <Plus className="h-5 w-5" />
-                Criar Feedback
-              </button>
-            </div>
-          )
-        }
+        subtitle="Gerencie e visualize feedbacks de agentes em uma interface unificada"        
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1205,12 +1338,21 @@ const Feedback: React.FC = () => {
                                           <div className="flex items-center gap-6 mt-1">
                                             <span className="text-sm text-gray-600">{avaliacao.totalFeedbacks} critérios</span>
                                             <span className="text-sm text-gray-600">Performance: {avaliacao.performanceMedia}%</span>
-                                            <span className="text-sm text-gray-500">{avaliacao.dataLigacao}</span>
+                                            <span className="text-sm text-gray-500">
+                                              {new Date(avaliacao.dataLigacao).toLocaleDateString('pt-BR', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                year: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </span>
                                           </div>
                                         </div>
                                       </div>
                                       
                                       <div className="flex items-center gap-3">
+<<<<<<< HEAD
                                         {/* Botão de Transcrição */}
                                         <button
                                           onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
@@ -1225,12 +1367,24 @@ const Feedback: React.FC = () => {
                                           <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
                                           <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
                                           <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
+=======
+                                        {/* Botão de Transcrição - APENAS AQUI */}
+                                        {/* <button
+                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
+                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
+                                        >
+                                          <Mic className="h-4 w-4" />
+                                          Ver Transcrição
+                                        </button> */}
+                                        
+                                        <div className="flex items-center gap-3">
+                                          {expandedCalls.has(avaliacao.avaliacaoId) ? (
+                                            <ChevronDown className="h-4 w-4 text-blue-600" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4 text-blue-600" />
+                                          )}
+>>>>>>> nova-branch-main
                                         </div>
-                                        {expandedCalls.has(avaliacao.avaliacaoId) ? (
-                                          <ChevronDown className="h-4 w-4 text-blue-600" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-blue-600" />
-                                        )}
                                       </div>
                                     </div>
                                   </CollapsibleTrigger>
@@ -1261,6 +1415,17 @@ const Feedback: React.FC = () => {
                                         </div>
                                       )}
                                       
+                                      {/* Botão de Transcrição - DENTRO DA AVALIAÇÃO */}
+                                      <div className="flex justify-center mb-4">
+                                        <button
+                                          onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
+                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
+                                        >
+                                          <Mic className="h-4 w-4" />
+                                          Ver Transcrição da Ligação
+                                        </button>
+                                      </div>
+                                      
                                       {/* Lista de Critérios */}
                                       <div className="grid gap-3">
                                         {avaliacao.feedbacks.map((feedback) => (
@@ -1284,13 +1449,15 @@ const Feedback: React.FC = () => {
                                                   </div>
                                                 </div>
                                               </div>
-                                              <button
-                                                onClick={() => handleVerDetalhes(feedback)}
-                                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
-                                              >
-                                                <Eye className="h-3 w-3" />
-                                                Ver
-                                              </button>
+                                              <div className="flex items-center gap-3">
+                                                <button
+                                                  onClick={() => handleVerDetalhes(feedback)}
+                                                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                                                >
+                                                  <Eye className="h-4 w-4" />
+                                                  Ver
+                                                </button>
+                                              </div>
                                             </div>
                                           </div>
                                         ))}
@@ -1317,37 +1484,32 @@ const Feedback: React.FC = () => {
                   >
                                       <CollapsibleTrigger asChild>
                     <div className="flex items-center justify-between mb-6 p-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group">
-                      {/* Seção Esquerda - Informações do Agente */}
+                      {/* Seção Esquerda - Informações da Ligação */}
                       <div className="flex items-center gap-6 flex-1">
                         <div className="p-5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
                           <Phone className="h-8 w-8 text-white" />
                         </div>
                         <div className="space-y-3">
                           <h4 className="text-3xl font-bold text-gray-900">
-                            {ligacao.agenteNome}
+                            Ligação #{ligacao.callId}
                           </h4>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                             <p className="text-sm font-medium text-gray-700">
                               <span className="inline-flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-blue-600" />
-                                Ligação: #{ligacao.callId}
+                                <Target className="h-4 w-4 text-blue-600" />
+                                {ligacao.totalFeedbacks} critérios avaliados
                               </span>
                             </p>
                             <p className="text-sm text-gray-600">
                               <span className="inline-flex items-center gap-2">
-                                <Target className="h-4 w-4 text-indigo-600" />
-                                {ligacao.totalFeedbacks} critérios
-                              </span>
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="inline-flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                                Performance: {ligacao.performanceMedia}%
-                              </span>
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              <span className="inline-flex items-center gap-2">
-                                📅 {ligacao.dataLigacao}
+                                <Calendar className="h-4 w-4 text-blue-600" />
+                                {new Date(ligacao.dataLigacao).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
                               </span>
                             </p>
                           </div>
@@ -1436,15 +1598,6 @@ const Feedback: React.FC = () => {
                            </div>
                            
                            <div className="flex items-center gap-3">
-                             {/* Botão de Transcrição */}
-                             <button
-                               onClick={() => handleShowTranscriptionSplit(ligacao.callId, ligacao.callId)}
-                               className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl"
-                             >
-                               <Mic className="h-4 w-4" />
-                               Ver Transcrição
-                             </button>
-                             
                              {/* Botão Aceitar Todos para agentes */}
                              {!isAdmin && ligacao.feedbacksPendentes > 0 && (
                                <button
@@ -1455,6 +1608,15 @@ const Feedback: React.FC = () => {
                                  Aceitar Todos
                                </button>
                              )}
+                             
+                             {/* Botão de Transcrição */}
+                             <button
+                               onClick={() => handleOpenTranscriptionModal(ligacao.callId)}
+                               className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                             >
+                               <Mic className="h-4 w-4" />
+                               Ver Transcrição
+                             </button>
                            </div>
                          </div>
                          
@@ -1482,23 +1644,26 @@ const Feedback: React.FC = () => {
                                  {/* Métricas - Performance e Status */}
                                  <div className="flex items-center gap-8">
                                    <div className="text-center">
-                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Performance</p>
-                                     <div className={`px-6 py-3 font-bold text-xl ${getPerformanceColor(feedback.performanceAtual)}`}>
+                                     {/* <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Performance</p> */}
+                                     {/* <div className={`px-6 py-3 font-bold text-xl ${getPerformanceColor(feedback.performanceAtual)}`}>
                                        {feedback.performanceAtual}%
-                                     </div>
+                                     </div> */}
                                    </div>
                                    
-                                   <div className="text-center">
-                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
-                                     <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
-                                       {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
-                                        feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
-                                        feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
-                                        <AlertTriangle className="h-4 w-4 mr-2" />}
-                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                        feedback.status === 'aplicado' ? 'Aplicado' :
-                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
-                                     </span>
+                                   {/* Status */}
+                                   <div className="flex items-center gap-8">
+                                     <div className="text-center">
+                                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
+                                       <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
+                                         {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
+                                          feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
+                                          feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
+                                          <AlertTriangle className="h-4 w-4 mr-2" />}
+                                         {feedback.status === 'pendente' ? 'Pendente' : 
+                                          feedback.status === 'aplicado' ? 'Aplicado' :
+                                          feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
+                                       </span>
+                                     </div>
                                    </div>
                                  </div>
 
@@ -1512,34 +1677,14 @@ const Feedback: React.FC = () => {
                                      Ver
                                    </button>
                                    
-                                   {/* Botões específicos para agentes */}
-                                   {!isAdmin && feedback.status === 'pendente' && !feedback.contestacaoId && (
-                                     <>
-                                       <button
-                                         onClick={() => handleAceitarFeedback(feedback)}
-                                         className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                                       >
-                                         <CheckCircle className="h-4 w-4" />
-                                         Aceitar
-                                       </button>
-                                       <button
-                                         onClick={() => handleContestarFeedback(feedback)}
-                                         className="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                                       >
-                                         <MessageCircle className="h-4 w-4" />
-                                         Contestar
-                                       </button>
-                                     </>
-                                   )}
-                                   
                                    {/* Indicador de contestação */}
                                    {feedback.contestacaoId && (
-                                     <div className="flex items-center gap-2 bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 px-4 py-2 rounded-xl border border-orange-200">
-                                       <MessageCircle className="h-4 w-4" />
-                                       <span className="text-sm font-semibold">
+                                     <div className=""> 
+                                       {/* <MessageCircle className="h-4 w-4" /> */}
+                                       {/* <span className="text-sm font-semibold">
                                          Contestado ({feedback.contestacaoStatus === 'PENDENTE' ? 'Pendente' :
                                                       feedback.contestacaoStatus === 'ACEITA' ? 'Aceito' : 'Rejeitado'})
-                                       </span>
+                                       </span> */}
                                      </div>
                                    )}
                                  </div>
@@ -2306,112 +2451,11 @@ const Feedback: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de Aceitar Contestação */}
-      {showAceitarModal && contestacaoParaAnalisar && (
+      {/* Modal de Transcrição */}
+      {showFeedbackTranscriptionModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl">
-            <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-8 py-6 text-white rounded-t-3xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <CheckCircle className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Aceitar Contestação</h3>
-                    <p className="text-green-100 text-lg">{contestacaoParaAnalisar.criterio_nome}</p>
-                    <p className="text-green-200 text-sm">Agente: {contestacaoParaAnalisar.agent_name}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowAceitarModal(false);
-                    setComentarioMonitor('');
-                  }}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">Feedback Original:</h4>
-                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.feedback_comentario}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">Contestação do Agente:</h4>
-                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-                    <p className="text-gray-700 leading-relaxed">{contestacaoParaAnalisar.comentario_agente}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="text-lg font-bold text-gray-800 mb-3">Novo Resultado:</h4>
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                  <p className="text-sm text-green-700 mb-3">
-                    Ao aceitar esta contestação, o resultado será alterado de <strong>NAO CONFORME</strong> para:
-                  </p>
-                  <select
-                    value={novoResultado}
-                    onChange={(e) => setNovoResultado(e.target.value as any)}
-                    className="w-full border-2 border-green-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white"
-                  >
-                    <option value="CONFORME">CONFORME</option>
-                    <option value="NAO_SE_APLICA">NÃO SE APLICA</option>
-                  </select>
-                  <p className="text-xs text-green-600 mt-2">
-                    Esta alteração irá recalcular automaticamente a pontuação da avaliação.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h4 className="text-lg font-bold text-gray-800 mb-3">Comentário do Monitor:</h4>
-                <textarea
-                  value={comentarioMonitor}
-                  onChange={(e) => setComentarioMonitor(e.target.value)}
-                  rows={4}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                  placeholder="Digite suas observações sobre esta decisão (opcional)..."
-                />
-                <p className="text-sm text-gray-500 mt-2">
-                  Este comentário será salvo junto com sua decisão e poderá ser visualizado pelo agente.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => {
-                    setShowAceitarModal(false);
-                    setComentarioMonitor('');
-                  }}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConfirmarAceitacao}
-                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
-                >
-                  <CheckCircle className="h-5 w-5" />
-                  Confirmar Aceitação
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Transcrição Separado */}
-      {expandedCallWithTranscription && (
-        <div className="fixed inset-0 flex items-end justify-end z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            {/* Header do Modal de Transcrição */}
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            {/* Header do Modal */}
             <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -2419,14 +2463,19 @@ const Feedback: React.FC = () => {
                     <Mic className="h-8 w-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold">Transcrição da Ligação</h3>
-                    <p className="text-purple-100 text-lg">Ligação #{expandedCallWithTranscription}</p>
+                    <h3 className="text-2xl font-bold">
+                      Transcrição da Ligação
+                    </h3>
+                    <p className="text-purple-100 text-lg">
+                      Visualize a transcrição completa da avaliação
+                    </p>
                   </div>
                 </div>
                 <button
                   onClick={() => {
-                    setExpandedCallWithTranscription(null);
-                    setSelectedCallForTranscription(null);
+                    setShowFeedbackTranscriptionModal(false);
+                    setTranscriptionData(null);
+                    setTranscriptionError(null);
                   }}
                   className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 group"
                 >
@@ -2435,17 +2484,122 @@ const Feedback: React.FC = () => {
               </div>
             </div>
 
-            {/* Conteúdo da Transcrição */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <TranscriptionModal
-                isOpen={true}
-                onClose={() => {
-                  setExpandedCallWithTranscription(null);
-                  setSelectedCallForTranscription(null);
-                }}
-                avaliacaoId={expandedCallWithTranscription}
-                callId={expandedCallWithTranscription}
-              />
+            {/* Conteúdo do Modal */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {transcriptionLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                    <p className="text-gray-500">Carregando transcrição...</p>
+                  </div>
+                </div>
+              ) : transcriptionError ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-500 mb-2">Erro ao carregar transcrição</p>
+                    <p className="text-gray-500 text-sm">{transcriptionError}</p>
+                  </div>
+                </div>
+              ) : transcriptionData ? (
+                <div className="bg-white rounded-2xl border border-gray-200">
+                  <div className="p-6">
+                    {transcriptionData.conteudo ? (
+                      <div className="space-y-6">
+                        {/* Cabeçalho da transcrição */}
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-200">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl">
+                              <Mic className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <h4 className="text-xl font-bold text-purple-900">Transcrição da Ligação</h4>
+                              <p className="text-purple-700">Avaliação #{selectedFeedbackForTranscription?.avaliacaoId || 'N/A'}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Estatísticas da transcrição */}
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="text-center bg-white/80 rounded-xl p-3 border border-purple-200">
+                              <div className="text-2xl font-bold text-purple-600">
+                                {processTranscription(transcriptionData.conteudo).length}
+                              </div>
+                              <div className="text-xs font-semibold text-purple-700 uppercase tracking-wider">Mensagens</div>
+                            </div>
+                            <div className="text-center bg-white/80 rounded-xl p-3 border border-purple-200">
+                              <div className="text-2xl font-bold text-blue-600">
+                                {processTranscription(transcriptionData.conteudo).filter(m => m.speaker === 'Agente').length}
+                              </div>
+                              <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Agente</div>
+                            </div>
+                            <div className="text-center bg-white/80 rounded-xl p-3 border border-purple-200">
+                              <div className="text-2xl font-bold text-green-600">
+                                {processTranscription(transcriptionData.conteudo).filter(m => m.speaker === 'Cliente').length}
+                              </div>
+                              <div className="text-xs font-semibold text-green-700 uppercase tracking-wider">Cliente</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Conteúdo da transcrição */}
+                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+                          <div className="p-6">
+                            <div className="space-y-4">
+                              {processTranscription(transcriptionData.conteudo).map((message, index) => (
+                                <div 
+                                  key={index} 
+                                  className={`flex ${message.speaker === 'Agente' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div 
+                                    className={`max-w-[80%] px-4 py-3 rounded-2xl shadow-sm ${
+                                      message.speaker === 'Agente' 
+                                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                                        : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800'
+                                    }`}
+                                  >
+                                    {/* Cabeçalho da mensagem */}
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                          message.speaker === 'Agente' ? 'bg-blue-200' : 'bg-gray-400'
+                                        }`}></div>
+                                        <span className="text-xs font-semibold opacity-75">
+                                          {message.speaker}
+                                        </span>
+                                      </div>
+                                      {message.timestamp && (
+                                        <span className="text-xs opacity-60">
+                                          {message.timestamp}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Texto da mensagem */}
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                      {message.text}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Mic className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">Transcrição não disponível para esta avaliação.</p>
+                        <p className="text-xs text-gray-400 mt-2">Dados recebidos: {JSON.stringify(transcriptionData)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Mic className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Carregando dados da transcrição...</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

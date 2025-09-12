@@ -211,10 +211,10 @@ const Login: React.FC = () => {
             </div>
 
           <div className="text-center">
-            <p className="text-xs text-gray-500">
+            {/* <p className="text-xs text-gray-500">
               Usuário padrão: <strong>admin.sistema</strong><br />
               Senha padrão: <strong>Temp@2025</strong>
-            </p>
+            </p> */}
           </div>
         </form>
       </div>
