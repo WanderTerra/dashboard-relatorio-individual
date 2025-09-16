@@ -23,20 +23,20 @@ export default ({ mode }: { mode: string }) => {
       port: 5174,
       proxy: {
         '/api': {
-          target: 'http://localhost:8001',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           // Removido o rewrite para manter /api no path
         },
         // '/auth' removido - agora é coberto pelo proxy '/api'
         '/admin': {
-          target: 'http://localhost:8001',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           // NÃO faça rewrite, pois o backend espera /admin mesmo!
         },
         '/carteiras-avaliacoes': {
-          target: 'http://localhost:8001',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
         },

@@ -26,10 +26,10 @@ const Dashboard: React.FC = () => {
     label: item.carteira
   }));
 
-  // Construir objeto de filtros para a API (incluindo carteira apenas se tiver valor)
+  // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 
-    start: filters.start, 
-    end: filters.end, 
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 

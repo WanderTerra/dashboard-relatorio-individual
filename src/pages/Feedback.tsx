@@ -134,11 +134,11 @@ const Feedback: React.FC = () => {
 
 
 
-  // Filtros para API - sem filtro de data por padrão
+  // Filtros para API - incluindo apenas parâmetros com valores
   const apiFilters = {
-    start: filters.start || '',
-    end: filters.end || '',
-    carteira: filters.carteira
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
+    ...(filters.carteira ? { carteira: filters.carteira } : {})
   };
 
   // Buscar feedbacks com pontuações das avaliações
