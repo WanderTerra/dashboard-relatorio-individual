@@ -18,6 +18,7 @@ export default ({ mode }: { mode: string }) => {
       include: ['use-callback-ref'],
       exclude: [],
     },
+    cacheDir: '.vite-cache',
     server: {
       host: true,
       port: 5174,
