@@ -1,0 +1,8 @@
+# Ignore Vite cache files
+node_modules/.vite/ export-ignore
+node_modules/.vite/deps/ export-ignore
+.vite/ export-ignore
+.vite/deps/ export-ignore
+
+# Ignore all node_modules
+node_modules/ export-ignore
