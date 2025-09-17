@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, clonarCriterioParaCarteira, atualizarOrdemCriterios } from "../lib/api";
-import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2, ArrowUpDown, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2, ArrowUpDown, Check, X, Bot } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useToast } from "../hooks/use-toast";
 
@@ -1400,8 +1400,19 @@ const CarteiraCriterios: React.FC = () => {
                       )}
                     </h2>
                     <p className="text-sm text-gray-600">Configure os dados do critério</p>
+                    
+                    {/* Informação sobre IA */}
+                    <div className="mt-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                      <div className="p-1 bg-blue-100 rounded-md">
+                        <Bot className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <p className="text-xs text-blue-700 font-medium">
+                        Todos os campos são utilizados pela IA para avaliar as ligações com precisão
+                      </p>
+                    </div>
+                    
                     {/* Indicador de progresso */}
-                    <div className="mt-1.5">
+                    <div className="mt-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
@@ -1494,7 +1505,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Descrição
-                  <span className="text-xs text-gray-500 ml-2">(Opcional)</span>
                 </label>
                 <textarea
                   name="descricao"
@@ -1518,7 +1528,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Exemplo de frase
-                  <span className="text-xs text-gray-500 ml-2">(Opcional)</span>
                 </label>
                 <textarea
                   name="exemplo_frase"
@@ -1542,7 +1551,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Categoria
-                  <span className="text-xs text-gray-500 ml-2">(Obrigatório)</span>
                 </label>
                 <select
                   name="categoria"
@@ -1632,7 +1640,7 @@ const CarteiraCriterios: React.FC = () => {
                   <div className="col-span-2 flex items-center gap-3">
                     <span className="text-xs font-medium text-gray-600">Peso padrão:</span>
                     <div className="flex gap-2">
-                      {[1, 2, 3, 5].map(peso => (
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(peso => (
                         <button
                           key={peso}
                           type="button"

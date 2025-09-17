@@ -1120,7 +1120,7 @@ const Feedback: React.FC = () => {
         </div>
 
         {/* Estatísticas Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
@@ -1160,18 +1160,6 @@ const Feedback: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg border border-emerald-200 p-6 hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Aplicados</p>
-                <p className="text-3xl font-bold text-emerald-900 mt-1">{stats.aplicado}</p>
-                <p className="text-xs text-emerald-500 mt-1">Implementados</p>
-              </div>
-              <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <CheckCircle className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-          </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border border-blue-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
@@ -1331,10 +1319,6 @@ const Feedback: React.FC = () => {
                             <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                               <div className="text-3xl font-bold text-amber-600 mb-1">{agente.feedbacksPendentes}</div>
                               <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pendentes</div>
-                            </div>
-                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
-                              <div className="text-3xl font-bold text-emerald-600 mb-1">{agente.feedbacksAplicados}</div>
-                              <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Aplicados</div>
                             </div>
                             <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                               <div className="text-3xl font-bold text-blue-600 mb-1">{agente.feedbacksAceitos}</div>
@@ -1561,10 +1545,6 @@ const Feedback: React.FC = () => {
                         <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                           <div className="text-3xl font-bold text-amber-600 mb-1">{ligacao.feedbacksPendentes}</div>
                           <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pendentes</div>
-                        </div>
-                        <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
-                          <div className="text-3xl font-bold text-emerald-600 mb-1">{ligacao.feedbacksAplicados}</div>
-                          <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Aplicados</div>
                         </div>
                         <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                           <div className="text-3xl font-bold text-blue-600 mb-1">{ligacao.feedbacksAceitos}</div>
