@@ -660,6 +660,33 @@ const Feedback: React.FC = () => {
     setShowAnaliseModal(true);
   };
 
+  // Função para navegar ao feedback específico
+  const handleVerFeedback = (contestacao: any) => {
+    setShowContestacoesModal(false);
+    
+    // Expandir o agente correspondente
+    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
+    
+    // Expandir a avaliação correspondente
+    setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
+    
+    // Scroll suave para o feedback após um pequeno delay
+    setTimeout(() => {
+      const feedbackElement = document.getElementById(`feedback-${contestacao.feedback_id}`);
+      if (feedbackElement) {
+        feedbackElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Destacar temporariamente o feedback
+        feedbackElement.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        setTimeout(() => {
+          feedbackElement.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        }, 3000);
+      }
+    }, 100);
+  };
+
   const handleBuscarContestacoesPendentes = async () => {
     try {
       const contestacoes = await getContestacoesPendentes();
@@ -1422,7 +1449,7 @@ const Feedback: React.FC = () => {
                                       {/* Lista de Critérios */}
                                       <div className="grid gap-3">
                                         {avaliacao.feedbacks.map((feedback) => (
-                                          <div key={feedback.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                                          <div key={feedback.id} id={`feedback-${feedback.id}`} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
                                             <div className="flex items-center justify-between">
                                               <div className="flex items-center gap-3 flex-1">
                                                 <div className="p-2 bg-gray-100 rounded-lg">
@@ -1616,7 +1643,7 @@ const Feedback: React.FC = () => {
                          {/* Grid de Critérios */}
                          <div className="grid gap-4">
                            {ligacao.feedbacks.map((feedback: FeedbackItem) => (
-                             <div key={feedback.id} className="bg-white border-2 border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
+                             <div key={feedback.id} id={`feedback-${feedback.id}`} className="bg-white border-2 border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
                                <div className="flex items-center justify-between">
                                  {/* Informações do Critério */}
                                  <div className="flex items-center gap-5 flex-1">
@@ -2311,27 +2338,36 @@ const Feedback: React.FC = () => {
                           </div>
                         </div>
                         
-                        <div className="ml-4 flex gap-2">
+                        <div className="ml-4 flex flex-col gap-2">
                           <button
-                            onClick={() => {
-                              setShowContestacoesModal(false);
-                              handleAceitarContestacao(contestacao);
-                            }}
-                            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            onClick={() => handleVerFeedback(contestacao)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
                           >
-                            <CheckCircle className="h-4 w-4" />
-                            Aceitar
+                            <Eye className="h-4 w-4" />
+                            Ver Feedback
                           </button>
-                          <button
-                            onClick={() => {
-                              setShowContestacoesModal(false);
-                              handleAnalisarContestacao(contestacao);
-                            }}
-                            className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                          >
-                            <XCircle className="h-4 w-4" />
-                            Rejeitar
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowContestacoesModal(false);
+                                handleAceitarContestacao(contestacao);
+                              }}
+                              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Aceitar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowContestacoesModal(false);
+                                handleAnalisarContestacao(contestacao);
+                              }}
+                              className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              Rejeitar
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
