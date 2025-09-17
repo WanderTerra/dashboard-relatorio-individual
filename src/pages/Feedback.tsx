@@ -482,16 +482,23 @@ const Feedback: React.FC = () => {
       .sort((a, b) => b.feedbacksPendentes - a.feedbacksPendentes);
   }, [filteredFeedback]);
 
+  // Buscar contestações pendentes para estatísticas
+  const { data: contestacoesPendentesStats = [] } = useQuery({
+    queryKey: ['contestacoes-pendentes-stats'],
+    queryFn: () => getContestacoesPendentes(),
+    refetchInterval: 30000, // Refetch a cada 30 segundos
+  });
+
   // Estatísticas
   const stats = useMemo(() => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
     const aplicado = feedbackData.filter((f: FeedbackItem) => f.status === 'aplicado').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
-    const revisao = feedbackData.filter((f: FeedbackItem) => f.status === 'revisao').length;
+    const revisao = contestacoesPendentesStats.length; // Usar contestações pendentes ao invés de status revisão
 
     return { total, pendente, aplicado, aceito, revisao };
-  }, [feedbackData]);
+  }, [feedbackData, contestacoesPendentesStats]);
 
   const getPerformanceColor = (performance: number) => {
     if (performance >= 80) return 'text-green-600';
@@ -1170,12 +1177,16 @@ const Feedback: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group">
+          <div 
+            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group cursor-pointer"
+            onClick={handleBuscarContestacoesPendentes}
+            title="Clique para ver contestações pendentes"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Revisão</p>
                 <p className="text-3xl font-bold text-orange-900 mt-1">{stats.revisao}</p>
-                <p className="text-xs text-orange-500 mt-1">Em análise</p>
+                <p className="text-xs text-orange-500 mt-1">Contestações pendentes</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
