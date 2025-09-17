@@ -43,6 +43,7 @@ import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
 import { useAuth } from '../contexts/AuthContext';
 import TranscriptionModal from '../components/TranscriptionModal';
+import ContestacoesPendentesButton from '../components/ContestacoesPendentesButton';
 
 interface Agente {
   id: string;
@@ -669,6 +670,7 @@ const Feedback: React.FC = () => {
     }
   };
 
+
   const handleAceitarContestacao = (contestacao: any) => {
     setContestacaoParaAnalisar(contestacao);
     setNovoResultado('CONFORME');
@@ -1049,6 +1051,14 @@ const Feedback: React.FC = () => {
                   />
                 </div>
               </div>
+              
+              {/* Botão de Contestações - Apenas para monitores/admins */}
+              {(user?.permissions?.includes('admin') || user?.permissions?.includes('monitor')) && (
+                <div className="flex flex-col">
+                  <label className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Ações</label>
+                  <ContestacoesPendentesButton onClick={handleBuscarContestacoesPendentes} />
+                </div>
+              )}
               <div className="flex flex-col justify-end">
                 <button
                   onClick={() => {
