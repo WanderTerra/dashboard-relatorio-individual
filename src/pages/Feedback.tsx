@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -43,7 +43,6 @@ import { formatAgentName } from '../lib/format';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
 import { useAuth } from '../contexts/AuthContext';
 import TranscriptionModal from '../components/TranscriptionModal';
-import ContestacoesPendentesButton from '../components/ContestacoesPendentesButton';
 
 interface Agente {
   id: string;
@@ -77,6 +76,7 @@ interface FeedbackItem {
 const Feedback: React.FC = () => {
   const { user } = useAuth();
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
@@ -1086,19 +1086,28 @@ const Feedback: React.FC = () => {
                 </div>
               </div>
               
-              {/* Botão de Contestações - Apenas para monitores/admins */}
-              {(user?.permissions?.includes('admin') || user?.permissions?.includes('monitor')) && (
-                <div className="flex flex-col">
-                  <label className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Ações</label>
-                  <ContestacoesPendentesButton onClick={handleBuscarContestacoesPendentes} />
-                </div>
-              )}
               <div className="flex flex-col justify-end">
                 <button
-                  onClick={() => {
-                    refetchAgents();
-                    refetchTrend();
-                    refetchFeedbacks();
+                  onClick={async () => {
+                    console.log('🔄 Botão Atualizar clicado - iniciando refetch...');
+                    try {
+                      // Invalidar queries primeiro para forçar refetch
+                      queryClient.invalidateQueries({ queryKey: ['feedbacks-agents-mixed'] });
+                      queryClient.invalidateQueries({ queryKey: ['mixed-trend'] });
+                      queryClient.invalidateQueries({ queryKey: ['feedbacks-with-scores'] });
+                      queryClient.invalidateQueries({ queryKey: ['contestacoes-pendentes-stats'] });
+                      
+                      // Executar refetch
+                      await Promise.all([
+                        refetchAgents(),
+                        refetchTrend(),
+                        refetchFeedbacks()
+                      ]);
+                      
+                      console.log('✅ Refetch concluído com sucesso');
+                    } catch (error) {
+                      console.error('❌ Erro no refetch:', error);
+                    }
                   }}
                   className="h-12 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
                 >
