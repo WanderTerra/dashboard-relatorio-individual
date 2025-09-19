@@ -710,8 +710,40 @@ export const contestarFeedback = (feedbackId: number, comentario: string) =>
 export const getContestacoesPendentes = (): Promise<ContestacaoOut[]> =>
   api.get('/feedback/contestacoes/pendentes').then(r => r.data);
 
-export const analisarContestacao = (contestacaoId: number, analise: ContestacaoAnalise) =>
-  api.put(`/feedback/contestacao/${contestacaoId}/analisar`, analise).then(r => r.data);
+export const analisarContestacao = async (contestacaoId: number, analise: ContestacaoAnalise) => {
+  const maxRetries = 3;
+  let attempt = 0;
+  
+  while (attempt < maxRetries) {
+    try {
+      console.log(`🚀 Tentativa ${attempt + 1}/${maxRetries} - Analisando contestação ${contestacaoId}:`, analise);
+      
+      const response = await api.put(`/feedback/contestacao/${contestacaoId}/analisar`, analise, {
+        timeout: 15000 // 15 segundos
+      });
+      
+      console.log(`✅ Contestação ${contestacaoId} processada com sucesso:`, response.data);
+      return response.data;
+    } catch (error: any) {
+      attempt++;
+      console.warn(`⚠️ Tentativa ${attempt}/${maxRetries} falhou para contestação ${contestacaoId}:`, {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
+      if (attempt >= maxRetries) {
+        console.error(`❌ FALHA TOTAL após ${maxRetries} tentativas para contestação ${contestacaoId}:`, error);
+        throw error;
+      }
+      
+      // Aguarda antes de tentar novamente (exponential backoff)
+      const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+      console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+};
 
 export const getAvaliacaoFeedbackStatus = (avaliacaoId: number): Promise<AvaliacaoFeedbackStatus> =>
   api.get(`/feedback/avaliacao/${avaliacaoId}/status`).then(r => r.data);

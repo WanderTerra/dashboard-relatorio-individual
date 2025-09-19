@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -127,6 +127,10 @@ const Feedback: React.FC = () => {
   const [transcriptionLoading, setTranscriptionLoading] = useState(false);
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
+  // Infinite scroll
+  const pageSize = 50;
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
   const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
@@ -142,21 +146,60 @@ const Feedback: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {})
   };
 
-  // Buscar feedbacks com pontuações das avaliações
-  const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
+  // Buscar feedbacks com pontuações das avaliações (infinite scroll)
+  const {
+    data: feedbacksPages,
+    isLoading: feedbacksLoading,
+    error: feedbacksError,
+    refetch: refetchFeedbacks,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: ['feedbacks-with-scores', apiFilters],
-    queryFn: () => {
-      return fetch('/api/feedbacks/with-scores')
-        .then(res => res.json())
-        .catch(err => {
-          throw err;
-        });
+    queryFn: ({ pageParam = 0 }) => {
+      const params = new URLSearchParams();
+      params.append('limit', String(pageSize));
+      params.append('offset', String(pageParam));
+      if (apiFilters.start) params.append('start', apiFilters.start);
+      if (apiFilters.end) params.append('end', apiFilters.end);
+      if (apiFilters.carteira) params.append('carteira', apiFilters.carteira);
+
+      return fetch(`/api/feedbacks/with-scores?${params.toString()}`)
+        .then(res => res.json());
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      return Array.isArray(lastPage) && lastPage.length === pageSize
+        ? allPages.length * pageSize
+        : undefined;
     },
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    keepPreviousData: true
   });
+
+  // Array achatado para manter compatibilidade com o restante do componente
+  const feedbacks = useMemo(() => {
+    return feedbacksPages?.pages ? feedbacksPages.pages.flat() : [];
+  }, [feedbacksPages]);
+
+  // IntersectionObserver para carregar próximas páginas
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    const el = bottomRef.current;
+
+    const observer = new IntersectionObserver((entries) => {
+      const isVisible = entries.some(e => e.isIntersecting);
+      if (isVisible && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 
 
@@ -715,24 +758,24 @@ const Feedback: React.FC = () => {
   const handleConfirmarAceitacao = async () => {
     if (!contestacaoParaAnalisar) return;
 
-    try {
-      const analise = {
+    const debugInfo = {
+      contestacaoId: contestacaoParaAnalisar.id,
+      timestamp: new Date().toISOString(),
+      user: user?.full_name || user?.username,
+      analise: {
         aceitar_contestacao: true,
         novo_resultado: novoResultado,
         observacao: comentarioMonitor.trim() || undefined
-      };
+      }
+    };
+    
+    console.log('🚀 Iniciando aceitação de contestação:', debugInfo);
 
-      console.log('Confirmando aceitação:', { contestacaoId: contestacaoParaAnalisar.id, analise });
-
-      await analisarContestacao(Number(contestacaoParaAnalisar.id), analise);
-      alert(`Contestação aceita com sucesso! Resultado alterado para ${novoResultado}.`);
+    try {
+      const response = await analisarContestacao(Number(contestacaoParaAnalisar.id), debugInfo.analise);
+      console.log('✅ Resposta do servidor:', response);
       
-      // Fechar modais
-      setShowAceitarModal(false);
-      setContestacaoParaAnalisar(null);
-      setComentarioMonitor('');
-      
-      // Atualizar feedback selecionado se estiver aberto
+      // ✅ SÓ AGORA atualiza o estado local após confirmação do BD
       if (selectedFeedback && selectedFeedback.contestacaoId === contestacaoParaAnalisar.id) {
         setSelectedFeedback(prev => prev ? {
           ...prev,
@@ -740,10 +783,45 @@ const Feedback: React.FC = () => {
         } : null);
       }
       
+      alert(`✅ Contestação aceita com sucesso! Resultado alterado para ${novoResultado}.\n\nID: ${contestacaoParaAnalisar.id}`);
+      
+      // Fechar modais
+      setShowAceitarModal(false);
+      setContestacaoParaAnalisar(null);
+      setComentarioMonitor('');
+      
+      // Força reload dos dados do servidor
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('Erro ao aceitar contestação:', error);
-      alert(`Erro ao aceitar contestação: ${error.response?.data?.detail || error.message}`);
+      console.error('❌ Falha completa ao aceitar contestação:', {
+        ...debugInfo,
+        error: error,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Timeout: A operação demorou muito. Verifique se foi processada.';
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Erro interno do servidor. A operação pode ter sido processada.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Contestação não encontrada no servidor.';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Dados inválidos: ${error.response?.data?.detail || 'Verifique os campos.'}`;
+      } else {
+        errorMessage = error.response?.data?.detail || error.message || 'Erro desconhecido';
+      }
+      
+      alert(`❌ FALHA ao aceitar contestação:\n\n${errorMessage}\n\nID: ${contestacaoParaAnalisar.id}\nHorário: ${debugInfo.timestamp}\n\nVerifique o console para mais detalhes.`);
+      
+      // Força reload para verificar se a operação foi processada no servidor
+      console.log('🔄 Forçando reload para verificar estado no servidor...');
+      refetchFeedbacks();
     }
   };
 
@@ -758,24 +836,25 @@ const Feedback: React.FC = () => {
 
     if (!contestacao) return;
 
-    try {
-      const analise = {
+    const debugInfo = {
+      contestacaoId: contestacao.id,
+      aceitar,
+      timestamp: new Date().toISOString(),
+      user: user?.full_name || user?.username,
+      analise: {
         aceitar_contestacao: aceitar,
-        novo_resultado: aceitar ? 'CONFORME' as const : undefined,  // Sempre usar CONFORME quando aceitar
-        observacao: comentarioMonitor.trim() || undefined  // Incluir comentário do monitor se fornecido
-      };
+        novo_resultado: aceitar ? 'CONFORME' as const : undefined,
+        observacao: comentarioMonitor.trim() || undefined
+      }
+    };
+    
+    console.log('🚀 Iniciando análise de contestação:', debugInfo);
 
-      console.log('Enviando análise:', { contestacaoId: contestacao.id, analise });
-
-      await analisarContestacao(Number(contestacao.id), analise);
-      alert(`Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!`);
+    try {
+      const response = await analisarContestacao(Number(contestacao.id), debugInfo.analise);
+      console.log('✅ Resposta do servidor:', response);
       
-      // Fechar modais se estiverem abertos
-      setShowAnaliseModal(false);
-      setContestacaoParaAnalisar(null);
-      setComentarioMonitor('');
-      
-      // Atualizar feedback selecionado se estiver aberto
+      // ✅ SÓ AGORA atualiza o estado local após confirmação do BD
       if (selectedFeedback && selectedFeedback.contestacaoId === contestacao.id) {
         setSelectedFeedback(prev => prev ? {
           ...prev,
@@ -783,10 +862,45 @@ const Feedback: React.FC = () => {
         } : null);
       }
       
+      alert(`✅ Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!\n\nID: ${contestacao.id}`);
+      
+      // Fechar modais se estiverem abertos
+      setShowAnaliseModal(false);
+      setContestacaoParaAnalisar(null);
+      setComentarioMonitor('');
+      
+      // Força reload dos dados do servidor
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('Erro ao analisar contestação:', error);
-      alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
+      console.error('❌ Falha completa ao analisar contestação:', {
+        ...debugInfo,
+        error: error,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Timeout: A operação demorou muito. Verifique se foi processada.';
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Erro interno do servidor. A operação pode ter sido processada.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Contestação não encontrada no servidor.';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Dados inválidos: ${error.response?.data?.detail || 'Verifique os campos.'}`;
+      } else {
+        errorMessage = error.response?.data?.detail || error.message || 'Erro desconhecido';
+      }
+      
+      alert(`❌ FALHA ao ${aceitar ? 'aceitar' : 'rejeitar'} contestação:\n\n${errorMessage}\n\nID: ${contestacao.id}\nHorário: ${debugInfo.timestamp}\n\nVerifique o console para mais detalhes.`);
+      
+      // Força reload para verificar se a operação foi processada no servidor
+      console.log('🔄 Forçando reload para verificar estado no servidor...');
+      refetchFeedbacks();
     }
   };
 
@@ -1717,6 +1831,11 @@ const Feedback: React.FC = () => {
                   </Collapsible>
                 </div>
                 ))
+              )}
+              {hasNextPage && (
+                <div ref={bottomRef} className="py-6 text-center text-gray-500">
+                  {isFetchingNextPage ? 'Carregando mais...' : 'Desça para carregar mais'}
+                </div>
               )}
             </div>
           )}
