@@ -59,7 +59,7 @@ interface FeedbackItem {
   criterio: string;
   performanceAtual: number;
   observacao: string;
-  status: 'pendente' | 'aplicado' | 'aceito' | 'revisao';
+  status: 'pendente' | 'aceito' | 'revisao';
   dataCriacao: string;
   dataAplicacao?: string;
   origem: 'ia' | 'monitor';
@@ -78,7 +78,7 @@ const Feedback: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   // Estado para edição
@@ -253,13 +253,11 @@ const Feedback: React.FC = () => {
         // Normalizar nome do agente como na página Agents
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
         // Mapear status visual considerando aceite vindo do backend
-        const statusVisual = (fb?.aceite === 1 || fb?.status === 'ACEITO')
+        const statusVisual: 'pendente' | 'aceito' | 'revisao' = (fb?.aceite === 1 || fb?.status === 'ACEITO')
           ? 'aceito'
-          : (fb?.status === 'APLICADO')
-            ? 'aplicado'
-            : (fb?.status === 'REVISAO')
-              ? 'revisao'
-              : 'pendente';
+          : (fb?.status === 'REVISAO')
+            ? 'revisao'
+            : 'pendente';
         
         return {
           id: String(fb.id),
@@ -272,7 +270,7 @@ const Feedback: React.FC = () => {
           observacao: fb.comentario,
           status: statusVisual,
           dataCriacao: fb.criado_em,
-          origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+          origem: (fb.origem === 'monitoria' ? 'monitor' : 'ia') as 'ia' | 'monitor',
           comentario: fb.comentario,
           contestacaoId: fb.contestacao_id,
           contestacaoComentario: fb.contestacao_comentario,
@@ -466,7 +464,6 @@ const Feedback: React.FC = () => {
             feedbacks: feedbacksAvaliacao,
             totalFeedbacks: feedbacksAvaliacao.length,
             feedbacksPendentes: feedbacksAvaliacao.filter(fb => fb.status === 'pendente').length,
-            feedbacksAplicados: feedbacksAvaliacao.filter(fb => fb.status === 'aplicado').length,
             feedbacksAceitos: feedbacksAvaliacao.filter(fb => fb.status === 'aceito').length,
             feedbacksRevisao: feedbacksAvaliacao.filter(fb => fb.status === 'revisao').length,
             performanceMedia: Math.round(feedbacksAvaliacao.reduce((acc, fb) => acc + fb.performanceAtual, 0) / feedbacksAvaliacao.length),
@@ -480,7 +477,6 @@ const Feedback: React.FC = () => {
           totalFeedbacks: feedbacks.length,
           totalAvaliacoes: avaliacoes.length,
           feedbacksPendentes: feedbacks.filter(fb => fb.status === 'pendente').length,
-          feedbacksAplicados: feedbacks.filter(fb => fb.status === 'aplicado').length,
           feedbacksAceitos: feedbacks.filter(fb => fb.status === 'aceito').length,
           feedbacksRevisao: feedbacks.filter(fb => fb.status === 'revisao').length,
           performanceMedia: Math.round(performanceMedia),
@@ -516,7 +512,6 @@ const Feedback: React.FC = () => {
           performanceMedia: Math.round(performanceMedia),
           totalFeedbacks: feedbacks.length,
           feedbacksPendentes,
-          feedbacksAplicados: feedbacks.filter(fb => fb.status === 'aplicado').length,
           feedbacksAceitos: feedbacks.filter(fb => fb.status === 'aceito').length,
           feedbacksRevisao: feedbacks.filter(fb => fb.status === 'revisao').length,
           dataLigacao: feedbacks[0]?.dataCriacao || 'N/A'
@@ -536,11 +531,10 @@ const Feedback: React.FC = () => {
   const stats = useMemo(() => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
-    const aplicado = feedbackData.filter((f: FeedbackItem) => f.status === 'aplicado').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
     const revisao = contestacoesPendentesStats.length; // Usar contestações pendentes ao invés de status revisão
 
-    return { total, pendente, aplicado, aceito, revisao };
+    return { total, pendente, aceito, revisao };
   }, [feedbackData, contestacoesPendentesStats]);
 
   const getPerformanceColor = (performance: number) => {
@@ -552,7 +546,6 @@ const Feedback: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pendente': return 'text-yellow-600';
-      case 'aplicado': return 'text-green-600';
       case 'aceito': return 'text-blue-600';
       case 'revisao': return 'text-orange-600';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -616,7 +609,6 @@ const Feedback: React.FC = () => {
       // Converter status visual -> status backend
       status:
         feedback.status === 'pendente' ? 'ENVIADO' :
-        feedback.status === 'aplicado' ? 'APLICADO' :
         feedback.status === 'aceito' ? 'ACEITO' : 'REVISAO',
     });
     setShowEditModal(true);
@@ -1181,7 +1173,6 @@ const Feedback: React.FC = () => {
                 >
                   <option value="todos">📊 Todos os Status</option>
                   <option value="pendente">⏳ Pendente</option>
-                  <option value="aplicado">✅ Aplicado</option>
                   <option value="aceito">🎯 Aceito</option>
                   <option value="revisao">🔍 Em Revisão</option>
                 </select>
@@ -1581,7 +1572,6 @@ const Feedback: React.FC = () => {
                                                     </span>
                                                     <span className={`text-xs font-semibold ${getStatusColor(feedback.status)}`}>
                                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                                       feedback.status === 'aplicado' ? 'Aplicado' :
                                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                                                     </span>
                                                   </div>
@@ -1790,11 +1780,9 @@ const Feedback: React.FC = () => {
                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
                                        <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
                                          {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
-                                          feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                           feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                           <AlertTriangle className="h-4 w-4 mr-2" />}
                                          {feedback.status === 'pendente' ? 'Pendente' : 
-                                          feedback.status === 'aplicado' ? 'Aplicado' :
                                           feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                                        </span>
                                      </div>
@@ -2015,7 +2003,6 @@ const Feedback: React.FC = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-amber-100 rounded-xl">
                         {selectedFeedback.status === 'pendente' ? <Clock className="h-5 w-5 text-amber-600" /> : 
-                         selectedFeedback.status === 'aplicado' ? <CheckCircle className="h-5 w-5 text-green-600" /> :
                          selectedFeedback.status === 'aceito' ? <CheckCircle className="h-5 w-5 text-blue-600" /> :
                          <AlertTriangle className="h-5 w-5 text-orange-600" />}
                       </div>
@@ -2023,7 +2010,6 @@ const Feedback: React.FC = () => {
                     </div>
                     <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold ${getStatusColor(selectedFeedback.status)}`}>
                       {selectedFeedback.status === 'pendente' ? 'Pendente' : 
-                       selectedFeedback.status === 'aplicado' ? 'Aplicado' :
                        selectedFeedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                     </span>
                   </div>
@@ -2175,7 +2161,6 @@ const Feedback: React.FC = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="ENVIADO">Pendente</option>
-                  <option value="APLICADO">Aplicado</option>
                   <option value="ACEITO">Aceito</option>
                   <option value="REVISAO">Em Revisão</option>
                 </select>
