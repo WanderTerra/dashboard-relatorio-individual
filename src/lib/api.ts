@@ -930,3 +930,13 @@ export const syncAchievementsWithProgress = async (agentId: string) => {
   }
 };
 
+// ===== ACORDOS (métricas) =====
+export const getAcordosResumo = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/resumo', { params }).then(r => r.data as { total: number; acordos: number; taxa: number });
+
+export const getAcordosTrend = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/trend', { params }).then(r => r.data as Array<{ dia: string; total: number; acordos: number; taxa: number }>);
+
+export const getAcordosMotivos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/motivos', { params }).then(r => r.data as Array<{ motivo: string; qtd: number }>);
+

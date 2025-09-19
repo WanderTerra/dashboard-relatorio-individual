@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
 import { getMixedKpis, getMixedTrend, getMixedCarteirasFromAvaliacoes } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
+import AcordosDashboard from '../components/dashboard/AcordosDashboard';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
@@ -119,6 +120,12 @@ const Dashboard: React.FC = () => {
             Análise da média mensal de pontuação das ligações (incluindo uploads)
           </p>
           <MonthlyComparisonChart trendData={trend ?? []} />
+        </div>
+
+        {/* Seção de métricas de acordos */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Efetividade - Acordos</h2>
+          <AcordosDashboard start={filters.start} end={filters.end} carteira={filters.carteira || undefined} />
         </div>
       </div>
     </div>
