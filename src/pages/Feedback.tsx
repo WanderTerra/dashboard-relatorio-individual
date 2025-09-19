@@ -400,7 +400,9 @@ const Feedback: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter((item: FeedbackItem) => 
         item.criterio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.agenteNome.toLowerCase().includes(searchTerm.toLowerCase())
+        item.agenteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.callId && String(item.callId).toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.avaliacaoId && String(item.avaliacaoId).toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -1183,7 +1185,7 @@ const Feedback: React.FC = () => {
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Digite agente ou critério..."
+                    placeholder="Digite agente, critério ou número da ligação..."
                     value={searchTerm}
                     onChange={e => handleSearchChange(e.target.value)}
                     className="h-12 pl-12 pr-4 border-2 border-gray-200 rounded-xl text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300"
