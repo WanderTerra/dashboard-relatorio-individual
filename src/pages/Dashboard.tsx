@@ -11,6 +11,7 @@ import { Combobox } from '../components/ui/select-simple';
 import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import AcordosDashboard from '../components/dashboard/AcordosDashboard';
+import QuartilesSection from '../components/QuartilesSection';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
@@ -140,6 +141,13 @@ const Dashboard: React.FC = () => {
             carteira={filters.carteira || undefined} 
           />
         </div>
+
+        {/* Seção de análise de quartis */}
+        <QuartilesSection 
+          start={filters.start || undefined} 
+          end={filters.end || undefined} 
+          carteira={filters.carteira || undefined} 
+        />
       </div>
     </div>
   );

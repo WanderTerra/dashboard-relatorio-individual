@@ -948,3 +948,34 @@ export const getAcordosValores = (params: { start?: string; end?: string; cartei
 export const getAcordosAgentesRanking = (params: { start?: string; end?: string; carteira?: string }) =>
   api.get('/acordos/metrics/agentes-ranking', { params }).then(r => r.data as Array<{ agent_id: string; nome_agente: string; total_ligacoes: number; acordos: number; taxa_acordo: number }>);
 
+// ===== QUARTIS =====
+export interface AgenteQuartil {
+  agent_id: string;
+  nome_agente: string;
+  media_pontuacao?: number;
+  taxa_acordo?: number;
+  total_ligacoes: number;
+  acordos?: number;
+  posicao: number;
+}
+
+export interface QuartilData {
+  valor: number;
+  agentes: AgenteQuartil[];
+}
+
+export interface QuartisResponse {
+  q1: QuartilData;
+  q2: QuartilData;
+  q3: QuartilData;
+  q4: QuartilData;
+  periodo: string;
+}
+
+export const getQuartisDesempenho = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/quartis/desempenho', { params }).then(r => r.data as QuartisResponse);
+
+export const getQuartisAcordos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/quartis/acordos', { params }).then(r => r.data as QuartisResponse);
+
+
