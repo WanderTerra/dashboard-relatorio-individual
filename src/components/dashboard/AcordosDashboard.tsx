@@ -9,6 +9,13 @@ import { TrendingUp, TrendingDown, Target, Users } from 'lucide-react';
 
 export default function AcordosDashboard({ start, end, carteira }: { start?: string; end?: string; carteira?: string }) {
 	const params = { ...(start ? { start } : {}), ...(end ? { end } : {}), ...(carteira ? { carteira } : {}) };
+	
+	// Debug: Log dos filtros recebidos
+	React.useEffect(() => {
+		console.log('🔍 [ACORDOS DEBUG] Filtros recebidos:', { start, end, carteira });
+		console.log('🔍 [ACORDOS DEBUG] Parâmetros para API:', params);
+	}, [start, end, carteira, params]);
+	
 	const { data: resumo } = useQuery({ queryKey: ['acordosResumo', params], queryFn: () => getAcordosResumo(params) });
 	const { data: trend } = useQuery({ queryKey: ['acordosTrend', params], queryFn: () => getAcordosTrend(params) });
 	const { data: motivos } = useQuery({ queryKey: ['acordosMotivos', params], queryFn: () => getAcordosMotivos(params) });
