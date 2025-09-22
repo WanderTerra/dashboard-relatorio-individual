@@ -100,12 +100,26 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({ trendDa
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart 
+          data={monthlyData} 
+          margin={{ 
+            top: 20, 
+            right: 30, 
+            left: 20, 
+            bottom: monthlyData.length > 6 ? 60 : 40 // Mais espaço para rotação de labels se muitos meses
+          }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="mes" 
-            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tick={{ 
+              fill: '#6b7280', 
+              fontSize: monthlyData.length > 8 ? 10 : 12,
+              angle: monthlyData.length > 8 ? -45 : 0,
+              textAnchor: monthlyData.length > 8 ? 'end' : 'middle'
+            }}
             axisLine={{ stroke: '#e5e7eb' }}
+            height={monthlyData.length > 8 ? 60 : 40}
           />
           <YAxis 
             domain={[0, 100]} 

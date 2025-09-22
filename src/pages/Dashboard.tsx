@@ -7,7 +7,7 @@ import TrendLineChart from '../components/TrendLineChart';
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getMixedKpis, getMixedTrend, getMixedCarteirasFromAvaliacoes } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import AcordosDashboard from '../components/dashboard/AcordosDashboard';
 
@@ -42,6 +42,12 @@ const Dashboard: React.FC = () => {
   const { data: trend } = useQuery({ 
     queryKey: ['mixed-trend', apiFilters], 
     queryFn: () => getMixedTrend(apiFilters) 
+  });
+  
+  // Dados de tendência para o gráfico comparativo mensal (sem filtros de data)
+  const { data: trendAllMonths } = useQuery({ 
+    queryKey: ['mixed-trend-all-months', { carteira: filters.carteira }], 
+    queryFn: () => getMixedTrendAllMonths({ carteira: filters.carteira }) 
   });
 
   return (
@@ -117,9 +123,9 @@ const Dashboard: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
           <p className="text-sm text-gray-600 mb-6">
-            Análise da média mensal de pontuação das ligações (incluindo uploads)
+            Análise da média mensal de pontuação das ligações (incluindo uploads) - Histórico completo
           </p>
-          <MonthlyComparisonChart trendData={trend ?? []} />
+          <MonthlyComparisonChart trendData={trendAllMonths ?? []} />
         </div>
 
         {/* Seção de métricas de acordos */}

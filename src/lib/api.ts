@@ -635,6 +635,7 @@ export const reprocessFile = (fileId: number) =>
 // Funções mistas que buscam dados tanto das tabelas originais quanto das clones de upload
 export const getMixedKpis           = (f: Filters)        => api.get('/mixed/kpis',    { params: f }).then(r => r.data);
 export const getMixedTrend          = (f: Filters)        => api.get('/mixed/trend',   { params: f }).then(r => r.data);
+export const getMixedTrendAllMonths = (f: Filters)        => api.get('/mixed/trend',   { params: { ...f, ignore_date_filters: true } }).then(r => r.data);
 export const getMixedAgents         = (f: Filters)        => api.get('/mixed/agents',  { params: f }).then(r => r.data);
 export const getMixedAgentSummary   = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/summary`, { params: f }).then(r => r.data);
 export const getMixedAgentCalls     = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/calls`,   { params: f }).then(r => r.data);
