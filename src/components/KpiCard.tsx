@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Phone, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Phone, AlertTriangle, Users } from 'lucide-react';
 
 interface Props {
   label: string;
@@ -26,8 +26,8 @@ const getIcon = (label: string) => {
     return <TrendingUp className="h-5 w-5 opacity-60" />;
   } else if (label === "Ligações avaliadas") {
     return <Phone className="h-5 w-5 opacity-60" />;
-  } else if (label.includes("Item com maior NC")) {
-    return <AlertTriangle className="h-5 w-5 opacity-60" />;
+  } else if (label === "Agentes avaliados") {
+    return <Users className="h-5 w-5 opacity-60" />;
   }
   return null;
 };

@@ -170,7 +170,7 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 							<XAxis dataKey="dia" tick={{ fontSize: 12 }} />
 							<YAxis 
 								tick={{ fontSize: 12 }} 
-								tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`}
+								tickFormatter={(value) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`}
 							/>
 							<Tooltip 
 								formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}

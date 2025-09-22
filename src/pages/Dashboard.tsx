@@ -7,7 +7,7 @@ import TrendLineChart from '../components/TrendLineChart';
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import AcordosDashboard from '../components/dashboard/AcordosDashboard';
 
@@ -34,6 +34,11 @@ const Dashboard: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
+  // Filtros para o gráfico comparativo mensal (sem filtros de data)
+  const apiFiltersNoDate = { 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+  };
+
   // KPIs e tendência mistos
   const { data: kpis } = useQuery({ 
     queryKey: ['mixed-kpis', apiFilters], 
@@ -46,9 +51,16 @@ const Dashboard: React.FC = () => {
   
   // Dados de tendência para o gráfico comparativo mensal (sem filtros de data)
   const { data: trendAllMonths } = useQuery({ 
-    queryKey: ['mixed-trend-all-months', { carteira: filters.carteira }], 
-    queryFn: () => getMixedTrendAllMonths({ carteira: filters.carteira }) 
+    queryKey: ['mixed-trend-all-months', apiFiltersNoDate], 
+    queryFn: () => getMixedTrendAllMonths(apiFiltersNoDate) 
   });
+  
+  // Número de agentes avaliados
+  const { data: agentesCount } = useQuery({ 
+    queryKey: ['mixed-agents-count', apiFilters], 
+    queryFn: () => getMixedAgentsCount(apiFilters) 
+  });
+
 
   return (
     <div>
@@ -108,28 +120,24 @@ const Dashboard: React.FC = () => {
         <KpiCards
           media={kpis?.media_geral ?? null}
           total={kpis?.total_ligacoes ?? 0}
-          pior={kpis?.pior_item ?? null}
+          agentesCount={agentesCount ?? null}
         />
 
         {/* Gráficos lado a lado */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gráfico de linha */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
-            <div className="min-h-[400px]">
-              <TrendLineChart data={trend ?? []} />
-            </div>
-          </div>
-
           {/* Gráfico de comparativo mensal */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
             <p className="text-sm text-gray-600 mb-6">
               Análise da média mensal de pontuação das ligações (incluindo uploads) - Histórico completo
             </p>
-            <div className="min-h-[400px]">
-              <MonthlyComparisonChart trendData={trendAllMonths ?? []} />
-            </div>
+          <MonthlyComparisonChart trendData={trendAllMonths ?? trend ?? []} />
+          </div>
+
+          {/* Gráfico de linha */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
+            <TrendLineChart data={trend ?? []} />
           </div>
         </div>
 

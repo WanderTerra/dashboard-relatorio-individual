@@ -19,6 +19,7 @@ interface Props {
 }
 
 const TrendLineChart: React.FC<Props> = ({ data }) => {
+
   // Calcular tendência (crescimento, decrescimento ou estável)
   const calculateTrend = React.useMemo(() => {
     if (!data || data.length < 2) return 'stable';
@@ -91,6 +92,7 @@ const TrendLineChart: React.FC<Props> = ({ data }) => {
     );
   }
 
+
   return (
     <div className="space-y-4">
       {/* Header com indicadores */}
@@ -121,7 +123,7 @@ const TrendLineChart: React.FC<Props> = ({ data }) => {
       </div>
 
       {/* Gráfico */}
-      <div className="h-full min-h-[300px]">
+      <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             {/* Gradiente de fundo */}
