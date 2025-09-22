@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getAcordosResumo, getAcordosTrend, getAcordosMotivos } from '../../lib/api';
+import { getAcordosResumo, getAcordosTrend, getAcordosMotivos, getAcordosValores, getAcordosAgentesRanking } from '../../lib/api';
 import { 
 	AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, 
 	BarChart, Bar, PieChart, Pie, Cell, Legend, CartesianGrid 
@@ -12,6 +12,8 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 	const { data: resumo } = useQuery({ queryKey: ['acordosResumo', params], queryFn: () => getAcordosResumo(params) });
 	const { data: trend } = useQuery({ queryKey: ['acordosTrend', params], queryFn: () => getAcordosTrend(params) });
 	const { data: motivos } = useQuery({ queryKey: ['acordosMotivos', params], queryFn: () => getAcordosMotivos(params) });
+	const { data: valores } = useQuery({ queryKey: ['acordosValores', params], queryFn: () => getAcordosValores(params) });
+	const { data: agentesRanking } = useQuery({ queryKey: ['acordosAgentesRanking', params], queryFn: () => getAcordosAgentesRanking(params) });
 
 	const COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 	const GRADIENT_COLORS = ['#10B981', '#34D399', '#6EE7B7'];
@@ -25,6 +27,9 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 
 	// Preparar dados para barras horizontais (top 5 motivos)
 	const motivosTop = (motivos || []).slice(0, 5);
+	
+	// Top 3 agentes mais efetivos
+	const topAgentes = (agentesRanking || []).slice(0, 3);
 
 	return (
 		<div className="space-y-6">
@@ -137,7 +142,7 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 			</div>
 
 			{/* Gráficos secundários */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				{/* Volume por dia - Barras */}
 				<div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
 					<h3 className="text-lg font-semibold text-gray-900 mb-4">Volume Diário</h3>
@@ -153,6 +158,43 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 							<Bar dataKey="acordos" name="Acordos" fill="#10B981" radius={[4, 4, 0, 0]} />
 							<Bar dataKey="total" name="Total" fill="#E5E7EB" radius={[4, 4, 0, 0]} />
 						</BarChart>
+					</ResponsiveContainer>
+				</div>
+
+				{/* Valores negociados - Linha */}
+				<div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+					<h3 className="text-lg font-semibold text-gray-900 mb-4">Valores Negociados</h3>
+					<ResponsiveContainer width="100%" height={280}>
+						<LineChart data={valores || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+							<CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+							<XAxis dataKey="dia" tick={{ fontSize: 12 }} />
+							<YAxis 
+								tick={{ fontSize: 12 }} 
+								tickFormatter={(value) => `R$ ${(value/1000).toFixed(0)}k`}
+							/>
+							<Tooltip 
+								formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+								contentStyle={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+							/>
+							<Legend />
+							<Line 
+								type="monotone" 
+								dataKey="valor_total_acordos" 
+								name="Total Negociado"
+								stroke="#10B981" 
+								strokeWidth={3}
+								dot={{ fill: '#10B981', r: 4 }}
+							/>
+							<Line 
+								type="monotone" 
+								dataKey="valor_medio_acordo" 
+								name="Valor Médio"
+								stroke="#3B82F6" 
+								strokeWidth={2}
+								strokeDasharray="5 5"
+								dot={{ fill: '#3B82F6', r: 3 }}
+							/>
+						</LineChart>
 					</ResponsiveContainer>
 				</div>
 
@@ -184,6 +226,94 @@ export default function AcordosDashboard({ start, end, carteira }: { start?: str
 						})}
 					</div>
 				</div>
+			</div>
+
+			{/* Ranking de agentes mais efetivos - DESTAQUE */}
+			<div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 rounded-xl shadow-xl border-2 border-emerald-200 p-6">
+				<div className="flex items-center gap-3 mb-6">
+					<div className="bg-emerald-500 rounded-full p-2">
+						<Target className="h-6 w-6 text-white" />
+					</div>
+					<h3 className="text-xl font-bold text-emerald-900">🏆 Agentes Mais Efetivos em Acordos</h3>
+				</div>
+				
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+					{topAgentes.map((agente, index) => {
+						const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Ouro, Prata, Bronze
+						const bgColors = ['from-yellow-50 to-yellow-100', 'from-gray-50 to-gray-100', 'from-orange-50 to-orange-100'];
+						const textColors = ['text-yellow-900', 'text-gray-900', 'text-orange-900'];
+						const borderColors = ['border-yellow-300', 'border-gray-300', 'border-orange-300'];
+						
+						return (
+							<div key={agente.agent_id} className={`bg-gradient-to-br ${bgColors[index]} rounded-lg p-4 border-2 ${borderColors[index]} relative overflow-hidden`}>
+								{/* Medalha */}
+								<div className="absolute top-2 right-2">
+									<div 
+										className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+										style={{ backgroundColor: medalColors[index] }}
+									>
+										{index + 1}
+									</div>
+								</div>
+								
+								{/* Dados do agente */}
+								<div className="pr-10">
+									<h4 className={`font-bold text-lg ${textColors[index]} truncate`}>
+										{agente.nome_agente}
+									</h4>
+									<div className="mt-2 space-y-1">
+										<div className="flex justify-between">
+											<span className="text-sm text-gray-600">Taxa:</span>
+											<span className={`font-bold ${textColors[index]}`}>{agente.taxa_acordo.toFixed(1)}%</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-sm text-gray-600">Acordos:</span>
+											<span className={`font-semibold ${textColors[index]}`}>{agente.acordos}</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-sm text-gray-600">Ligações:</span>
+											<span className="text-sm text-gray-700">{agente.total_ligacoes}</span>
+										</div>
+									</div>
+								</div>
+								
+								{/* Barra de progresso */}
+								<div className="mt-3 bg-white bg-opacity-50 rounded-full h-2 overflow-hidden">
+									<div 
+										className="h-full rounded-full transition-all duration-700"
+										style={{ 
+											width: `${agente.taxa_acordo}%`,
+											backgroundColor: medalColors[index]
+										}}
+									/>
+								</div>
+							</div>
+						);
+					})}
+				</div>
+				
+				{/* Lista completa do ranking */}
+				{agentesRanking && agentesRanking.length > 3 && (
+					<div className="mt-6 bg-white rounded-lg p-4 border border-emerald-200">
+						<h4 className="font-semibold text-gray-900 mb-3">Ranking Completo</h4>
+						<div className="space-y-2">
+							{agentesRanking.slice(3).map((agente, index) => (
+								<div key={agente.agent_id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+									<div className="flex items-center gap-3">
+										<span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-700">
+											{index + 4}
+										</span>
+										<span className="font-medium text-gray-900">{agente.nome_agente}</span>
+									</div>
+									<div className="flex items-center gap-4 text-sm">
+										<span className="text-emerald-600 font-semibold">{agente.taxa_acordo.toFixed(1)}%</span>
+										<span className="text-gray-500">{agente.acordos}/{agente.total_ligacoes}</span>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
 			</div>
 
 			{/* Resumo detalhado */}

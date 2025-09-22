@@ -940,3 +940,9 @@ export const getAcordosTrend = (params: { start?: string; end?: string; carteira
 export const getAcordosMotivos = (params: { start?: string; end?: string; carteira?: string }) =>
   api.get('/acordos/metrics/motivos', { params }).then(r => r.data as Array<{ motivo: string; qtd: number }>);
 
+export const getAcordosValores = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/valores', { params }).then(r => r.data as Array<{ dia: string; valor_total_acordos: number; valor_total_original: number; valor_medio_acordo: number; qtd_acordos: number }>);
+
+export const getAcordosAgentesRanking = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/agentes-ranking', { params }).then(r => r.data as Array<{ agent_id: string; nome_agente: string; total_ligacoes: number; acordos: number; taxa_acordo: number }>);
+
