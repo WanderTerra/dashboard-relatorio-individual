@@ -111,21 +111,26 @@ const Dashboard: React.FC = () => {
           pior={kpis?.pior_item ?? null}
         />
 
-        {/* Gráfico de linha */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
-          <div className="min-h-[500px]">
-            <TrendLineChart data={trend ?? []} />
+        {/* Gráficos lado a lado */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gráfico de linha */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
+            <div className="min-h-[400px]">
+              <TrendLineChart data={trend ?? []} />
+            </div>
           </div>
-        </div>
 
-        {/* Gráfico de comparativo mensal */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Análise da média mensal de pontuação das ligações (incluindo uploads) - Histórico completo
-          </p>
-          <MonthlyComparisonChart trendData={trendAllMonths ?? []} />
+          {/* Gráfico de comparativo mensal */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Análise da média mensal de pontuação das ligações (incluindo uploads) - Histórico completo
+            </p>
+            <div className="min-h-[400px]">
+              <MonthlyComparisonChart trendData={trendAllMonths ?? []} />
+            </div>
+          </div>
         </div>
 
         {/* Seção de métricas de acordos */}

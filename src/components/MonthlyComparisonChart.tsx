@@ -98,7 +98,7 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({ trendDa
   }
 
   return (
-    <div className="h-80">
+    <div className="h-full min-h-[350px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart 
           data={monthlyData} 
