@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, MessageSquare, Sparkles, Target, Users, Brain } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import PageHeader from '../components/PageHeader';
 
 interface Message {
   id: string;
@@ -149,30 +150,20 @@ const AIAssistant: React.FC = () => {
       case 'psychological_assistant':
         return 'Assistente Psicológico';
       default:
-        return 'Assistente IA';
+        return '';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Bot className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Assistente de IA</h1>
-              <p className="text-gray-600">Seu assistente inteligente para dúvidas e orientações</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Assistente de IA"
+        subtitle="Seu assistente inteligente para dúvidas e orientações"
+      />
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="p-6">
         {/* Chat Container */}
-        <div className="bg-white rounded-lg shadow-sm border h-[600px] flex flex-col">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 h-[600px] flex flex-col hover:shadow-xl transition-shadow duration-300">
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
@@ -181,16 +172,16 @@ const AIAssistant: React.FC = () => {
                 className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
                     {getAssistantIcon(message.metadata?.assistant_used)}
                   </div>
                 )}
                 
                 <div
-                  className={`max-w-[70%] rounded-lg px-4 py-3 ${
+                  className={`max-w-[70%] rounded-xl px-4 py-3 ${
                     message.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-50 text-gray-900 border border-gray-200'
                   }`}
                 >
                   <div className="whitespace-pre-wrap">{message.content}</div>
@@ -198,11 +189,7 @@ const AIAssistant: React.FC = () => {
                   {message.metadata && (
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <div className="flex items-center gap-2 text-xs text-gray-500">
-                        {getAssistantIcon(message.metadata.assistant_used)}
-                        <span>{getAssistantName(message.metadata.assistant_used)}</span>
-                        {message.metadata.confidence && (
-                          <span>• {Math.round(message.metadata.confidence * 100)}% confiança</span>
-                        )}
+                        {getAssistantIcon(message.metadata?.assistant_used)}
                       </div>
                       
                       {message.metadata.suggested_actions && message.metadata.suggested_actions.length > 0 && (
@@ -232,8 +219,8 @@ const AIAssistant: React.FC = () => {
                 </div>
                 
                 {message.role === 'user' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User size={16} className="text-gray-600" />
+                  <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shadow-sm border border-gray-200">
+                    <User size={16} className="text-gray-700" />
                   </div>
                 )}
               </div>
@@ -241,10 +228,10 @@ const AIAssistant: React.FC = () => {
             
             {isLoading && (
               <div className="flex gap-3 justify-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Bot size={16} className="text-blue-500" />
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
+                  <Bot size={16} className="text-blue-600" />
                 </div>
-                <div className="bg-gray-100 rounded-lg px-4 py-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Loader2 size={16} className="animate-spin" />
                     <span>Pensando...</span>
@@ -265,7 +252,7 @@ const AIAssistant: React.FC = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Digite sua pergunta aqui... (Enter para enviar, Shift+Enter para nova linha)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 placeholder-gray-500 bg-white"
                   rows={2}
                   disabled={isLoading}
                 />
@@ -273,7 +260,7 @@ const AIAssistant: React.FC = () => {
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 {isLoading ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -285,64 +272,28 @@ const AIAssistant: React.FC = () => {
             </div>
             
             {/* Quick Actions */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-sm text-gray-500">Perguntas rápidas:</span>
-              {[
-                "Como melhorar minha performance?",
-                "Quais são os critérios de avaliação?",
-                "Como está minha média geral?",
-                "Quais são meus pontos de atenção?"
-              ].map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => setInputMessage(question)}
-                  className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-                >
-                  {question}
-                </button>
-              ))}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="text-sm font-medium text-gray-700 mb-2 block">Perguntas rápidas:</span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Como melhorar minha performance?",
+                  "Quais são os critérios de avaliação?",
+                  "Como está minha média geral?",
+                  "Quais são meus pontos de atenção?"
+                ].map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInputMessage(question)}
+                    className="px-3 py-1 text-sm bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-full transition-all duration-200 hover:shadow-sm"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Info Cards */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Atendimento</h3>
-                <p className="text-sm text-gray-600">Dúvidas sobre carteiras e critérios</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Users className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">RH</h3>
-                <p className="text-sm text-gray-600">Políticas e procedimentos</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Brain className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Bem-estar</h3>
-                <p className="text-sm text-gray-600">Desenvolvimento pessoal</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
