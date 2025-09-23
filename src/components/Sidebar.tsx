@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload, Link2, MessageSquare, Target, BarChart3 } from "lucide-react";
+import { Menu, X, Home, Users, LogOut, ChevronLeft, ChevronRight, UserCog, Settings, Folder, List, Upload, Link2, MessageSquare, Target, BarChart3, Bot } from "lucide-react";
 import logoSidebar from "../assets/logo_sidebar.png";
 import logoSidebar2 from "../assets/logo_sidebar2.png";
 
@@ -20,6 +20,7 @@ const adminLinks: SidebarLink[] = [
   { label: "Dashboard", to: "/", icon: <Home size={20} /> },
   { label: "Desempenho", to: "/agents", icon: <BarChart3 size={20} /> },
   { label: "Feedback", to: "/feedback", icon: <MessageSquare size={20} /> },
+  { label: "Assistente IA", to: "/ai-assistant", icon: <Bot size={20} /> },
   { label: "Upload de Áudios", to: "/upload", icon: <Upload size={20} /> },
   {
     label: "Gerenciar",
@@ -29,6 +30,7 @@ const adminLinks: SidebarLink[] = [
       { label: "Carteiras & Critérios", to: "/carteira-criterios", icon: <Link2 size={18} /> },
       { label: "Correções de Transcrição", to: "/correcoes", icon: <List size={18} /> },
       { label: "Baixar Áudios", to: "/downloads", icon: <Upload size={18} /> },
+      { label: "Base de Conhecimento", to: "/knowledge-base", icon: <Folder size={18} /> },
     ],
   },
 ];
@@ -36,6 +38,7 @@ const adminLinks: SidebarLink[] = [
 const agentLinks = (agentId: string): SidebarLink[] => [
   { to: `/agent/${agentId}`, label: "Minha Página", icon: <Home size={20} /> },
   { to: `/feedback`, label: "Feedback", icon: <MessageSquare size={20} /> },
+  { to: "/ai-assistant", label: "Assistente IA", icon: <Bot size={20} /> },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setCollapsed: setCollapsedProp }) => {
