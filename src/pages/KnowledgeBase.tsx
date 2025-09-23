@@ -45,6 +45,8 @@ const KnowledgeBase: React.FC = () => {
   });
 
   useEffect(() => {
+    // Limpa qualquer estado residual ao carregar a página
+    (window as any).__kbEditingId = undefined;
     loadAssistants();
     loadDocuments();
   }, []);
@@ -53,7 +55,7 @@ const KnowledgeBase: React.FC = () => {
     try {
       const response = await fetch('/api/ai/admin/assistants', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
       
@@ -69,36 +71,36 @@ const KnowledgeBase: React.FC = () => {
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implementar endpoint para buscar documentos
-      // Por enquanto, dados mockados
-      setDocuments([
-        {
-          id: 1,
-          title: 'Manual de Atendimento',
-          content: 'Este é o manual básico de atendimento ao cliente...',
-          category: 'attendance',
-          assistant_types: ['attendance'],
-          tags: ['manual', 'atendimento', 'procedimentos'],
-          priority: 5,
-          uploader_id: 1,
-          is_active: true,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: 2,
-          title: 'Política de RH',
-          content: 'Políticas gerais de recursos humanos da empresa...',
-          category: 'hr',
-          assistant_types: ['hr'],
-          tags: ['política', 'rh', 'benefícios'],
-          priority: 5,
-          uploader_id: 1,
-          is_active: true,
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z'
+      const params = new URLSearchParams();
+      if (searchTerm) params.set('search', searchTerm);
+      if (selectedAssistant && selectedAssistant !== 'all') params.set('assistant', selectedAssistant);
+      params.set('page', '1');
+      params.set('size', '30');
+
+      const response = await fetch(`/api/ai/admin/knowledge/documents?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
-      ]);
+      });
+
+      if (!response.ok) throw new Error('Falha ao carregar documentos');
+      const data = await response.json();
+
+      setDocuments(
+        (data.documents || []).map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          content: d.content,
+          category: d.category,
+          assistant_types: d.assistant_types,
+          tags: d.tags,
+          priority: d.priority,
+          uploader_id: d.uploader_id,
+          is_active: d.is_active,
+          created_at: d.created_at,
+          updated_at: d.updated_at,
+        }))
+      );
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
     } finally {
@@ -110,17 +112,21 @@ const KnowledgeBase: React.FC = () => {
     e.preventDefault();
     
     try {
-      const response = await fetch('/api/ai/admin/knowledge/upload', {
-        method: 'POST',
+      const editingId = (window as any).__kbEditingId;
+      const url = editingId ? `/api/ai/admin/knowledge/documents/${editingId}` : '/api/ai/admin/knowledge/upload';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify(formData)
       });
 
       if (response.ok) {
         setShowAddModal(false);
+        (window as any).__kbEditingId = undefined;
         setFormData({
           title: '',
           content: '',
@@ -199,13 +205,25 @@ const KnowledgeBase: React.FC = () => {
         title="Base de Conhecimento"
         subtitle="Gerencie documentos para os assistentes de IA"
         actions={
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            <Plus size={16} />
-            Adicionar Documento
-          </button>
+            <button
+              onClick={() => {
+                // Limpa qualquer estado de edição antes de abrir modal
+                (window as any).__kbEditingId = undefined;
+                setFormData({
+                  title: '',
+                  content: '',
+                  category: '',
+                  assistant_types: [],
+                  priority: 3,
+                  tags: []
+                });
+                setShowAddModal(true);
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <Plus size={16} />
+              Adicionar Documento
+            </button>
         }
       />
 
@@ -292,10 +310,34 @@ const KnowledgeBase: React.FC = () => {
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Criado em {new Date(doc.created_at).toLocaleDateString()}</span>
                   <div className="flex gap-2">
-                    <button className="p-2 hover:bg-gray-50 border border-gray-200 rounded-lg transition-all duration-200 hover:shadow-sm">
+                    <button
+                      onClick={() => {
+                        setFormData({
+                          title: doc.title,
+                          content: doc.content,
+                          category: doc.category,
+                          assistant_types: [...doc.assistant_types],
+                          priority: doc.priority,
+                          tags: [...doc.tags],
+                        });
+                        (window as any).__kbEditingId = doc.id;
+                        setShowAddModal(true);
+                      }}
+                      className="p-2 hover:bg-gray-50 border border-gray-200 rounded-lg transition-all duration-200 hover:shadow-sm"
+                    >
                       <Edit size={14} className="text-gray-600" />
                     </button>
-                    <button className="p-2 hover:bg-red-50 border border-red-200 rounded-lg transition-all duration-200 hover:shadow-sm text-red-600">
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Deseja remover este documento?')) return;
+                        await fetch(`/api/ai/admin/knowledge/documents/${doc.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                        });
+                        loadDocuments();
+                      }}
+                      className="p-2 hover:bg-red-50 border border-red-200 rounded-lg transition-all duration-200 hover:shadow-sm text-red-600"
+                    >
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -318,7 +360,19 @@ const KnowledgeBase: React.FC = () => {
             </p>
             {(!searchTerm && selectedAssistant === 'all') && (
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  // Limpa qualquer estado de edição antes de abrir modal
+                  (window as any).__kbEditingId = undefined;
+                  setFormData({
+                    title: '',
+                    content: '',
+                    category: '',
+                    assistant_types: [],
+                    priority: 3,
+                    tags: []
+                  });
+                  setShowAddModal(true);
+                }}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md mx-auto"
               >
                 <Plus size={16} />
@@ -333,7 +387,16 @@ const KnowledgeBase: React.FC = () => {
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Adicionar Documento</h2>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                {(window as any).__kbEditingId ? 'Editar Documento' : 'Adicionar Documento'}
+              </h2>
+              {(window as any).__kbEditingId && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Modificando documento existente
+                </p>
+              )}
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -459,7 +522,11 @@ const KnowledgeBase: React.FC = () => {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    // Limpa estado de edição ao cancelar
+                    (window as any).__kbEditingId = undefined;
+                  }}
                   className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
                 >
                   Cancelar
@@ -468,7 +535,7 @@ const KnowledgeBase: React.FC = () => {
                   type="submit"
                   className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                 >
-                  Adicionar Documento
+                  {(window as any).__kbEditingId ? 'Salvar Alterações' : 'Adicionar Documento'}
                 </button>
               </div>
             </form>
