@@ -25,6 +25,17 @@ interface Assistant {
   color: string;
 }
 
+// Função utilitária para normalizar tags
+const normalizeTags = (tags: any): string[] => {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags.filter(tag => typeof tag === 'string' && tag.trim());
+  if (typeof tags === 'string') {
+    // Se for uma string, tentar fazer split por vírgula ou quebra de linha
+    return tags.split(/[,\n]/).map(tag => tag.trim()).filter(tag => tag);
+  }
+  return [];
+};
+
 const KnowledgeBase: React.FC = () => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
@@ -87,21 +98,33 @@ const KnowledgeBase: React.FC = () => {
       if (!response.ok) throw new Error('Falha ao carregar documentos');
       const data = await response.json();
 
-      setDocuments(
-        (data.documents || []).map((d: any) => ({
+      const processedDocuments = (data.documents || []).map((d: any) => {
+        // Debug: Log dos dados recebidos do backend
+        console.log('🔍 [DEBUG] Documento recebido do backend:', {
+          id: d.id,
+          title: d.title,
+          tags: d.tags,
+          tagsType: typeof d.tags,
+          tagsIsArray: Array.isArray(d.tags),
+          rawTags: d.tags
+        });
+        
+        return {
           id: d.id,
           title: d.title,
           content: d.content,
           category: d.category,
-          assistant_types: d.assistant_types,
-          tags: d.tags,
+          assistant_types: Array.isArray(d.assistant_types) ? d.assistant_types : [],
+          tags: normalizeTags(d.tags), // Usar função de normalização
           priority: d.priority,
           uploader_id: d.uploader_id,
           is_active: d.is_active,
           created_at: d.created_at,
           updated_at: d.updated_at,
-        }))
-      );
+        };
+      });
+      
+      setDocuments(processedDocuments);
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
     } finally {
@@ -116,13 +139,30 @@ const KnowledgeBase: React.FC = () => {
       const editingId = (window as any).__kbEditingId;
       const url = editingId ? `/api/ai/admin/knowledge/documents/${editingId}` : '/api/ai/admin/knowledge/upload';
       const method = editingId ? 'PUT' : 'POST';
+      
+      // Debug: Log dos dados sendo enviados
+      console.log('🔍 [DEBUG] Dados sendo enviados:', {
+        ...formData,
+        tags: formData.tags,
+        tagsType: typeof formData.tags,
+        tagsIsArray: Array.isArray(formData.tags)
+      });
+      
+      // Garantir que as tags sejam sempre um array válido
+      const payloadToSend = {
+        ...formData,
+        tags: normalizeTags(formData.tags)
+      };
+      
+      console.log('🔍 [DEBUG] Payload final sendo enviado:', payloadToSend);
+      
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payloadToSend)
       });
 
       if (response.ok) {
@@ -273,14 +313,22 @@ const KnowledgeBase: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDocuments.map((doc) => (
               <div key={doc.id} className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <FileText size={20} className="text-gray-600" />
-                    <h3 className="font-semibold text-gray-900 truncate">{doc.title}</h3>
+                <div className="flex items-start justify-between mb-4 min-h-[3rem]">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <FileText size={20} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                    <h3 className="font-semibold text-gray-900 break-words leading-tight max-h-12 overflow-hidden" style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {doc.title}
+                    </h3>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${getPriorityColor(doc.priority)}`}>
-                    Prioridade {doc.priority}
-                  </span>
+                  <div className="flex-shrink-0 ml-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${getPriorityColor(doc.priority)}`}>
+                      Prioridade {doc.priority}
+                    </span>
+                  </div>
                 </div>
                 
                 <p className="text-gray-600 text-sm mb-4 line-clamp-3">{doc.content}</p>
@@ -300,12 +348,20 @@ const KnowledgeBase: React.FC = () => {
                 </div>
                 
                 <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-gray-700">Tags:</span>
+                    <span className="text-xs text-gray-500">({doc.tags.length} tags)</span>
+                  </div>
                   <div className="flex flex-wrap gap-1">
-                    {doc.tags.map(tag => (
-                      <span key={tag} className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs shadow-sm">
-                        {tag}
-                      </span>
-                    ))}
+                    {doc.tags.length > 0 ? (
+                      doc.tags.map(tag => (
+                        <span key={tag} className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs shadow-sm">
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Nenhuma tag definida</span>
+                    )}
                   </div>
                 </div>
                 
@@ -318,9 +374,9 @@ const KnowledgeBase: React.FC = () => {
                           title: doc.title,
                           content: doc.content,
                           category: doc.category,
-                          assistant_types: [...doc.assistant_types],
+                          assistant_types: Array.isArray(doc.assistant_types) ? [...doc.assistant_types] : [],
                           priority: doc.priority,
-                          tags: [...doc.tags],
+                          tags: normalizeTags(doc.tags), // Usar função de normalização
                         });
                         (window as any).__kbEditingId = doc.id;
                         setShowAddModal(true);

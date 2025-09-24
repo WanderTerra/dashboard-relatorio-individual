@@ -6,13 +6,14 @@ import { Filter } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
 import { getActiveAgents, getAgentWorstItem, getCarteirasFromAvaliacoes } from '../lib/api';
+import { useFilters } from '../hooks/use-filters';
 import { formatItemName, formatAgentName } from '../lib/format';
 
 const Agents: React.FC = () => {
   const queryClient = useQueryClient();
+  const { filters, setCarteira } = useFilters();
   
   // Estados para filtros específicos da página Agents
-  const [selectedCarteira, setSelectedCarteira] = React.useState<string>('');
   const [showOnlyActive, setShowOnlyActive] = React.useState<boolean>(true);
   
   // Estados para paginação
@@ -34,7 +35,7 @@ const Agents: React.FC = () => {
     start: '2024-01-01', // Data padrão para evitar erro 422
     end: '2025-12-31',   // Data padrão para evitar erro 422
     activeOnly: showOnlyActive, // Usar o estado do toggle
-    ...(selectedCarteira ? { carteira: selectedCarteira } : {}) 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
   // Buscar agentes ativos
@@ -88,7 +89,7 @@ const Agents: React.FC = () => {
   React.useEffect(() => {
     // Invalidar a query para forçar nova execução
     queryClient.invalidateQueries({ queryKey: ['active-agents'] });
-  }, [showOnlyActive, selectedCarteira, queryClient]);
+  }, [showOnlyActive, filters.carteira, queryClient]);
 
   return (
     <div>
@@ -106,9 +107,9 @@ const Agents: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Carteira</label>
                 <Combobox
                   options={carteiras}
-                  value={selectedCarteira}
+                  value={filters.carteira || ''}
                   onChange={(value) => {
-                    setSelectedCarteira(value);
+                    setCarteira(value);
                   }}
                   placeholder="Selecionar carteira"
                   emptyMessage="Nenhuma carteira encontrada"

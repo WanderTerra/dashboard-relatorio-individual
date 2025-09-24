@@ -22,7 +22,8 @@ import {
   getAgentSummary,
   getAgentCalls,
   getAgentWorstItem,
-  getAgentCriteria
+  getAgentCriteria,
+  getCarteirasFromAvaliacoes
 } from '../lib/api';
 import { getAgentGamification } from '../lib/gamification-api';
 import CallList     from '../components/CallList';
@@ -31,7 +32,8 @@ import GamifiedAgentHeader from '../components/GamifiedAgentHeader';
 import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria, formatDate } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info, Filter } from 'lucide-react';
+import { Combobox } from '../components/ui/select-simple';
 import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
 import NotificationBell from '../components/NotificationBell';
 import AchievementsPanel from '../components/AchievementsPanel';
@@ -62,7 +64,10 @@ const AgentDetail: React.FC = () => {
   
   if (!agentId) return <div>Agente não especificado.</div>;
 
-  const { filters } = useFilters();
+  const { filters, setCarteira } = useFilters();
+  
+  // Receber filtros da navegação (se existirem)
+  const navigationState = location.state as { carteira?: string } | null;
 
   // Persistência do filtro de datas
   const [startDate, setStartDate] = useState(() => '');
@@ -96,6 +101,13 @@ const AgentDetail: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   }), [startDate, endDate, filters.carteira]);
 
+  // Aplicar filtros da navegação quando a página carrega
+  React.useEffect(() => {
+    if (navigationState?.carteira && navigationState.carteira !== filters.carteira) {
+      setCarteira(navigationState.carteira);
+    }
+  }, [navigationState, filters.carteira, setCarteira]);
+
   // Limpar filtros persistidos na primeira carga
   React.useEffect(() => {
     // Limpar filtros persistidos para mostrar todas as avaliações
@@ -106,6 +118,13 @@ const AgentDetail: React.FC = () => {
   }, []);
 
   
+  // Buscar carteiras únicas da tabela avaliacoes
+  const { data: carteiras = [] } = useQuery({
+    queryKey: ['carteiras-avaliacoes'],
+    queryFn: getCarteirasFromAvaliacoes,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
   // Buscar dados do agente do endpoint mixed/agents (sempre funciona)
   const { data: agentFromMixed } = useQuery({
     queryKey: ['mixed-agents-single', agentId],
@@ -882,17 +901,38 @@ const AgentDetail: React.FC = () => {
           ) : calls && calls.length > 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <div className="flex items-center">
-                  <div className="p-2 bg-gray-100 rounded-xl mr-3">
-                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-gray-100 rounded-xl mr-3">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Suas Ligações</h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Detalhes das ligações realizadas no período
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">Suas Ligações</h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Detalhes das ligações realizadas no período
-                    </p>
+                  
+                  {/* Filtro de Carteira */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Carteira:</span>
+                    </div>
+                    <div className="min-w-[200px]">
+                      <Combobox
+                        options={carteiras}
+                        value={filters.carteira || ''}
+                        onChange={(value) => {
+                          setCarteira(value);
+                        }}
+                        placeholder="Todas as carteiras"
+                        emptyMessage="Nenhuma carteira encontrada"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -137,14 +137,34 @@ const Feedback: React.FC = () => {
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
   const isAgentUser = currentAgentId && !isAdmin;
 
+  // Debug: Log das permissões do usuário
+  console.log('Debug permissões:', {
+    user,
+    isAdmin,
+    isAgentUser,
+    currentAgentId,
+    agentPermission,
+    permissions: user?.permissions
+  });
+
 
 
   // Filtros para API - incluindo apenas parâmetros com valores
   const apiFilters = {
     ...(filters.start ? { start: filters.start } : {}),
     ...(filters.end ? { end: filters.end } : {}),
-    ...(filters.carteira ? { carteira: filters.carteira } : {})
+    ...(filters.carteira ? { carteira: filters.carteira } : {}),
+    // Adicionar filtro de agente se for um agente comum
+    ...(isAgentUser && currentAgentId ? { agent_id: currentAgentId } : {})
   };
+
+  // Debug: Log dos filtros da API
+  console.log('Debug apiFilters:', {
+    apiFilters,
+    isAgentUser,
+    currentAgentId,
+    filters
+  });
 
   // Buscar feedbacks com pontuações das avaliações (infinite scroll)
   const {
@@ -157,6 +177,7 @@ const Feedback: React.FC = () => {
     isFetchingNextPage
   } = useInfiniteQuery({
     queryKey: ['feedbacks-with-scores', apiFilters],
+    initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
       params.append('limit', String(pageSize));
@@ -164,6 +185,7 @@ const Feedback: React.FC = () => {
       if (apiFilters.start) params.append('start', apiFilters.start);
       if (apiFilters.end) params.append('end', apiFilters.end);
       if (apiFilters.carteira) params.append('carteira', apiFilters.carteira);
+      if (apiFilters.agent_id) params.append('agent_id', apiFilters.agent_id);
 
       return fetch(`/api/feedbacks/with-scores?${params.toString()}`)
         .then(res => res.json());
@@ -176,13 +198,27 @@ const Feedback: React.FC = () => {
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false,
-    keepPreviousData: true
+    refetchOnWindowFocus: false
   });
 
   // Array achatado para manter compatibilidade com o restante do componente
   const feedbacks = useMemo(() => {
-    return feedbacksPages?.pages ? feedbacksPages.pages.flat() : [];
+    const flattened = feedbacksPages?.pages ? feedbacksPages.pages.flat() : [];
+    
+    // Debug: Log dos feedbacks recebidos
+    console.log('Debug feedbacks recebidos:', {
+      totalPages: feedbacksPages?.pages?.length || 0,
+      totalFeedbacks: flattened.length,
+      firstFewFeedbacks: flattened.slice(0, 3).map((fb: any) => ({
+        id: fb.id,
+        avaliacao_id: fb.avaliacao_id,
+        agent_id: fb.agent_id,
+        status: fb.status,
+        aceite: fb.aceite
+      }))
+    });
+    
+    return flattened;
   }, [feedbacksPages]);
 
   // IntersectionObserver para carregar próximas páginas
@@ -239,12 +275,8 @@ const Feedback: React.FC = () => {
   const feedbackData = useMemo(() => {
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
+      // O backend já filtra por agent_id se necessário, não precisamos filtrar novamente aqui
       let filteredFeedbacks = feedbacks;
-      
-      // Se for um agente (não admin), filtrar apenas feedbacks do próprio agente
-      if (isAgentUser && currentAgentId) {
-        filteredFeedbacks = feedbacks.filter((fb: any) => String(fb.agent_id) === String(currentAgentId));
-      }
       
       const mapped = filteredFeedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
@@ -432,10 +464,7 @@ const Feedback: React.FC = () => {
     filteredFeedback.forEach((feedback: FeedbackItem) => {
       const agenteKey = feedback.agenteId || 'sem-agente-id';
       
-      // Se for agente comum, só mostrar seus próprios feedbacks
-      if (isAgentUser && currentAgentId && String(feedback.agenteId) !== String(currentAgentId)) {
-        return; // Pular feedbacks de outros agentes
-      }
+      // O backend já filtra por agent_id se necessário, não precisamos filtrar novamente aqui
       
       if (!agrupadosPorAgente[agenteKey]) {
         agrupadosPorAgente[agenteKey] = [];
@@ -936,7 +965,7 @@ const Feedback: React.FC = () => {
     try {
       // Buscar o call_id real através dos dados do backend
       const feedbacksAvaliacao = feedbacks.filter((f: any) => f.avaliacao_id.toString() === avaliacaoId);
-      const callIdReal = feedbacksAvaliacao[0]?.call_id; // Pegar o call_id real do backend
+      const callIdReal = (feedbacksAvaliacao[0] as any)?.call_id; // Pegar o call_id real do backend
       
       if (!callIdReal) {
         return;
