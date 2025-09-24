@@ -33,6 +33,7 @@ const KnowledgeBase: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssistant, setSelectedAssistant] = useState<string>('all');
   const { user } = useAuth();
+  const [expandContent, setExpandContent] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -217,6 +218,7 @@ const KnowledgeBase: React.FC = () => {
                   priority: 3,
                   tags: []
                 });
+                setExpandContent(false);
                 setShowAddModal(true);
               }}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
@@ -359,8 +361,8 @@ const KnowledgeBase: React.FC = () => {
                 : 'Comece adicionando seu primeiro documento.'}
             </p>
             {(!searchTerm && selectedAssistant === 'all') && (
-              <button
-                onClick={() => {
+                <button
+                 onClick={() => {
                   // Limpa qualquer estado de edição antes de abrir modal
                   (window as any).__kbEditingId = undefined;
                   setFormData({
@@ -371,6 +373,7 @@ const KnowledgeBase: React.FC = () => {
                     priority: 3,
                     tags: []
                   });
+                   setExpandContent(false);
                   setShowAddModal(true);
                 }}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md mx-auto"
@@ -386,7 +389,7 @@ const KnowledgeBase: React.FC = () => {
       {/* Add Document Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+          <div className={`bg-white rounded-xl p-6 w-full ${expandContent ? 'max-w-5xl' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto shadow-xl`}>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-gray-900">
                 {(window as any).__kbEditingId ? 'Editar Documento' : 'Adicionar Documento'}
@@ -413,14 +416,24 @@ const KnowledgeBase: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Conteúdo
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Conteúdo
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setExpandContent((v) => !v)}
+                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-transparent hover:border-gray-200"
+                    aria-label={expandContent ? 'Recolher área de conteúdo' : 'Expandir área de conteúdo'}
+                  >
+                    {expandContent ? 'Recolher' : 'Expandir'}
+                  </button>
+                </div>
                 <textarea
                   value={formData.content}
                   onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                  rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 resize-none"
+                  rows={expandContent ? 16 : 6}
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 resize-none ${expandContent ? 'min-h-[360px]' : 'min-h-[120px]'}`}
                   required
                 />
               </div>
@@ -526,6 +539,7 @@ const KnowledgeBase: React.FC = () => {
                     setShowAddModal(false);
                     // Limpa estado de edição ao cancelar
                     (window as any).__kbEditingId = undefined;
+                    setExpandContent(false);
                   }}
                   className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
                 >
