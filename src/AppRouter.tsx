@@ -18,7 +18,7 @@ import CarteiraCriterios from './pages/CarteiraCriterios';
 import Correcoes from './pages/Correcoes';
 import Downloads from './pages/Downloads';
 import Feedback from './pages/Feedback';
-import AIAssistant from './pages/AIAssistant';
+import SeuGuruPage from './pages/SeuGuru';
 import KnowledgeBase from './pages/KnowledgeBase';
 import TestPage from './pages/TestPage';
 
@@ -107,9 +107,9 @@ const AppContent: React.FC = () => {
               <Feedback />
             </ProtectedRoute>
           } />
-          <Route path="/ai-assistant" element={
+          <Route path="/seu-guru" element={
             <ProtectedRoute>
-              <AIAssistant />
+              <SeuGuruPage />
             </ProtectedRoute>
           } />
           <Route path="/knowledge-base" element={
