@@ -46,7 +46,7 @@ const SeuGuru: React.FC = () => {
   const assistants: Assistant[] = [
     {
       id: 'attendance',
-      name: 'Assistente de Atendimento',
+      name: 'Guru da Conciliação',
       description: 'Especialista em critérios de avaliação e performance',
       icon: <Target size={24} />,
       color: '#3b82f6',
@@ -55,7 +55,7 @@ const SeuGuru: React.FC = () => {
     },
     {
       id: 'hr',
-      name: 'Assistente de RH',
+      name: 'Guru do RH',
       description: 'Informações sobre políticas e procedimentos',
       icon: <Users size={24} />,
       color: '#10b981',
@@ -64,7 +64,7 @@ const SeuGuru: React.FC = () => {
     },
     {
       id: 'psychological',
-      name: 'Assistente Psicológico',
+      name: 'NeuraArmy',
       description: 'Suporte para bem-estar e desenvolvimento pessoal',
       icon: <Brain size={24} />,
       color: '#8b5cf6',
