@@ -889,6 +889,27 @@ const AgentDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* Filtro de Carteira - Sempre visível */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Filtro de Carteira:</span>
+              </div>
+              <div className="min-w-[200px]">
+                <Combobox
+                  options={carteiras}
+                  value={filters.carteira || ''}
+                  onChange={(value) => {
+                    setCarteira(value);
+                  }}
+                  placeholder="Todas as carteiras"
+                  emptyMessage="Nenhuma carteira encontrada"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Lista de Ligações */}
           {callsLoading ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -901,38 +922,17 @@ const AgentDetail: React.FC = () => {
           ) : calls && calls.length > 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-gray-100 rounded-xl mr-3">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Suas Ligações</h2>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Detalhes das ligações realizadas no período
-                      </p>
-                    </div>
+                <div className="flex items-center">
+                  <div className="p-2 bg-gray-100 rounded-xl mr-3">
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
                   </div>
-                  
-                  {/* Filtro de Carteira */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">Carteira:</span>
-                    </div>
-                    <div className="min-w-[200px]">
-                      <Combobox
-                        options={carteiras}
-                        value={filters.carteira || ''}
-                        onChange={(value) => {
-                          setCarteira(value);
-                        }}
-                        placeholder="Todas as carteiras"
-                        emptyMessage="Nenhuma carteira encontrada"
-                      />
-                    </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Suas Ligações</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Detalhes das ligações realizadas no período
+                    </p>
                   </div>
                 </div>
               </div>
