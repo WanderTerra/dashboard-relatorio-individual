@@ -1,443 +1,448 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Bot,
-  Brain,
-  Loader2,
-  MessageSquare,
-  Send,
-  Sparkles,
-  Target,
-  Users,
-} from "lucide-react";
-import PageHeader from "../components/PageHeader";
-import { useAuth } from "../contexts/AuthContext";
+import React, { useState, useRef, useEffect } from 'react';
+import { Bot, Users, Brain, Target, MessageSquare, Sparkles, ChevronDown, ChevronUp, Send, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import PageHeader from '../components/PageHeader';
 
-type AssistantKey = "attendance" | "hr" | "psychological";
-
-type AssistantCard = {
-  id: AssistantKey;
-  title: string;
-  subtitle: string;
+interface Assistant {
+  id: string;
+  name: string;
   description: string;
-  icon: React.ReactNode;
+  icon: JSX.Element;
+  color: string;
   gradient: string;
-  highlights: string[];
-};
+  category: string;
+}
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  metadata?: {
-    related_criteria?: string[];
-    suggested_actions?: string[];
-    data_sources?: string[];
-  };
+  assistant_used?: string;
 }
 
-const assistantCards: AssistantCard[] = [
-  {
-    id: "attendance",
-    title: "Seu Guru – Atendimento",
-    subtitle: "Negociação e critérios",
-    description:
-      "Especialista em carteiras, critérios de avaliação, scripts e performance.",
-    icon: <Target size={26} className="text-white" />,
-    gradient: "from-blue-500 via-blue-400 to-sky-400",
-    highlights: [
-      "Critérios e rotinas das carteiras",
-      "Análise de performance individual",
-      "Sugestões práticas para objeções",
-    ],
-  },
-  {
-    id: "hr",
-    title: "Seu Guru – RH",
-    subtitle: "Políticas e benefícios",
-    description:
-      "Consultor sobre políticas internas, benefícios, férias e rotinas administrativas.",
-    icon: <Users size={26} className="text-white" />,
-    gradient: "from-emerald-500 via-green-400 to-teal-400",
-    highlights: [
-      "Regras de férias e afastamentos",
-      "Benefícios e elegibilidade",
-      "Procedimentos e documentações",
-    ],
-  },
-  {
-    id: "psychological",
-    title: "Seu Guru – Bem-estar",
-    subtitle: "Check-in diário",
-    description:
-      "Apoio acolhedor para refletir sobre bem-estar, rotina e desenvolvimento pessoal.",
-    icon: <Brain size={26} className="text-white" />,
-    gradient: "from-purple-500 via-violet-400 to-indigo-400",
-    highlights: [
-      "Check-in emocional diário",
-      "Orientações de autocuidado",
-      "Encaminhamentos quando necessário",
-    ],
-  },
-];
-
-const quickPrompts: Record<AssistantKey, string[]> = {
-  attendance: [
-    "Quais são as regras de desconto da Águas Guariroba?",
-    "Como argumento quando o cliente diz que já pagou?",
-    "Quais pontos preciso reforçar no critério de cumprimento?",
-  ],
-  hr: [
-    "Quais são os benefícios oferecidos?",
-    "Como solicitar minhas férias?",
-    "Qual o procedimento para atestado médico?",
-  ],
-  psychological: [
-    "Estou me sentindo ansioso hoje, o que posso fazer?",
-    "Como manter o foco nas metas sem me sobrecarregar?",
-    "Tem alguma dica para me organizar melhor nesta semana?",
-  ],
-};
-
-const assistantIcons: Record<AssistantKey, React.ReactNode> = {
-  attendance: <Target size={18} className="text-blue-500" />,
-  hr: <Users size={18} className="text-emerald-500" />,
-  psychological: <Brain size={18} className="text-purple-500" />,
-};
-
-const SeuGuruPage: React.FC = () => {
-  const { user } = useAuth();
-  const [selectedAssistant, setSelectedAssistant] = useState<AssistantKey | null>(
-    null
-  );
+const SeuGuru: React.FC = () => {
+  const [selectedAssistant, setSelectedAssistant] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingIntervalRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
+  // Limpeza de intervalos ao desmontar
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Lista de assistentes disponíveis
+  const assistants: Assistant[] = [
+    {
+      id: 'attendance',
+      name: 'Assistente de Atendimento',
+      description: 'Especialista em critérios de avaliação e performance',
+      icon: <Target size={24} />,
+      color: '#3b82f6',
+      gradient: 'from-blue-400 to-blue-600',
+      category: 'Atendimento'
+    },
+    {
+      id: 'hr',
+      name: 'Assistente de RH',
+      description: 'Informações sobre políticas e procedimentos',
+      icon: <Users size={24} />,
+      color: '#10b981',
+      gradient: 'from-green-400 to-green-600',
+      category: 'Recursos Humanos'
+    },
+    {
+      id: 'psychological',
+      name: 'Assistente Psicológico',
+      description: 'Suporte para bem-estar e desenvolvimento pessoal',
+      icon: <Brain size={24} />,
+      color: '#8b5cf6',
+      gradient: 'from-purple-400 to-purple-600',
+      category: 'Bem-estar'
+    }
+  ];
+
+  // Auto-scroll para a última mensagem
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const resetConversation = (assistant: AssistantKey) => {
-    setSelectedAssistant(assistant);
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: `Você selecionou o ${assistantCards.find(
-          (card) => card.id === assistant
-        )?.title || "Seu Guru"}. Como posso ajudar hoje?`,
+  // Função para efeito de digitação
+  const typeOutMessage = (text: string, messageId: string, speedMs = 15) => {
+    return new Promise<void>((resolve) => {
+      setIsTyping(true);
+      let index = 0;
+      typingIntervalRef.current = window.setInterval(() => {
+        index += 2; // acrescenta alguns caracteres por tick
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: text.slice(0, Math.min(index, text.length)) } : m));
+        if (index >= text.length) {
+          if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+          }
+          setIsTyping(false);
+          resolve();
+        }
+      }, speedMs);
+    });
+  };
+
+  // (Removido) Mensagem de boas-vindas inicial — o usuário já escolheu um assistente ao abrir o chat
+
+  const handleAssistantSelect = (assistantId: string) => {
+    if (selectedAssistant === assistantId) {
+      // Deseleciona se clicar no mesmo
+      setSelectedAssistant(null);
+      setIsExpanded(false);
+    } else {
+      setSelectedAssistant(assistantId);
+      setIsExpanded(true);
+
+      // Adiciona mensagem de seleção
+      const selectedAssistantData = assistants.find(a => a.id === assistantId);
+      const selectionMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `Excelente escolha! 🏆\n\nAgora estou no modo **${selectedAssistantData?.name}**. Posso te ajudar com:\n\n• Dúvidas sobre critérios de avaliação\n• Análise de performance\n• Orientações sobre procedimentos\n• Informações específicas da área\n\nO que gostaria de saber?`,
         timestamp: new Date(),
-      },
-    ]);
-    setConversationId(null);
-    setInputMessage("");
+        assistant_used: assistantId
+      };
+      setMessages(prev => [...prev, selectionMessage]);
+    }
   };
 
   const sendMessage = async () => {
-    if (!selectedAssistant) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content:
-            "Escolha um assistente acima para iniciar a conversa.",
-          timestamp: new Date(),
-        },
-      ]);
-      return;
-    }
+    if (!inputMessage.trim() || isLoading || !selectedAssistant) return;
 
-    if (!inputMessage.trim() || isLoading) return;
-
-    const trimmedMessage = inputMessage.trim();
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      role: "user",
-      content: trimmedMessage,
-      timestamp: new Date(),
+      role: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date()
     };
 
-    setMessages((prev) => [...prev, newMessage]);
-    setInputMessage("");
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem("auth_token");
-      const payload: Record<string, unknown> = {
-        message: trimmedMessage,
-        assistant_type: selectedAssistant,
-      };
+      const token = localStorage.getItem('auth_token');
 
-      const rawAgentId = user?.agent_id ?? user?.id;
-      if (rawAgentId !== undefined && rawAgentId !== null) {
-        payload.agent_id = String(rawAgentId);
-      }
-
-      if (conversationId !== null) {
-        payload.conversation_id = conversationId;
-      }
-
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          message: userMessage.content,
+          agent_id: String(user?.id ?? '1111'),
+          assistant_type: selectedAssistant,
+        })
       });
 
       if (!response.ok) {
-        throw new Error("Erro ao enviar mensagem");
+        const body = await response.text().catch(() => '');
+        throw new Error(`Erro ao enviar mensagem (status ${response.status}): ${body}`);
       }
 
       const data = await response.json();
+      const fullText: string = data?.message ?? '';
 
-      const assistantMessage: Message = {
-        id: `${Date.now()}_${Math.random()}`,
-        role: "assistant",
-        content: data.message,
+      const assistantMessageId = (Date.now() + 1).toString();
+      const emptyAssistantMessage: Message = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
         timestamp: new Date(),
-        metadata: data.metadata || undefined,
+        assistant_used: selectedAssistant
       };
+      setMessages(prev => [...prev, emptyAssistantMessage]);
 
-      setMessages((prev) => [...prev, assistantMessage]);
-      setConversationId(data.conversation_id ?? conversationId);
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+      await typeOutMessage(fullText, assistantMessageId, 10);
+
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}_error`,
-          role: "assistant",
-          content:
-            "Não consegui processar sua mensagem agora. Tente novamente em instantes.",
-          timestamp: new Date(),
-        },
-      ]);
+      console.error('Erro ao enviar mensagem:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       sendMessage();
     }
   };
 
-  const renderMetadata = (metadata?: Message["metadata"]) => {
-    if (!metadata) return null;
-    const { related_criteria, suggested_actions, data_sources } = metadata;
-
-    return (
-      <div className="mt-2 border-t border-gray-200 pt-2 space-y-2">
-        {related_criteria && related_criteria.length > 0 && (
-          <div className="text-xs text-gray-600">
-            <span className="font-semibold text-gray-700">
-              Critérios relacionados:
-            </span>
-            <div className="mt-1 space-y-1">
-              {related_criteria.map((item, index) => (
-                <p key={index}>• {item}</p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {suggested_actions && suggested_actions.length > 0 && (
-          <div className="text-xs text-gray-600">
-            <span className="font-semibold text-gray-700">
-              Ações sugeridas:
-            </span>
-            <div className="mt-1 space-y-1">
-              {suggested_actions.map((item, index) => (
-                <p key={index} className="flex items-start gap-1">
-                  <Sparkles size={12} className="mt-0.5 text-yellow-500" />
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {data_sources && data_sources.length > 0 && (
-          <div className="text-xs text-gray-600">
-            <span className="font-semibold text-gray-700">Fontes:</span>
-            <ul className="mt-1 space-y-1">
-              {data_sources.map((item, index) => (
-                <li key={index}>• {item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
+  const getSelectedAssistantData = () => {
+    return assistants.find(a => a.id === selectedAssistant);
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <PageHeader
         title="Seu Guru"
-        subtitle="Escolha o especialista e conduza a conversa conforme sua necessidade"
+        subtitle="Escolha seu assistente especializado"
       />
 
-      <div className="grid gap-4 p-6 lg:grid-cols-3">
-        {assistantCards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => resetConversation(card.id)}
-            className={`group flex flex-col items-start gap-4 rounded-2xl border border-transparent p-5 text-left transition-all duration-200 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-              selectedAssistant === card.id
-                ? "bg-white shadow-lg ring-2 ring-offset-2 ring-blue-500"
-                : "bg-white shadow-md hover:border-blue-200"
-            }`}
-          >
-            <div
-              className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient} shadow-lg`}
-            >
-              {card.icon}
-            </div>
-            <div className="space-y-2">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {card.title}
-                </h3>
-                <p className="text-sm font-medium text-gray-500">
-                  {card.subtitle}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {card.description}
-              </p>
-              <ul className="space-y-1 text-sm text-gray-600">
-                {card.highlights.map((highlight, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-blue-400"></span>
-                    {highlight}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </button>
-        ))}
-      </div>
+      <div className="p-6 flex flex-col min-h-[calc(100vh-12rem)]">
+        {/* Cards dos Assistentes - Animados */}
+        <div className={`transition-all duration-700 ease-in-out ${
+          isExpanded
+            ? 'h-24 mb-6 opacity-100'
+            : 'flex-1 mb-8 opacity-100'
+        }`}>
+          <div className={`flex justify-center items-center transition-all duration-700 ease-in-out ${
+            isExpanded
+              ? 'transform scale-75 -translate-y-4'
+              : 'transform scale-100 translate-y-0'
+          }`}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {assistants.map((assistant, index) => (
+              <div
+                key={assistant.id}
+                onClick={() => handleAssistantSelect(assistant.id)}
+                className={`group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl cursor-pointer transform transition-all duration-500 ease-out ${
+                  selectedAssistant === assistant.id
+                    ? 'ring-4 ring-blue-300 shadow-2xl'
+                    : 'hover:scale-105'
+                } ${
+                  isExpanded ? 'hover:scale-110' : 'hover:scale-105'
+                }`}
+                style={{
+                  animationDelay: `${index * 150}ms`,
+                  background: `linear-gradient(135deg, ${assistant.color}15, ${assistant.color}05)`,
+                  height: isExpanded ? 'auto' : '256px'
+                }}
+              >
+                {/* Card Background com Gradiente */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${assistant.gradient} transition-opacity duration-300 ${
+                  isExpanded ? 'opacity-60' : 'opacity-90 group-hover:opacity-100'
+                }`} />
 
-      <div className="px-6 pb-10">
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <div>
-              <h4 className="text-base font-semibold text-gray-900">
-                Conversa com o Seu Guru
-              </h4>
-              <p className="text-sm text-gray-500">
-                {selectedAssistant
-                  ? `Assistente selecionado: ${assistantCards.find(
-                      (card) => card.id === selectedAssistant
-                    )?.subtitle}`
-                  : "Selecione um assistente acima para iniciar a conversa."}
-              </p>
-            </div>
-            {selectedAssistant && (
-              <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-600">
-                {assistantIcons[selectedAssistant]}
-                <span>
-                  {assistantCards.find((card) => card.id === selectedAssistant)?.subtitle}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex h-[520px] flex-col">
-            <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm ${
-                      message.role === "user"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-50 text-gray-800 border border-gray-200"
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
+                {/* Conteúdo do Card */}
+                <div className={`relative transition-all duration-500 ease-in-out ${
+                  isExpanded ? 'p-4 h-16 flex items-center justify-center' : 'p-8 h-64 flex flex-col justify-between'
+                }`}>
+                  {/* Conteúdo Dinâmico - Ícone Apenas ou Conteúdo Completo */}
+                  {isExpanded ? (
+                    /* Modo Minimizado - Apenas Ícone */
+                    <div className="flex items-center justify-center">
+                      <div className={`w-12 h-12 rounded-xl bg-white/30 backdrop-blur-sm flex items-center justify-center shadow-lg transition-all duration-300 ${
+                        selectedAssistant === assistant.id ? 'bg-white/40 scale-110' : 'group-hover:scale-110'
+                      }`}>
+                        <div className={`text-white transition-all duration-300 ${
+                          selectedAssistant === assistant.id ? 'scale-110' : ''
+                        }`}>
+                          {assistant.icon}
+                        </div>
+                      </div>
                     </div>
-                    {message.role === "assistant" && renderMetadata(message.metadata)}
-                  </div>
-                </div>
-              ))}
-
-              {isLoading && (
-                <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processando sua pergunta...
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-              <div className="flex items-end gap-3">
-                <textarea
-                  value={inputMessage}
-                  onChange={(event) => setInputMessage(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    selectedAssistant
-                      ? "Digite sua mensagem (Enter para enviar, Shift+Enter para nova linha)"
-                      : "Selecione um assistente para habilitar o chat"
-                  }
-                  className="min-h-[56px] flex-1 resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
-                  disabled={!selectedAssistant || isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!selectedAssistant || !inputMessage.trim() || isLoading}
-                  className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                >
-                  {isLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <Send size={16} />
-                  )}
-                  Enviar
-                </button>
-              </div>
+                    /* Modo Expandido - Conteúdo Completo */
+                    <>
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 ${
+                            selectedAssistant === assistant.id ? 'bg-white/30' : ''
+                          }`}>
+                            <div className="text-white">
+                              {assistant.icon}
+                            </div>
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-white transition-colors">
+                              {assistant.name}
+                            </h3>
+                            <p className="text-white/80 text-sm leading-relaxed">
+                              {assistant.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-              {selectedAssistant && quickPrompts[selectedAssistant].length > 0 && (
-                <div className="mt-4">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Sugestões rápidas
-                  </span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {quickPrompts[selectedAssistant].map((prompt, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setInputMessage(prompt)}
-                        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs text-gray-600 transition-colors duration-150 hover:border-blue-300 hover:text-blue-600"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
+                      {/* Badge de Categoria */}
+                      <div className="flex justify-between items-end">
+                        <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium text-white">
+                          {assistant.category}
+                        </span>
+
+                        {/* Indicador de Seleção */}
+                        {selectedAssistant === assistant.id && (
+                          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                            <Sparkles size={16} className="text-blue-600" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Efeitos de Hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                    </>
+                  )}
+
+                  {/* Animação de Seleção */}
+                  {selectedAssistant === assistant.id && (
+                    <div className="absolute inset-0 bg-blue-400/20 animate-pulse rounded-2xl" />
+                  )}
                 </div>
-              )}
+              </div>
+            ))}
             </div>
           </div>
         </div>
+
+        {/* Área de Chat Expandida */}
+        <div className={`transition-all duration-700 ease-in-out ${
+          isExpanded
+            ? 'flex-1 opacity-100'
+            : 'h-0 opacity-0 overflow-hidden'
+        }`}>
+          {isExpanded && selectedAssistant && (
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 h-full flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+              {/* Header do Chat */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      {getSelectedAssistantData()?.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-bold">{getSelectedAssistantData()?.name}</h3>
+                      <p className="text-sm opacity-90">Conectado e pronto para ajudar</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedAssistant(null);
+                      setIsExpanded(false);
+                    }}
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    <ChevronUp size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Mensagens */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${
+                      message.id === 'welcome' ? 'animate-in fade-in-0 slide-in-from-left-4 duration-700' : ''
+                    }`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        {assistants.find(a => a.id === message.assistant_used)?.icon || <Bot size={16} className="text-blue-600" />}
+                      </div>
+                    )}
+
+                    <div
+                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                        message.role === 'user'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
+                      }`}
+                    >
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                    </div>
+
+                    {message.role === 'user' && (
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <MessageSquare size={16} className="text-gray-600" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Bot size={16} className="text-blue-600" />
+                    </div>
+                    <div className="bg-white rounded-2xl px-4 py-3 border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Pensando...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Input de Mensagem */}
+              <div className="border-t p-4 bg-white">
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Digite sua mensagem aqui... (Enter para enviar, Shift+Enter para nova linha)"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 placeholder-gray-500 bg-white"
+                      rows={2}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim() || isLoading}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    {isLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                    Enviar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Botão para Expandir/Recolher quando há assistente selecionado */}
+        {selectedAssistant && !isExpanded && (
+          <div className="fixed bottom-6 right-6 z-10">
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 animate-bounce"
+            >
+              <MessageSquare size={24} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default SeuGuruPage;
+export default SeuGuru;
