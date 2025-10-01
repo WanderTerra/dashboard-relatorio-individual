@@ -978,4 +978,153 @@ export const getQuartisDesempenho = (params: { start?: string; end?: string; car
 export const getQuartisAcordos = (params: { start?: string; end?: string; carteira?: string }) =>
   api.get('/quartis/acordos', { params }).then(r => r.data as QuartisResponse);
 
+// ===== RELATÓRIOS =====
+export interface RelatorioProdutividade {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_ligacoes: number;
+    total_agentes: number;
+    media_ligacoes_agente: number;
+    top_performers: Array<{
+      agent_id: string;
+      nome_agente: string;
+      total_ligacoes: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    ligacoes_hoje: number;
+    ligacoes_semana: number;
+    ligacoes_mes: number;
+    primeira_ligacao?: string;
+    ultima_ligacao?: string;
+  }>;
+  evolucao_periodo: Array<{
+    data: string;
+    total_ligacoes: number;
+    agentes_ativos: number;
+  }>;
+}
+
+export interface RelatorioNotas {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_agentes: number;
+    media_geral: number;
+    taxa_aprovacao_geral: number;
+    melhores_agentes: Array<{
+      agent_id: string;
+      nome_agente: string;
+      media_pontuacao: number;
+      total_ligacoes: number;
+    }>;
+    agentes_atencao: Array<{
+      agent_id: string;
+      nome_agente: string;
+      media_pontuacao: number;
+      total_ligacoes: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    media_pontuacao: number;
+    menor_pontuacao: number;
+    maior_pontuacao: number;
+    aprovacoes: number;
+    reprovacoes: number;
+    taxa_aprovacao: number;
+    status: string;
+  }>;
+  evolucao_notas: Array<{
+    data: string;
+    media_dia: number;
+    total_ligacoes: number;
+    aprovacoes_dia: number;
+  }>;
+}
+
+export interface RelatorioAcordos {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_agentes: number;
+    total_acordos: number;
+    total_nao_acordos: number;
+    taxa_acordo_geral: number;
+    valor_total_acordos: number;
+    melhores_negociadores: Array<{
+      agent_id: string;
+      nome_agente: string;
+      taxa_acordo: number;
+      total_acordos: number;
+    }>;
+    motivos_nao_acordo: Array<{
+      motivo_nao_acordo: string;
+      quantidade: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    total_acordos: number;
+    total_nao_acordos: number;
+    taxa_acordo: number;
+    valor_total_acordos: number;
+    valor_medio_acordo: number;
+    desconto_medio: number;
+    performance: string;
+  }>;
+  evolucao_acordos: Array<{
+    data: string;
+    total_ligacoes: number;
+    acordos_dia: number;
+    taxa_acordo_dia: number;
+  }>;
+}
+
+export const getRelatorioProdutividade = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/produtividade', { params }).then(r => r.data as RelatorioProdutividade);
+
+export const getRelatorioNotas = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/notas-agentes', { params }).then(r => r.data as RelatorioNotas);
+
+export const getRelatorioAcordos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/acordos', { params }).then(r => r.data as RelatorioAcordos);
+
+export interface DashboardCarteira {
+  carteira: string;
+  nota_media: number;
+  total_ligacoes: number;
+  aprovacoes: number;
+  taxa_aprovacao: number;
+  evolucao: number;
+  tem_dados: boolean;
+}
+
+export interface DashboardCarteirasResponse {
+  nota_media_geral: number;
+  taxa_aprovacao_geral: number;
+  total_ligacoes: number;
+  carteiras: DashboardCarteira[];
+}
+
+export const getCarteirasNotas = (params?: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/dashboard-carteiras', { params }).then(r => r.data as DashboardCarteirasResponse);
+
 
