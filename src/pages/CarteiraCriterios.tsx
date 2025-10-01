@@ -105,6 +105,7 @@ const CarteiraCriterios: React.FC = () => {
     'Negociação',
     'Check-list',
     'Encerramento',
+    'Técnicas de atendimento',
     'Falha Crítica'
   ];
 

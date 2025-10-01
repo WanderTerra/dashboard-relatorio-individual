@@ -62,10 +62,10 @@ const QuartilesSection: React.FC<QuartilesSectionProps> = ({ start, end, carteir
     };
 
     const titulos = {
-      q1: 'Q1 - Top 25%',
-      q2: 'Q2 - 25% - 50%', 
-      q3: 'Q3 - 50% - 75%',
-      q4: 'Q4 - 75% - 100%'
+      q1: 'QUARTIL 1',
+      q2: 'QUARTIL 2', 
+      q3: 'QUARTIL 3',
+      q4: 'QUARTIL 4'
     };
 
     const descricoes = {

@@ -369,7 +369,14 @@ const SeuGuru: React.FC = () => {
                           : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed" 
+                           dangerouslySetInnerHTML={{ 
+                             __html: message.content
+                               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                               .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                               .replace(/\n/g, '<br/>')
+                           }} 
+                      />
                     </div>
 
                     {message.role === 'user' && (

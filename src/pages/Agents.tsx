@@ -83,7 +83,7 @@ const Agents: React.FC = () => {
   // Reset página quando filtros mudam
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCarteira, agentSearch, showOnlyActive]);
+  }, [filters.carteira, agentSearch, showOnlyActive]);
 
   // Forçar invalidação da query quando os filtros mudam
   React.useEffect(() => {
