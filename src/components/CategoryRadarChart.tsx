@@ -122,7 +122,8 @@ export const CategoryRadarChart: React.FC<CategoryRadarChartProps> = ({
         } else if (lowerName.includes('valor') || lowerName.includes('juros') || lowerName.includes('multa') || lowerName.includes('origem') || lowerName.includes('motivo') || lowerName.includes('fechamento') || lowerName.includes('desconto')) {
           category = 'Negociação';
         } else {
-          category = 'Outros';
+          // Se não conseguir categorizar, pular este item
+          return;
         }
       }
       

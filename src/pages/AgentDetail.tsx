@@ -272,8 +272,8 @@ const AgentDetail: React.FC = () => {
         return 'Negociação';
       }
       
-      // Se não conseguir identificar, usar "Outros"
-      return 'Outros';
+      // Se não conseguir identificar, retornar null (não será incluído)
+      return null;
     };
     
     // Agrupar critérios por categoria
@@ -289,6 +289,9 @@ const AgentDetail: React.FC = () => {
       
       // Tentar extrair categoria do nome do critério
       const category = extractCategoryFromName(standardized.name);
+      
+      // Pular se não conseguir categorizar
+      if (!category) return;
       
       if (!categoriesMap.has(category)) {
         categoriesMap.set(category, {

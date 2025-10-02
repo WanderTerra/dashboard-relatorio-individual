@@ -9,6 +9,9 @@ import {
   Filter
 } from 'lucide-react';
 import { getCarteirasNotas } from '../lib/api';
+import { useFilters } from '../hooks/use-filters';
+import { Combobox } from '../components/ui/select-simple';
+import PeriodFilter from '../components/PeriodFilter';
 
 interface CarteiraCard {
   carteira: string;
@@ -21,10 +24,25 @@ interface CarteiraCard {
 }
 
 const DashboardCarteiras: React.FC = () => {
+  const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+
+  // Construir objeto de filtros para a API
+  const apiFilters = { 
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+  };
+
   const { data: carteirasData, isLoading, error } = useQuery({
-    queryKey: ['dashboard-carteiras'],
-    queryFn: () => getCarteirasNotas(),
+    queryKey: ['dashboard-carteiras', apiFilters],
+    queryFn: () => getCarteirasNotas(apiFilters),
   });
+
+  // Transformar carteiras para o formato esperado pelo Combobox
+  const carteiras = carteirasData?.carteiras?.map((item: { carteira: string }) => ({
+    value: item.carteira,
+    label: item.carteira
+  })) || [];
 
   const getNotaColor = (nota: number) => {
     if (nota >= 9) return 'text-green-600';
@@ -94,9 +112,37 @@ const DashboardCarteiras: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Dashboard de Carteiras
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 mb-6">
           Acompanhe o desempenho das carteiras em tempo real
         </p>
+        
+        {/* Filtros */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filtros</span>
+          </div>
+          <div className="flex flex-wrap gap-4 items-end">
+            <PeriodFilter
+              startDate={filters.start}
+              endDate={filters.end}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+            />
+            <div className="min-w-[180px] flex flex-col">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Carteira</label>
+              <Combobox
+                options={carteiras}
+                value={filters.carteira || ''}
+                onChange={(value) => {
+                  setCarteira(value);
+                }}
+                placeholder="Selecionar carteira"
+                emptyMessage="Nenhuma carteira encontrada"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Estatísticas Gerais */}
@@ -158,9 +204,14 @@ const DashboardCarteiras: React.FC = () => {
         </div>
       </div>
 
-      {/* Cards das Carteiras */}
+      {/* Debug: Log carteiras data being rendered */}
+      {console.log('🔍 [CARTEIRAS DEBUG] Rendering carteirasData:', carteirasData)}
+
+      {/* Cards das Carteiras - Filter based on selected carteira */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {carteirasData?.carteiras?.map((carteira) => (
+        {carteirasData?.carteiras
+          ?.filter(carteira => !filters.carteira || carteira.carteira === filters.carteira)
+          ?.map((carteira) => (
           <div key={carteira.carteira} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
             <div className="p-6">
               {/* Header do Card */}
