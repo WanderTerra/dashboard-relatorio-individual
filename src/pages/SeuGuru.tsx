@@ -13,12 +13,18 @@ interface Assistant {
   category: string;
 }
 
+interface QuickReply {
+  label: string;
+  query: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   assistant_used?: string;
+  quick_replies?: QuickReply[];
 }
 
 const SeuGuru: React.FC = () => {
@@ -27,20 +33,8 @@ const SeuGuru: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const typingIntervalRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-
-  // Limpeza de intervalos ao desmontar
-  useEffect(() => {
-    return () => {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
-      }
-    };
-  }, []);
 
   // Lista de assistentes disponíveis
   const assistants: Assistant[] = [
@@ -78,28 +72,6 @@ const SeuGuru: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Função para efeito de digitação
-  const typeOutMessage = (text: string, messageId: string, speedMs = 15) => {
-    return new Promise<void>((resolve) => {
-      setIsTyping(true);
-      let index = 0;
-      typingIntervalRef.current = window.setInterval(() => {
-        index += 2; // acrescenta alguns caracteres por tick
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: text.slice(0, Math.min(index, text.length)) } : m));
-        if (index >= text.length) {
-          if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
-          setIsTyping(false);
-          resolve();
-        }
-      }, speedMs);
-    });
-  };
-
-  // (Removido) Mensagem de boas-vindas inicial — o usuário já escolheu um assistente ao abrir o chat
-
   const handleAssistantSelect = (assistantId: string) => {
     if (selectedAssistant === assistantId) {
       // Deseleciona se clicar no mesmo
@@ -136,10 +108,21 @@ const SeuGuru: React.FC = () => {
     setInputMessage('');
     setIsLoading(true);
 
+    // Criar mensagem vazia do assistente
+    const assistantMessageId = (Date.now() + 1).toString();
+    const emptyAssistantMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      assistant_used: selectedAssistant
+    };
+    setMessages(prev => [...prev, emptyAssistantMessage]);
+
     try {
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch('/api/ai/chat', {
+      const response = await fetch('/api/ai/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,28 +136,54 @@ const SeuGuru: React.FC = () => {
       });
 
       if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        throw new Error(`Erro ao enviar mensagem (status ${response.status}): ${body}`);
+        throw new Error(`Erro ao enviar mensagem (status ${response.status})`);
       }
 
-      const data = await response.json();
-      const fullText: string = data?.message ?? '';
+      // Ler stream de tokens e quick replies
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      let quickReplies: QuickReply[] = [];
 
-      const assistantMessageId = (Date.now() + 1).toString();
-      const emptyAssistantMessage: Message = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-        assistant_used: selectedAssistant
-      };
-      setMessages(prev => [...prev, emptyAssistantMessage]);
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6);
+              try {
+                const event = JSON.parse(jsonStr);
+                
+                if (event.type === 'token') {
+                  fullResponse += event.content;
+                  // Atualizar mensagem em tempo real
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantMessageId 
+                      ? { ...m, content: fullResponse }
+                      : m
+                  ));
+                }
+                else if (event.type === 'quick_replies') {
+                  quickReplies = event.replies || [];
+                  // Adicionar quick replies à mensagem
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantMessageId 
+                      ? { ...m, quick_replies: quickReplies }
+                      : m
+                  ));
+                }
+              } catch (e) {
+                // Linha não é JSON válido, ignora
+              }
+            }
+          }
+        }
       }
-      await typeOutMessage(fullText, assistantMessageId, 10);
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
@@ -188,6 +197,13 @@ const SeuGuru: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickReply = (query: string) => {
+    if (isLoading) return;
+    setInputMessage(query);
+    // Pequeno delay para mostrar a query no input antes de enviar
+    setTimeout(() => sendMessage(), 100);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -352,36 +368,54 @@ const SeuGuru: React.FC = () => {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${
+                    className={`flex flex-col gap-2 ${message.role === 'user' ? 'items-end' : 'items-start'} ${
                       message.id === 'welcome' ? 'animate-in fade-in-0 slide-in-from-left-4 duration-700' : ''
                     }`}
                   >
-                    {message.role === 'assistant' && (
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        {assistants.find(a => a.id === message.assistant_used)?.icon || <Bot size={16} className="text-blue-600" />}
-                      </div>
-                    )}
+                    <div className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                      {message.role === 'assistant' && (
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          {assistants.find(a => a.id === message.assistant_used)?.icon || <Bot size={16} className="text-blue-600" />}
+                        </div>
+                      )}
 
-                    <div
-                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                        message.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
-                      }`}
-                    >
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed" 
-                           dangerouslySetInnerHTML={{ 
-                             __html: message.content
-                               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                               .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                               .replace(/\n/g, '<br/>')
-                           }} 
-                      />
+                      <div
+                        className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                          message.role === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white text-gray-900 border border-gray-200 shadow-sm'
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed" 
+                             dangerouslySetInnerHTML={{ 
+                               __html: message.content
+                                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                 .replace(/\n/g, '<br/>')
+                             }} 
+                        />
+                      </div>
+
+                      {message.role === 'user' && (
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                          <MessageSquare size={16} className="text-gray-600" />
+                        </div>
+                      )}
                     </div>
 
-                    {message.role === 'user' && (
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                        <MessageSquare size={16} className="text-gray-600" />
+                    {/* Quick Replies */}
+                    {message.role === 'assistant' && message.quick_replies && message.quick_replies.length > 0 && (
+                      <div className="flex flex-wrap gap-2 ml-11 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                        {message.quick_replies.map((reply, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleQuickReply(reply.query)}
+                            disabled={isLoading}
+                            className="px-3 py-1.5 bg-white border border-blue-300 text-blue-600 rounded-full text-xs font-medium hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow"
+                          >
+                            {reply.label}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
