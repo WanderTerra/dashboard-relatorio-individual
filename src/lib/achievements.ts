@@ -166,7 +166,7 @@ export const getLocalAchievements = (agentData: AgentData): AutomaticAchievement
       description: 'Complete 10 ligações',
       icon: '📞',
       category: 'milestone',
-      xp_reward: 50,
+      xp_reward: 25, // ✅ CORRIGIDO: era 50, agora 25 para bater com ACHIEVEMENT_CONFIGS
       condition: (data) => {
         return data.calls && data.calls.length >= 10;
       },

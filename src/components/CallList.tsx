@@ -369,45 +369,130 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
       {/* Controles de paginação */}
       {totalPages > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-700">
               Mostrando <span className="font-medium">{startIndex + 1}</span> até{' '}
               <span className="font-medium">{Math.min(endIndex, filteredCalls.length)}</span> de{' '}
               <span className="font-medium">{filteredCalls.length}</span> chamadas
+              <span className="text-gray-500 ml-2">
+                (Página {currentPage} de {totalPages})
+              </span>
             </div>
             <div className="flex items-center space-x-2">
+              {/* Botão Primeira Página */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                title="Primeira página"
+              >
+                «
+              </button>
+              
+              {/* Botão Anterior */}
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Anterior
+                <span className="hidden sm:inline">Anterior</span>
               </button>
               
+              {/* Números de Página (Smart Pagination) */}
               <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+                {(() => {
+                  const pages: (number | string)[] = [];
+                  const maxVisible = 5; // Máximo de números visíveis
+                  
+                  if (totalPages <= maxVisible + 2) {
+                    // Se houver poucas páginas, mostrar todas
+                    for (let i = 1; i <= totalPages; i++) {
+                      pages.push(i);
+                    }
+                  } else {
+                    // Sempre mostrar primeira página
+                    pages.push(1);
+                    
+                    // Calcular range ao redor da página atual
+                    let start = Math.max(2, currentPage - 1);
+                    let end = Math.min(totalPages - 1, currentPage + 1);
+                    
+                    // Ajustar se estiver no início
+                    if (currentPage <= 3) {
+                      start = 2;
+                      end = Math.min(totalPages - 1, 4);
+                    }
+                    
+                    // Ajustar se estiver no final
+                    if (currentPage >= totalPages - 2) {
+                      start = Math.max(2, totalPages - 3);
+                      end = totalPages - 1;
+                    }
+                    
+                    // Adicionar ... se necessário
+                    if (start > 2) {
+                      pages.push('...');
+                    }
+                    
+                    // Adicionar páginas do meio
+                    for (let i = start; i <= end; i++) {
+                      pages.push(i);
+                    }
+                    
+                    // Adicionar ... se necessário
+                    if (end < totalPages - 1) {
+                      pages.push('...');
+                    }
+                    
+                    // Sempre mostrar última página
+                    pages.push(totalPages);
+                  }
+                  
+                  return pages.map((page, index) => {
+                    if (page === '...') {
+                      return (
+                        <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page as number)}
+                        className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
               
+              {/* Botão Próxima */}
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
                 className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                Próxima
+                <span className="hidden sm:inline">Próxima</span>
                 <ChevronRight className="h-4 w-4" />
+              </button>
+              
+              {/* Botão Última Página */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                title="Última página"
+              >
+                »
               </button>
             </div>
           </div>

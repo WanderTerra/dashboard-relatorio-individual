@@ -209,13 +209,6 @@ const Login: React.FC = () => {
               )}
             </button>
             </div>
-
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Usuário padrão: <strong>admin.sistema</strong><br />
-              Senha padrão: <strong>Temp@2025</strong>
-            </p>
-          </div>
         </form>
       </div>
     </div>

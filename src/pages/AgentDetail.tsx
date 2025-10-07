@@ -37,6 +37,8 @@ import { Combobox } from '../components/ui/select-simple';
 import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
 import NotificationBell from '../components/NotificationBell';
 import AchievementsPanel from '../components/AchievementsPanel';
+import AIAgentSuggestion from '../components/AIAgentSuggestion';
+import { useSyncAchievements } from '../hooks/use-sync-achievements';
 
 // Funções utilitárias para LocalStorage
 const getPersistedDate = (key: string, fallback: string) =>
@@ -170,6 +172,22 @@ const AgentDetail: React.FC = () => {
     },
   });
 
+  // Sincronizar conquistas automaticamente
+  const agentData = React.useMemo(() => {
+    if (!gamificationData || !calls || !criteria || !summary) return null;
+    return {
+      agent_id: agentId,
+      current_level: gamificationData.current_level || 1,
+      current_xp: gamificationData.current_xp || 0,
+      total_xp_earned: gamificationData.total_xp_earned || 0,
+      calls: calls || [],
+      criteria: criteria || [],
+      summary: summary
+    };
+  }, [agentId, gamificationData, calls, criteria, summary]);
+
+  useSyncAchievements(agentId, agentData);
+
   // Calcular o pior item localmente usando os critérios
   const worstItem = React.useMemo((): WorstItem | null => {
     if (!criteria || criteria.length === 0) return null;
@@ -182,9 +200,15 @@ const AgentDetail: React.FC = () => {
       const standardized = standardizeCriteria(criterion);
       if (!standardized.isNotApplicable && standardized.value < worstValue) {
         worstValue = standardized.value;
+        const taxaNaoConforme = 100 - standardized.value;
+        console.log('🔍 Calculando taxa de não conformidade:', {
+          nome: standardized.name,
+          valorOriginal: standardized.value,
+          taxaNaoConforme: taxaNaoConforme
+        });
         worstCriterion = {
           categoria: standardized.name,
-          taxa_nao_conforme: (100 - standardized.value) / 100
+          taxa_nao_conforme: taxaNaoConforme
         };
       }
     });
@@ -748,36 +772,14 @@ const AgentDetail: React.FC = () => {
                 )}
               </div>
 
-              {/* Área de Atenção (apenas para admins) */}
+              {/* Área de Atenção - O que precisa melhorar */}
               {!isAgent && worstItem && (
-                <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="p-2 bg-red-100 rounded-lg mr-3">
-                      <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">Área de Atenção</h2>
-                  </div>
-                  
-                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-red-200 rounded-full flex items-center justify-center mr-3">
-                        <svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-red-900">
-                          {formatItemName((worstItem as any).categoria)}
-                        </h3>
-                        <p className="text-sm text-red-700">
-                          Taxa de não conformidade: <span className="font-bold">{((worstItem as any).taxa_nao_conforme * 100).toFixed(1)}%</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <AIAgentSuggestion 
+                  worstCriterion={worstItem}
+                  agentName={summary ? formatAgentName(summary) : (agentFromMixed ? formatAgentName(agentFromMixed) : formatAgentName({ agent_id: agentId, nome: `Agente ${agentId}` }))}
+                  agentId={agentId}
+                  recentPerformance={calls?.slice(0, 10) || []}
+                />
               )}
             </div>
           </div>
@@ -1064,8 +1066,12 @@ const AgentDetail: React.FC = () => {
                 { id: 5, name: 'Diamante', xpRequired: 20000, color: '#553C9A', bgColor: '#FAF5FF', borderColor: '#805AD5', icon: '💠' },
                 { id: 6, name: 'Nível Secreto', xpRequired: 50000, color: '#C53030', bgColor: '#FED7D7', borderColor: '#E53E3E', icon: '👑' }
               ].map((level) => {
-                const isCurrentLevel = level.id === (gamificationData?.current_level || 1);
-                const isUnlocked = (gamificationData?.current_xp || 0) >= level.xpRequired;
+                // ✅ CORREÇÃO: Usar nível e XP do backend
+                const backendLevel = gamificationData?.current_level || 1;
+                const currentXp = gamificationData?.current_xp || 0;
+                
+                const isCurrentLevel = level.id === backendLevel;
+                const isUnlocked = currentXp >= level.xpRequired;
                 
                 // Calcular próximo nível
                 const nextLevel = level.id < 6 ? [
