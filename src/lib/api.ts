@@ -635,7 +635,9 @@ export const reprocessFile = (fileId: number) =>
 // Funções mistas que buscam dados tanto das tabelas originais quanto das clones de upload
 export const getMixedKpis           = (f: Filters)        => api.get('/mixed/kpis',    { params: f }).then(r => r.data);
 export const getMixedTrend          = (f: Filters)        => api.get('/mixed/trend',   { params: f }).then(r => r.data);
+export const getMixedTrendAllMonths = (f: Filters)        => api.get('/mixed/trend',   { params: { carteira: f.carteira } }).then(r => r.data);
 export const getMixedAgents         = (f: Filters)        => api.get('/mixed/agents',  { params: f }).then(r => r.data);
+export const getMixedAgentsCount    = (f: Filters)        => api.get('/mixed/agents',  { params: f }).then(r => r.data.length);
 export const getMixedAgentSummary   = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/summary`, { params: f }).then(r => r.data);
 export const getMixedAgentCalls     = (id: string, f: Filters) => api.get(`/mixed/agent/${id}/calls`,   { params: f }).then(r => r.data);
 export const getMixedCallItems      = (avaliacaoId: string)   => api.get(`/mixed/call/${avaliacaoId}/items`).then(r => r.data);
@@ -710,8 +712,40 @@ export const contestarFeedback = (feedbackId: number, comentario: string) =>
 export const getContestacoesPendentes = (): Promise<ContestacaoOut[]> =>
   api.get('/feedback/contestacoes/pendentes').then(r => r.data);
 
-export const analisarContestacao = (contestacaoId: number, analise: ContestacaoAnalise) =>
-  api.put(`/feedback/contestacao/${contestacaoId}/analisar`, analise).then(r => r.data);
+export const analisarContestacao = async (contestacaoId: number, analise: ContestacaoAnalise) => {
+  const maxRetries = 3;
+  let attempt = 0;
+  
+  while (attempt < maxRetries) {
+    try {
+      console.log(`🚀 Tentativa ${attempt + 1}/${maxRetries} - Analisando contestação ${contestacaoId}:`, analise);
+      
+      const response = await api.put(`/feedback/contestacao/${contestacaoId}/analisar`, analise, {
+        timeout: 15000 // 15 segundos
+      });
+      
+      console.log(`✅ Contestação ${contestacaoId} processada com sucesso:`, response.data);
+      return response.data;
+    } catch (error: any) {
+      attempt++;
+      console.warn(`⚠️ Tentativa ${attempt}/${maxRetries} falhou para contestação ${contestacaoId}:`, {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
+      if (attempt >= maxRetries) {
+        console.error(`❌ FALHA TOTAL após ${maxRetries} tentativas para contestação ${contestacaoId}:`, error);
+        throw error;
+      }
+      
+      // Aguarda antes de tentar novamente (exponential backoff)
+      const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+      console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+};
 
 export const getAvaliacaoFeedbackStatus = (avaliacaoId: number): Promise<AvaliacaoFeedbackStatus> =>
   api.get(`/feedback/avaliacao/${avaliacaoId}/status`).then(r => r.data);
@@ -897,4 +931,200 @@ export const syncAchievementsWithProgress = async (agentId: string) => {
     throw error;
   }
 };
+
+// ===== ACORDOS (métricas) =====
+export const getAcordosResumo = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/resumo', { params }).then(r => r.data as { total: number; acordos: number; taxa: number });
+
+export const getAcordosTrend = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/trend', { params }).then(r => r.data as Array<{ dia: string; total: number; acordos: number; taxa: number }>);
+
+export const getAcordosMotivos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/motivos', { params }).then(r => r.data as Array<{ motivo: string; qtd: number }>);
+
+export const getAcordosValores = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/valores', { params }).then(r => r.data as Array<{ dia: string; valor_total_acordos: number; valor_total_original: number; valor_medio_acordo: number; qtd_acordos: number }>);
+
+export const getAcordosAgentesRanking = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/acordos/metrics/agentes-ranking', { params }).then(r => r.data as Array<{ agent_id: string; nome_agente: string; total_ligacoes: number; acordos: number; taxa_acordo: number }>);
+
+// ===== QUARTIS =====
+export interface AgenteQuartil {
+  agent_id: string;
+  nome_agente: string;
+  media_pontuacao?: number;
+  taxa_acordo?: number;
+  total_ligacoes: number;
+  acordos?: number;
+  posicao: number;
+}
+
+export interface QuartilData {
+  valor: number;
+  agentes: AgenteQuartil[];
+}
+
+export interface QuartisResponse {
+  q1: QuartilData;
+  q2: QuartilData;
+  q3: QuartilData;
+  q4: QuartilData;
+  periodo: string;
+}
+
+export const getQuartisDesempenho = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/quartis/desempenho', { params }).then(r => r.data as QuartisResponse);
+
+export const getQuartisAcordos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/quartis/acordos', { params }).then(r => r.data as QuartisResponse);
+
+// ===== RELATÓRIOS =====
+export interface RelatorioProdutividade {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_ligacoes: number;
+    total_agentes: number;
+    media_ligacoes_agente: number;
+    top_performers: Array<{
+      agent_id: string;
+      nome_agente: string;
+      total_ligacoes: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    ligacoes_hoje: number;
+    ligacoes_semana: number;
+    ligacoes_mes: number;
+    primeira_ligacao?: string;
+    ultima_ligacao?: string;
+  }>;
+  evolucao_periodo: Array<{
+    data: string;
+    total_ligacoes: number;
+    agentes_ativos: number;
+  }>;
+}
+
+export interface RelatorioNotas {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_agentes: number;
+    media_geral: number;
+    taxa_aprovacao_geral: number;
+    melhores_agentes: Array<{
+      agent_id: string;
+      nome_agente: string;
+      media_pontuacao: number;
+      total_ligacoes: number;
+    }>;
+    agentes_atencao: Array<{
+      agent_id: string;
+      nome_agente: string;
+      media_pontuacao: number;
+      total_ligacoes: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    media_pontuacao: number;
+    menor_pontuacao: number;
+    maior_pontuacao: number;
+    aprovacoes: number;
+    reprovacoes: number;
+    taxa_aprovacao: number;
+    status: string;
+  }>;
+  evolucao_notas: Array<{
+    data: string;
+    media_dia: number;
+    total_ligacoes: number;
+    aprovacoes_dia: number;
+  }>;
+}
+
+export interface RelatorioAcordos {
+  periodo: {
+    inicio?: string;
+    fim?: string;
+    carteira?: string;
+  };
+  resumo: {
+    total_agentes: number;
+    total_acordos: number;
+    total_nao_acordos: number;
+    taxa_acordo_geral: number;
+    valor_total_acordos: number;
+    melhores_negociadores: Array<{
+      agent_id: string;
+      nome_agente: string;
+      taxa_acordo: number;
+      total_acordos: number;
+    }>;
+    motivos_nao_acordo: Array<{
+      motivo_nao_acordo: string;
+      quantidade: number;
+    }>;
+  };
+  agentes: Array<{
+    agent_id: string;
+    nome_agente: string;
+    total_ligacoes: number;
+    total_acordos: number;
+    total_nao_acordos: number;
+    taxa_acordo: number;
+    valor_total_acordos: number;
+    valor_medio_acordo: number;
+    desconto_medio: number;
+    performance: string;
+  }>;
+  evolucao_acordos: Array<{
+    data: string;
+    total_ligacoes: number;
+    acordos_dia: number;
+    taxa_acordo_dia: number;
+  }>;
+}
+
+export const getRelatorioProdutividade = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/produtividade', { params }).then(r => r.data as RelatorioProdutividade);
+
+export const getRelatorioNotas = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/notas-agentes', { params }).then(r => r.data as RelatorioNotas);
+
+export const getRelatorioAcordos = (params: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/acordos', { params }).then(r => r.data as RelatorioAcordos);
+
+export interface DashboardCarteira {
+  carteira: string;
+  nota_media: number;
+  total_ligacoes: number;
+  aprovacoes: number;
+  taxa_aprovacao: number;
+  evolucao: number;
+  tem_dados: boolean;
+}
+
+export interface DashboardCarteirasResponse {
+  nota_media_geral: number;
+  taxa_aprovacao_geral: number;
+  total_ligacoes: number;
+  carteiras: DashboardCarteira[];
+}
+
+export const getCarteirasNotas = (params?: { start?: string; end?: string; carteira?: string }) =>
+  api.get('/relatorios/dashboard-carteiras', { params }).then(r => r.data as DashboardCarteirasResponse);
+
 

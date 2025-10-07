@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, clonarCriterioParaCarteira, atualizarOrdemCriterios } from "../lib/api";
-import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2, ArrowUpDown, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Target, Folder, Link2, ChevronDown, ChevronRight, BookOpen, GripVertical, Minus, Maximize2, ArrowUpDown, Check, X, Bot } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { useToast } from "../hooks/use-toast";
 
@@ -41,10 +41,8 @@ const CarteiraCriterios: React.FC = () => {
   const [expandedCarteira, setExpandedCarteira] = useState<number | null>(null);
   const [associacoesCache, setAssociacoesCache] = useState<Map<number, CarteiraCriterio[]>>(new Map());
   
-  // Estados para drag & drop e organização das categorias
-  const [categoriaOrder, setCategoriaOrder] = useState<string[]>([]);
+  // Estados para organização das categorias (ordem fixa)
   const [categoriasMinimizadas, setCategoriasMinimizadas] = useState<Set<string>>(new Set());
-  const [draggedCategoria, setDraggedCategoria] = useState<string | null>(null);
   
   // Estados para drag & drop dos critérios
   const [criterioOrder, setCriterioOrder] = useState<Map<string, number[]>>(new Map());
@@ -100,50 +98,22 @@ const CarteiraCriterios: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragPreview, setDragPreview] = useState<{ id: number; nome: string; categoria: string } | null>(null);
 
-  // Categorias serão carregadas dinamicamente do banco de dados
+  // Ordem fixa das categorias (sempre respeitada)
+  const ORDEM_CATEGORIAS_FIXA = [
+    'Abordagem',
+    'Confirmação de dados',
+    'Negociação',
+    'Check-list',
+    'Encerramento',
+    'Técnicas de atendimento',
+    'Falha Crítica'
+  ];
 
   // Estados dos formulários
   const [carteiraForm, setCarteiraForm] = useState({ nome: "", descricao: "", ativo: true });
   const [criterioForm, setCriterioForm] = useState({ nome: "", descricao: "", exemplo_frase: "", categoria: "", categoriaCustom: "", peso: 1 });
 
-  // Funções para drag & drop das categorias
-  const handleDragStart = (e: React.DragEvent, categoria: string) => {
-    setDraggedCategoria(categoria);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, targetCategoria: string) => {
-    e.preventDefault();
-    
-    if (draggedCategoria && draggedCategoria !== targetCategoria) {
-      const newOrder = [...categoriaOrder];
-      
-      // Se a categoria não está na ordem, adicionar
-      if (!newOrder.includes(draggedCategoria)) {
-        newOrder.push(draggedCategoria);
-      }
-      if (!newOrder.includes(targetCategoria)) {
-        newOrder.push(targetCategoria);
-      }
-      
-      // Reordenar: mover draggedCategoria para antes de targetCategoria
-      const draggedIndex = newOrder.indexOf(draggedCategoria);
-      const targetIndex = newOrder.indexOf(targetCategoria);
-      
-      newOrder.splice(draggedIndex, 1);
-      newOrder.splice(targetIndex, 0, draggedCategoria);
-      
-      setCategoriaOrder(newOrder);
-      console.log(`🔄 Categoria "${draggedCategoria}" movida para antes de "${targetCategoria}"`);
-    }
-    
-    setDraggedCategoria(null);
-  };
+  // Funções para organização das categorias (ordem fixa)
 
   const toggleCategoriaMinimizada = (categoria: string) => {
     setCategoriasMinimizadas(prev => {
@@ -158,11 +128,10 @@ const CarteiraCriterios: React.FC = () => {
   };
 
   const resetarOrdemCategorias = () => {
-    setCategoriaOrder([]);
     setCategoriasMinimizadas(new Set());
     toast({
-      title: "🔄 Ordem resetada!",
-      description: "Categorias voltaram à ordem padrão.",
+      title: "🔄 Categorias resetadas!",
+      description: "Categorias voltaram à ordem fixa padrão.",
     });
   };
 
@@ -220,29 +189,41 @@ const CarteiraCriterios: React.FC = () => {
     setDragOverCategoria(null);
     
     if (draggedCriterio && draggedCriterio.id !== targetCriterioId && draggedCriterio.categoria === categoria) {
-      const currentOrder = criterioOrder.get(categoria) || [];
-      const newOrder = [...currentOrder];
+      // Obter associações da carteira atual
+      const associacoesDaCarteira = associacoesCache.get(expandedCarteira || 0) || [];
       
-      // Se o critério não está na ordem, adicionar
-      if (!newOrder.includes(draggedCriterio.id)) {
-        newOrder.push(draggedCriterio.id);
-      }
-      if (!newOrder.includes(targetCriterioId)) {
-        newOrder.push(targetCriterioId);
-      }
+      // Filtrar apenas os critérios da categoria atual
+      const criteriosDaCategoria = associacoesDaCarteira.filter(assoc => {
+        const criterio = criterios.find(c => c.id === assoc.criterio_id);
+        return criterio?.categoria === categoria;
+      });
+      
+      // Obter ordem atual dos critérios (baseada no campo 'ordem' do banco)
+      const criteriosOrdenados = criteriosDaCategoria.sort((a, b) => {
+        if (a.ordem && b.ordem) return a.ordem - b.ordem;
+        if (a.ordem && !b.ordem) return -1;
+        if (!a.ordem && b.ordem) return 1;
+        return a.criterio_id - b.criterio_id;
+      });
+      
+      // Criar array com IDs na ordem atual
+      const currentOrder = criteriosOrdenados.map(assoc => assoc.criterio_id);
+      const newOrder = [...currentOrder];
       
       // Reordenar: mover critério arrastado para antes do critério alvo
       const draggedIndex = newOrder.indexOf(draggedCriterio.id);
       const targetIndex = newOrder.indexOf(targetCriterioId);
       
-      newOrder.splice(draggedIndex, 1);
-      newOrder.splice(targetIndex, 0, draggedCriterio.id);
-      
-      setCriterioOrder(prev => new Map(prev).set(categoria, newOrder));
-      console.log(`🔄 Critério ${draggedCriterio.id} movido para antes de ${targetCriterioId} na categoria ${categoria}`);
-      
-      // Salvar a nova ordem no backend
-      await salvarOrdemCriterios(categoria, newOrder);
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+        newOrder.splice(draggedIndex, 1);
+        newOrder.splice(targetIndex, 0, draggedCriterio.id);
+        
+        console.log(`🔄 Critério ${draggedCriterio.id} movido para antes de ${targetCriterioId} na categoria ${categoria}`);
+        console.log(`📋 Nova ordem:`, newOrder);
+        
+        // Salvar a nova ordem no backend
+        await salvarOrdemCriterios(categoria, newOrder);
+      }
     }
     
     setDraggedCriterio(null);
@@ -250,24 +231,53 @@ const CarteiraCriterios: React.FC = () => {
     setDragPreview(null);
   };
 
-  const resetarOrdemCriterios = (categoria?: string) => {
-    if (categoria) {
-      // Resetar ordem de uma categoria específica
-      setCriterioOrder(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(categoria);
-        return newMap;
+  const resetarOrdemCriterios = async (categoria?: string) => {
+    if (!expandedCarteira) return;
+    
+    try {
+      // Obter associações da carteira atual
+      const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+      
+      // Filtrar critérios da categoria (se especificada) ou todos
+      const criteriosParaResetar = associacoesDaCarteira.filter(assoc => {
+        if (!categoria) return true; // Resetar todos
+        const criterio = criterios.find(c => c.id === assoc.criterio_id);
+        return criterio?.categoria === categoria;
       });
+      
+      // Criar array para resetar ordem (definir ordem como 0 para indicar reset)
+      const criteriosOrdem = criteriosParaResetar.map(assoc => ({
+        id: assoc.id,
+        ordem: 0 // Remove a ordem personalizada
+      }));
+      
+      if (criteriosOrdem.length > 0) {
+        // Chamar API para resetar ordem no backend
+        await atualizarOrdemCriterios(expandedCarteira, criteriosOrdem);
+        
+        // Atualizar cache local
+        const associacoesAtualizadas = associacoesDaCarteira.map(assoc => {
+          const resetItem = criteriosOrdem.find(item => item.id === assoc.id);
+          if (resetItem) {
+            return { ...assoc, ordem: undefined };
+          }
+          return assoc;
+        });
+        
+        setAssociacoesCache(prev => new Map(prev).set(expandedCarteira, associacoesAtualizadas));
+        
+        toast({
+          title: "🔄 Ordem resetada!",
+          description: categoria 
+            ? `Critérios da categoria "${categoria}" voltaram à ordem padrão.`
+            : "Todos os critérios voltaram à ordem padrão.",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erro ao resetar ordem:", error);
       toast({
-        title: "🔄 Ordem resetada!",
-        description: `Critérios da categoria "${categoria}" voltaram à ordem padrão.`,
-      });
-    } else {
-      // Resetar ordem de todas as categorias
-      setCriterioOrder(new Map());
-      toast({
-        title: "🔄 Ordem resetada!",
-        description: "Todos os critérios voltaram à ordem padrão.",
+        title: "❌ Erro ao resetar",
+        description: "Não foi possível resetar a ordem dos critérios.",
       });
     }
   };
@@ -307,6 +317,9 @@ const CarteiraCriterios: React.FC = () => {
       });
       
       setAssociacoesCache(prev => new Map(prev).set(expandedCarteira, associacoesAtualizadas));
+      
+      console.log("🔄 Cache atualizado:", associacoesAtualizadas);
+      console.log("📋 Nova ordem aplicada:", criteriosOrdem);
       
       toast({
         title: "✅ Ordem salva!",
@@ -583,16 +596,22 @@ const CarteiraCriterios: React.FC = () => {
               return;
             }
             
+            // Calcular próxima ordem disponível
+            const associacoesDaCarteira = associacoesCache.get(selectedCarteiraForCriterio.id) || [];
+            const proximaOrdem = associacoesDaCarteira.length > 0 
+              ? Math.max(...associacoesDaCarteira.map(a => a.ordem || 0)) + 1 
+              : 1;
+            
             console.log('➡️ POST /carteira_criterios', {
               carteira_id: selectedCarteiraForCriterio.id,
               criterio_id: criterioIdLocal,
-              ordem: 1,
+              ordem: proximaOrdem,
               peso_especifico: criterioForm.peso
             });
             const associacaoResponse = await api.post('/carteira_criterios/', {
               carteira_id: selectedCarteiraForCriterio.id,
               criterio_id: criterioIdLocal,
-              ordem: 1,
+              ordem: proximaOrdem,
               peso_especifico: criterioForm.peso
             });
             console.log('⬅️ Resposta associação', associacaoResponse.status, associacaoResponse.data);
@@ -666,10 +685,21 @@ const CarteiraCriterios: React.FC = () => {
     try {
       console.log(`🔗 Associando critério ${criterioId} à carteira ${expandedCarteira}...`);
       
-      console.log('➡️ POST /carteira_criterios', { carteira_id: expandedCarteira, criterio_id: criterioId });
+      // Calcular próxima ordem disponível
+      const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+      const proximaOrdem = associacoesDaCarteira.length > 0 
+        ? Math.max(...associacoesDaCarteira.map(a => a.ordem || 0)) + 1 
+        : 1;
+      
+      console.log('➡️ POST /carteira_criterios', { 
+        carteira_id: expandedCarteira, 
+        criterio_id: criterioId,
+        ordem: proximaOrdem
+      });
       await api.post('/carteira_criterios/', {
         carteira_id: expandedCarteira,
-        criterio_id: criterioId
+        criterio_id: criterioId,
+        ordem: proximaOrdem
       });
       console.log('⬅️ Associação criada com sucesso');
       
@@ -735,29 +765,39 @@ const CarteiraCriterios: React.FC = () => {
     return criteriosFiltrados;
   };
 
-  // Aplicar ordem personalizada aos critérios de uma categoria
+  // Aplicar ordem fixa aos critérios de uma categoria
   const aplicarOrdemCriterios = (criterios: Criterio[], categoria: string) => {
-    const ordemPersonalizada = criterioOrder.get(categoria);
+    // Obter associações da carteira atual para usar a ordem do banco
+    const associacoesDaCarteira = expandedCarteira ? associacoesCache.get(expandedCarteira) || [] : [];
     
-    if (!ordemPersonalizada || ordemPersonalizada.length === 0) {
-      return criterios; // Retornar ordem original se não houver ordem personalizada
-    }
+    console.log("🔍 Aplicando ordem para categoria:", categoria);
+    console.log("📋 Associações disponíveis:", associacoesDaCarteira.length);
+    console.log("📋 Critérios para ordenar:", criterios.length);
     
     // Criar cópia dos critérios para ordenar
     const criteriosOrdenados = [...criterios];
     
-    // Aplicar ordem personalizada
+    // Ordenar por ordem do banco de dados (campo 'ordem' da tabela carteira_criterios)
     criteriosOrdenados.sort((a, b) => {
-      const aIndex = ordemPersonalizada.indexOf(a.id);
-      const bIndex = ordemPersonalizada.indexOf(b.id);
+      const assocA = associacoesDaCarteira.find(assoc => assoc.criterio_id === a.id);
+      const assocB = associacoesDaCarteira.find(assoc => assoc.criterio_id === b.id);
       
-      // Critérios não na ordem personalizada vão para o final
-      if (aIndex === -1 && bIndex === -1) return a.id - b.id;
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
+      console.log(`🔍 Ordenando: ${a.nome} (ordem: ${assocA?.ordem}) vs ${b.nome} (ordem: ${assocB?.ordem})`);
       
-      return aIndex - bIndex;
+      // Se ambos têm ordem definida, usar a ordem
+      if (assocA?.ordem && assocB?.ordem) {
+        return assocA.ordem - assocB.ordem;
+      }
+      
+      // Se apenas um tem ordem, ele vem primeiro
+      if (assocA?.ordem && !assocB?.ordem) return -1;
+      if (!assocA?.ordem && assocB?.ordem) return 1;
+      
+      // Se nenhum tem ordem, ordenar por ID (ordem de criação)
+      return a.id - b.id;
     });
+    
+    console.log("✅ Critérios ordenados:", criteriosOrdenados.map(c => ({ nome: c.nome, id: c.id })));
     
     return criteriosOrdenados;
   };
@@ -790,20 +830,12 @@ const CarteiraCriterios: React.FC = () => {
     
     // Mapeamento de palavras-chave para categorias existentes no banco
     const mapeamentoCategorias: { [key: string]: string[] } = {
-      'comunicação': ['comunicação', 'comunicacao', 'voz', 'tom', 'clareza'],
-      'produto': ['produto', 'serviço', 'servico', 'item'],
-      'atendimento': ['atendimento', 'cliente', 'suporte', 'ajuda'],
-      'técnica': ['técnica', 'tecnica', 'tecnologia', 'sistema'],
-      'vendas': ['vendas', 'venda', 'comercial', 'negociação'],
-      'qualidade': ['qualidade', 'padrão', 'excelência'],
-      'eficiência': ['eficiência', 'eficiencia', 'rapidez', 'agilidade'],
-      'profissionalismo': ['profissionalismo', 'ética', 'conduta'],
-      'resolução': ['resolução', 'resolucao', 'solução', 'solucao'],
-      'seguimento': ['seguimento', 'acompanhamento', 'follow-up'],
-      'documentação': ['documentação', 'documentacao', 'registro'],
-      'confirmação': ['confirmação', 'confirmacao', 'verificação'],
-      'empatia': ['empatia', 'compreensão', 'entendimento'],
-      'objetividade': ['objetividade', 'foco', 'direto']
+      'Abordagem': ['abordagem', 'cumprimento', 'identificação', 'script', 'origem'],
+      'Confirmação de dados': ['confirmação', 'confirmacao', 'dados', 'valores', 'informou', 'verificação'],
+      'Negociação': ['negociacao', 'negociação', 'oferta', 'desconto', 'parcelamento', 'fechamento', 'acordo', 'pagamento'],
+      'Check-list': ['check', 'confirm', 'verific', 'boleto', 'vencimento', 'aceite', 'lista'],
+      'Encerramento': ['encerramento', 'agradece', 'duvida', 'questionou', 'ajudar', 'finalização'],
+      'Falha Crítica': ['falha', 'crítica', 'critica', 'erro', 'problema', 'inconsistência', 'inconsistencia']
     };
     
     // Procurar por palavras-chave e verificar se a categoria existe no banco
@@ -819,7 +851,7 @@ const CarteiraCriterios: React.FC = () => {
     return null;
   };
 
-  // Organizar critérios por categoria com ordem personalizada
+  // Organizar critérios por categoria com ordem fixa
   const organizarCriteriosPorCategoria = (criterios: Criterio[]) => {
     const categorias = new Map<string, Criterio[]>();
     
@@ -831,34 +863,34 @@ const CarteiraCriterios: React.FC = () => {
       categorias.get(categoria)!.push(criterio);
     });
     
-    // Converter para array e aplicar ordem personalizada
+    // Converter para array e aplicar ordem fixa
     let categoriasArray = Array.from(categorias.entries())
       .map(([categoria, criterios]) => ({ categoria, criterios }));
     
-    // Se não há ordem personalizada definida, usar ordem padrão
-    if (categoriaOrder.length === 0) {
-      categoriasArray.sort((a, b) => {
-        // "Sem Categoria" sempre fica por último
-        if (a.categoria === "Sem Categoria") return 1;
-        if (b.categoria === "Sem Categoria") return -1;
-        
-        // Ordenar alfabeticamente
-        return a.categoria.localeCompare(b.categoria);
-      });
-    } else {
-      // Aplicar ordem personalizada
-      categoriasArray.sort((a, b) => {
-        const aIndex = categoriaOrder.indexOf(a.categoria);
-        const bIndex = categoriaOrder.indexOf(b.categoria);
-        
-        // Categorias não na ordem personalizada vão para o final
-        if (aIndex === -1 && bIndex === -1) return a.categoria.localeCompare(b.categoria);
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        
-        return aIndex - bIndex;
-      });
-    }
+    // Debug: mostrar categorias encontradas
+    console.log("🔍 Categorias encontradas:", categoriasArray.map(c => c.categoria));
+    console.log("📋 Ordem fixa definida:", ORDEM_CATEGORIAS_FIXA);
+    
+    // Sempre usar ordem fixa das categorias
+    categoriasArray.sort((a, b) => {
+      // "Sem Categoria" sempre fica por último
+      if (a.categoria === "Sem Categoria") return 1;
+      if (b.categoria === "Sem Categoria") return -1;
+      
+      const aIndex = ORDEM_CATEGORIAS_FIXA.indexOf(a.categoria);
+      const bIndex = ORDEM_CATEGORIAS_FIXA.indexOf(b.categoria);
+      
+      console.log(`🔍 Comparando: "${a.categoria}" (índice: ${aIndex}) vs "${b.categoria}" (índice: ${bIndex})`);
+      
+      // Categorias não na ordem fixa vão para o final (ordenadas alfabeticamente)
+      if (aIndex === -1 && bIndex === -1) return a.categoria.localeCompare(b.categoria);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      
+      return aIndex - bIndex;
+    });
+    
+    console.log("✅ Categorias ordenadas:", categoriasArray.map(c => c.categoria));
     
     return categoriasArray;
   };
@@ -1027,7 +1059,12 @@ const CarteiraCriterios: React.FC = () => {
                   <div className="border-t border-gray-200 bg-gray-50">
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-md font-semibold text-gray-900">Critérios da Carteira</h4>
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900">Critérios da Carteira</h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            📋 Categorias seguem ordem fixa • Critérios podem ser reordenados por drag & drop
+                          </p>
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
@@ -1090,26 +1127,12 @@ const CarteiraCriterios: React.FC = () => {
                           {organizarCriteriosPorCategoria(getCriteriosDaCarteira(carteira.id)).map(({ categoria, criterios: criteriosCategoria }) => (
                             <div 
                               key={categoria} 
-                              className={`bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-200 ${
-                                draggedCategoria === categoria ? 'opacity-50 scale-95' : ''
-                              } ${draggedCategoria && draggedCategoria !== categoria ? 'border-dashed border-blue-300' : ''}`}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, categoria)}
-                              onDragOver={handleDragOver}
-                              onDrop={(e) => handleDrop(e, categoria)}
+                              className="bg-white rounded-lg border border-gray-200 overflow-hidden transition-all duration-200"
                             >
                               {/* Header da Categoria com Drag & Drop */}
                               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    {/* Handle de Drag */}
-                                    <div 
-                                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 transition-colors"
-                                      title="Arrastar para reordenar"
-                                    >
-                                      <GripVertical className="w-4 h-4" />
-                                    </div>
-                                    
                                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                                     <h6 className="font-medium text-gray-900">
                                       {categoria || "Sem Categoria"}
@@ -1117,10 +1140,15 @@ const CarteiraCriterios: React.FC = () => {
                                     <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
                                       {criteriosCategoria.length} critério{criteriosCategoria.length !== 1 ? 's' : ''}
                                     </span>
-                                    {/* Indicador de ordem */}
-                                    {categoriaOrder.length > 0 && (
+                                    {/* Indicador de ordem fixa */}
+                                    {ORDEM_CATEGORIAS_FIXA.includes(categoria) && (
                                       <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                                        #{categoriaOrder.indexOf(categoria) + 1}
+                                        #{ORDEM_CATEGORIAS_FIXA.indexOf(categoria) + 1}
+                                      </span>
+                                    )}
+                                    {!ORDEM_CATEGORIAS_FIXA.includes(categoria) && categoria !== "Sem Categoria" && (
+                                      <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+                                        Nova
                                       </span>
                                     )}
                                   </div>
@@ -1129,8 +1157,12 @@ const CarteiraCriterios: React.FC = () => {
                                   <div className="flex items-center gap-2">
                                     {/* Botão para resetar ordem dos critérios */}
                                     {(() => {
-                                      const ordem = criterioOrder.get(categoria);
-                                      return ordem && ordem.length > 0;
+                                      const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+                                      const criteriosDaCategoria = associacoesDaCarteira.filter(assoc => {
+                                        const criterio = criterios.find(c => c.id === assoc.criterio_id);
+                                        return criterio?.categoria === categoria;
+                                      });
+                                      return criteriosDaCategoria.some(assoc => assoc.ordem);
                                     })() && (
                                       <button
                                         onClick={(e) => {
@@ -1202,21 +1234,15 @@ const CarteiraCriterios: React.FC = () => {
                                             )}
                                             {/* Indicador de posição do critério */}
                                             {(() => {
-                                              const ordem = criterioOrder.get(categoria);
-                                              if (ordem && ordem.length > 0) {
-                                                const posicao = ordem.indexOf(criterio.id);
-                                                return posicao !== -1 ? posicao + 1 : index + 1;
-                                              }
-                                              return index + 1;
+                                              const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+                                              const associacao = associacoesDaCarteira.find(assoc => assoc.criterio_id === criterio.id);
+                                              return associacao?.ordem || index + 1;
                                             })() > 0 && (
                                               <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
                                                 #{(() => {
-                                                  const ordem = criterioOrder.get(categoria);
-                                                  if (ordem && ordem.length > 0) {
-                                                    const posicao = ordem.indexOf(criterio.id);
-                                                    return posicao !== -1 ? posicao + 1 : index + 1;
-                                                  }
-                                                  return index + 1;
+                                                  const associacoesDaCarteira = associacoesCache.get(expandedCarteira) || [];
+                                                  const associacao = associacoesDaCarteira.find(assoc => assoc.criterio_id === criterio.id);
+                                                  return associacao?.ordem || index + 1;
                                                 })()}
                                               </span>
                                             )}
@@ -1400,8 +1426,19 @@ const CarteiraCriterios: React.FC = () => {
                       )}
                     </h2>
                     <p className="text-sm text-gray-600">Configure os dados do critério</p>
+                    
+                    {/* Informação sobre IA */}
+                    <div className="mt-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                      <div className="p-1 bg-blue-100 rounded-md">
+                        <Bot className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <p className="text-xs text-blue-700 font-medium">
+                        Todos os campos são utilizados pela IA para avaliar as ligações com precisão
+                      </p>
+                    </div>
+                    
                     {/* Indicador de progresso */}
-                    <div className="mt-1.5">
+                    <div className="mt-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
@@ -1494,7 +1531,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Descrição
-                  <span className="text-xs text-gray-500 ml-2">(Opcional)</span>
                 </label>
                 <textarea
                   name="descricao"
@@ -1518,7 +1554,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Exemplo de frase
-                  <span className="text-xs text-gray-500 ml-2">(Opcional)</span>
                 </label>
                 <textarea
                   name="exemplo_frase"
@@ -1542,7 +1577,6 @@ const CarteiraCriterios: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Categoria
-                  <span className="text-xs text-gray-500 ml-2">(Obrigatório)</span>
                 </label>
                 <select
                   name="categoria"
@@ -1632,7 +1666,7 @@ const CarteiraCriterios: React.FC = () => {
                   <div className="col-span-2 flex items-center gap-3">
                     <span className="text-xs font-medium text-gray-600">Peso padrão:</span>
                     <div className="flex gap-2">
-                      {[1, 2, 3, 5].map(peso => (
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(peso => (
                         <button
                           key={peso}
                           type="button"

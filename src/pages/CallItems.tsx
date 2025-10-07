@@ -27,10 +27,10 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const [callData, setCallData] = useState(location.state?.callData); // Dados da ligação passados da página anterior
   const { filters } = useFilters();
   
-  // Construir objeto de filtros para a API
+  // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 
-    start: filters.start, 
-    end: filters.end, 
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
     // Estado para controlar o modal de edição

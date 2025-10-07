@@ -19,6 +19,7 @@ interface Props {
 }
 
 const TrendLineChart: React.FC<Props> = ({ data }) => {
+
   // Calcular tendência (crescimento, decrescimento ou estável)
   const calculateTrend = React.useMemo(() => {
     if (!data || data.length < 2) return 'stable';
@@ -90,6 +91,7 @@ const TrendLineChart: React.FC<Props> = ({ data }) => {
       </div>
     );
   }
+
 
   return (
     <div className="space-y-4">

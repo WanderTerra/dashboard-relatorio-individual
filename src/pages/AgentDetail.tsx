@@ -22,7 +22,8 @@ import {
   getAgentSummary,
   getAgentCalls,
   getAgentWorstItem,
-  getAgentCriteria
+  getAgentCriteria,
+  getCarteirasFromAvaliacoes
 } from '../lib/api';
 import { getAgentGamification } from '../lib/gamification-api';
 import CallList     from '../components/CallList';
@@ -31,7 +32,8 @@ import GamifiedAgentHeader from '../components/GamifiedAgentHeader';
 import { formatItemName, formatAgentName, deduplicateCriteria, analyzeCriteriaDuplicates, standardizeCriteria, formatDate } from '../lib/format';
 import { useFilters } from '../hooks/use-filters';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info, Filter } from 'lucide-react';
+import { Combobox } from '../components/ui/select-simple';
 import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
 import NotificationBell from '../components/NotificationBell';
 import AchievementsPanel from '../components/AchievementsPanel';
@@ -62,7 +64,10 @@ const AgentDetail: React.FC = () => {
   
   if (!agentId) return <div>Agente não especificado.</div>;
 
-  const { filters } = useFilters();
+  const { filters, setCarteira } = useFilters();
+  
+  // Receber filtros da navegação (se existirem)
+  const navigationState = location.state as { carteira?: string } | null;
 
   // Persistência do filtro de datas
   const [startDate, setStartDate] = useState(() => '');
@@ -96,6 +101,13 @@ const AgentDetail: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   }), [startDate, endDate, filters.carteira]);
 
+  // Aplicar filtros da navegação quando a página carrega
+  React.useEffect(() => {
+    if (navigationState?.carteira && navigationState.carteira !== filters.carteira) {
+      setCarteira(navigationState.carteira);
+    }
+  }, [navigationState, filters.carteira, setCarteira]);
+
   // Limpar filtros persistidos na primeira carga
   React.useEffect(() => {
     // Limpar filtros persistidos para mostrar todas as avaliações
@@ -106,6 +118,13 @@ const AgentDetail: React.FC = () => {
   }, []);
 
   
+  // Buscar carteiras únicas da tabela avaliacoes
+  const { data: carteiras = [] } = useQuery({
+    queryKey: ['carteiras-avaliacoes'],
+    queryFn: getCarteirasFromAvaliacoes,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
   // Buscar dados do agente do endpoint mixed/agents (sempre funciona)
   const { data: agentFromMixed } = useQuery({
     queryKey: ['mixed-agents-single', agentId],
@@ -253,8 +272,8 @@ const AgentDetail: React.FC = () => {
         return 'Negociação';
       }
       
-      // Se não conseguir identificar, usar "Outros"
-      return 'Outros';
+      // Se não conseguir identificar, retornar null (não será incluído)
+      return null;
     };
     
     // Agrupar critérios por categoria
@@ -270,6 +289,9 @@ const AgentDetail: React.FC = () => {
       
       // Tentar extrair categoria do nome do critério
       const category = extractCategoryFromName(standardized.name);
+      
+      // Pular se não conseguir categorizar
+      if (!category) return;
       
       if (!categoriesMap.has(category)) {
         categoriesMap.set(category, {
@@ -866,6 +888,27 @@ const AgentDetail: React.FC = () => {
                   {calls?.length || 0}
                 </p>
                 <p className="text-sm text-gray-600">Ligações realizadas</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Filtro de Carteira - Sempre visível */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Filtro de Carteira:</span>
+              </div>
+              <div className="min-w-[200px]">
+                <Combobox
+                  options={carteiras}
+                  value={filters.carteira || ''}
+                  onChange={(value) => {
+                    setCarteira(value);
+                  }}
+                  placeholder="Todas as carteiras"
+                  emptyMessage="Nenhuma carteira encontrada"
+                />
               </div>
             </div>
           </div>

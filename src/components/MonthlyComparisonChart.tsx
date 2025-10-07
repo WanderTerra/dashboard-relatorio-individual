@@ -20,6 +20,7 @@ interface MonthlyComparisonChartProps {
 }
 
 const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({ trendData }) => {
+
   // Processar dados da tendência para criar comparativo mensal
   const monthlyData = React.useMemo(() => {
     if (!trendData || trendData.length === 0) return [];
@@ -97,10 +98,14 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({ trendDa
     );
   }
 
+
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart 
+          data={monthlyData} 
+          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="mes" 

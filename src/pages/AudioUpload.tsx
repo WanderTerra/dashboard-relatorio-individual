@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music, User } from 'lucide-react';
+import { Upload, FileAudio, X, CheckCircle, AlertCircle, Loader2, Music, User, FileText, Download } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -58,6 +58,9 @@ const AudioUpload: React.FC = () => {
     limparResultado,
     error: avaliacaoError
   } = useAvaliacaoAutomatica();
+
+  // Estado para geração de PDF
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Buscar carteiras disponíveis
   const { data: carteiras = [] } = useQuery({
@@ -450,12 +453,104 @@ const AudioUpload: React.FC = () => {
       if (carteira) {
         console.log('🤖 Iniciando avaliação automática...');
         const transcricaoTexto = transcription.text || JSON.stringify(transcription);
-        await avaliarTranscricao(transcricaoTexto, carteira.id);
+        await avaliarTranscricao(transcricaoTexto, carteira.id, uploadCallId || undefined, selectedAgent || undefined);
         toast.success('Avaliação iniciada!');
+        
+        // Se a avaliação foi feita via upload, verificar se temos o ID
+        // Caso contrário, o sistema já deve ter setado uploadAvaliacaoId via polling
+        console.log('📋 Upload Avaliação ID após avaliar:', uploadAvaliacaoId);
       }
     } catch (err: any) {
       console.error('❌ Erro na avaliação:', err);
       toast.error('Erro ao iniciar avaliação: ' + err.message);
+    }
+  };
+
+  // Gerar PDF de Feedback
+  const handleGeneratePDF = async () => {
+    let avaliacaoIdToUse = uploadAvaliacaoId;
+    
+    // Se não temos o ID mas temos call_id, tentar buscar diretamente
+    if (!avaliacaoIdToUse && uploadCallId) {
+      console.log('📋 Tentando buscar avaliacao_id via call_id:', uploadCallId);
+      try {
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('access_token');
+        
+        if (token) {
+          const res = await axios.get(
+            `/api/uploads/buscar-por-call-id/${uploadCallId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          if (res.data?.avaliacao_upload_id) {
+            avaliacaoIdToUse = res.data.avaliacao_upload_id;
+            setUploadAvaliacaoId(avaliacaoIdToUse);
+            console.log('✅ Avaliação encontrada via call_id:', avaliacaoIdToUse);
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Falha ao buscar avaliação por call_id:', err);
+      }
+    }
+    
+    if (!avaliacaoIdToUse) {
+      toast.error('PDF só está disponível após o processamento completo do servidor. Por favor, aguarde a conclusão do upload e processamento.');
+      console.warn('⚠️ uploadAvaliacaoId não disponível. Estado atual:', {
+        uploadAvaliacaoId,
+        uploadStatus,
+        uploadCallId,
+        avaliacaoResult: !!avaliacaoResult
+      });
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    try {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('access_token');
+
+      if (!token) {
+        toast.error('Token de autenticação não encontrado. Por favor, faça login novamente.');
+        setIsGeneratingPDF(false);
+        return;
+      }
+
+      console.log('📄 Gerando PDF de feedback para avaliação:', avaliacaoIdToUse);
+
+      // Criar FormData para enviar comentários adicionais (opcional)
+      const formData = new FormData();
+      // Pode adicionar comentários aqui se desejar
+      // formData.append('comentarios_adicionais', 'Comentário opcional do gestor');
+
+      const response = await axios.post(
+        `/api/pdf/feedback/${avaliacaoIdToUse}`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          responseType: 'blob', // Importante para receber arquivo
+        }
+      );
+
+      // Criar URL para download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `feedback_${avaliacaoIdToUse}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('PDF de feedback gerado com sucesso!');
+      console.log('✅ PDF gerado e baixado com sucesso');
+
+    } catch (err: any) {
+      console.error('❌ Erro ao gerar PDF:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Erro desconhecido';
+      toast.error(`Erro ao gerar PDF: ${errorMessage}`);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -933,18 +1028,53 @@ const AudioUpload: React.FC = () => {
                 isLoading={isAvaliando}
               />
               
-              {/* Botão para limpar resultado */}
-              <div className="mt-4 flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={limparResultado}
-                  disabled={isAvaliando}
-                  size="sm"
-                  className="border-gray-300 hover:bg-gray-50"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Limpar Resultado
-                </Button>
+              {/* Botões de ação */}
+              <div className="mt-6 space-y-3">
+                {/* Aviso se o ID não estiver disponível */}
+                {!uploadAvaliacaoId && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-medium">PDF em processamento</p>
+                        <p className="text-xs mt-1">O botão de PDF ficará disponível assim que o servidor concluir o processamento completo do áudio.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center gap-3">
+                  {/* Botão para gerar PDF */}
+                  <Button
+                    onClick={handleGeneratePDF}
+                    disabled={isGeneratingPDF || isAvaliando || !uploadAvaliacaoId}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingPDF ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Gerando PDF...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Gerar PDF de Feedback
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Botão para limpar resultado */}
+                  <Button
+                    variant="outline"
+                    onClick={limparResultado}
+                    disabled={isAvaliando || isGeneratingPDF}
+                    size="sm"
+                    className="border-gray-300 hover:bg-gray-50"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Limpar Resultado
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

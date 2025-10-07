@@ -10,16 +10,16 @@ interface PiorItem {
 interface Props {
   media: number | null;
   total: number;
-  pior: PiorItem | null;
+  agentesCount: number | null;
 }
 
-const KpiCards: React.FC<Props> = ({ media, total, pior }) => (
+const KpiCards: React.FC<Props> = ({ media, total, agentesCount }) => (
   <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
     <KpiCard label="Pontuação média" value={media} />
     <KpiCard label="Ligações avaliadas" value={total} />
     <KpiCard
-      label="Item com maior NC"
-      value={pior ? `${formatItemName(pior.categoria)} (${pior.pct_nao_conforme}%)` : '-'}
+      label="Agentes avaliados"
+      value={agentesCount}
     />
   </div>
 );

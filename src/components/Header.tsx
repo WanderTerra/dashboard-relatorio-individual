@@ -52,6 +52,7 @@ const Header: React.FC<HeaderProps> = () => {
           
           {/* Informações laterais */}
           <div className="mt-4 lg:mt-0 flex items-center space-x-4">
+            
             {/* Status indicador */}
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>

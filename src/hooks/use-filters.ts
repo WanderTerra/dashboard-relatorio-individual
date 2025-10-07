@@ -30,20 +30,13 @@ const loadFiltersFromStorage = (): Filters => {
     const storedEnd = localStorage.getItem(STORAGE_KEYS.END_DATE);
     const storedCarteira = localStorage.getItem(STORAGE_KEYS.CARTEIRA);
     
-    // Se não há dados salvos, usa os padrões
-    if (!storedStart || !storedEnd) {
-      const defaults = getDefaultDates();
-      return {
-        start: defaults.start,
-        end: defaults.end,
-        carteira: storedCarteira || ''
-      };
-    }
     const loadedFilters = {
-      start: storedStart,
-      end: storedEnd,
+      start: storedStart || '',
+      end: storedEnd || '',
       carteira: storedCarteira || ''
     };
+    
+    console.log('🔍 [STORAGE DEBUG] Filtros carregados do localStorage:', loadedFilters);
     return loadedFilters;
   } catch (error) {
     console.warn('Erro ao carregar filtros do localStorage:', error);
@@ -59,8 +52,9 @@ const loadFiltersFromStorage = (): Filters => {
 // Função para salvar filtros no localStorage
 const saveFiltersToStorage = (filters: Filters) => {
   try {
-    localStorage.setItem(STORAGE_KEYS.START_DATE, filters.start);
-    localStorage.setItem(STORAGE_KEYS.END_DATE, filters.end);
+    console.log('🔍 [STORAGE DEBUG] Salvando filtros no localStorage:', filters);
+    localStorage.setItem(STORAGE_KEYS.START_DATE, filters.start || '');
+    localStorage.setItem(STORAGE_KEYS.END_DATE, filters.end || '');
     if (filters.carteira) {
       localStorage.setItem(STORAGE_KEYS.CARTEIRA, filters.carteira);
     } else {
@@ -76,9 +70,15 @@ export const useFilters = () => {
 
   // Função para atualizar filtros
   const setFilters = (newFilters: Partial<Filters>) => {
-    const updatedFilters = { ...filters, ...newFilters };
-    setFiltersState(updatedFilters);
-    saveFiltersToStorage(updatedFilters);
+    console.log('🔍 [USE-FILTERS DEBUG] Atualizando filtros:', newFilters);
+    console.log('🔍 [USE-FILTERS DEBUG] Estado atual dos filtros:', filters);
+    
+    setFiltersState(prevFilters => {
+      const updatedFilters = { ...prevFilters, ...newFilters };
+      console.log('🔍 [USE-FILTERS DEBUG] Filtros atualizados:', updatedFilters);
+      saveFiltersToStorage(updatedFilters);
+      return updatedFilters;
+    });
   };
 
   // Função para resetar para os padrões
@@ -110,8 +110,17 @@ export const useFilters = () => {
     resetFilters,
     clearStoredFilters,
     // Helpers para atualizar campos individuais
-    setStartDate: (start: string) => setFilters({ start }),
-    setEndDate: (end: string) => setFilters({ end }),
-    setCarteira: (carteira: string) => setFilters({ carteira })
+    setStartDate: (start: string) => {
+      console.log('🔍 [USE-FILTERS DEBUG] setStartDate chamado com:', start);
+      setFilters({ start });
+    },
+    setEndDate: (end: string) => {
+      console.log('🔍 [USE-FILTERS DEBUG] setEndDate chamado com:', end);
+      setFilters({ end });
+    },
+    setCarteira: (carteira: string) => {
+      console.log('🔍 [USE-FILTERS DEBUG] setCarteira chamado com:', carteira);
+      setFilters({ carteira });
+    }
   };
 };

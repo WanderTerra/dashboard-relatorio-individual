@@ -18,6 +18,13 @@ import CarteiraCriterios from './pages/CarteiraCriterios';
 import Correcoes from './pages/Correcoes';
 import Downloads from './pages/Downloads';
 import Feedback from './pages/Feedback';
+import SeuGuruPage from './pages/SeuGuru';
+import KnowledgeBase from './pages/KnowledgeBase';
+import TestPage from './pages/TestPage';
+import RelatorioProdutividade from './pages/RelatorioProdutividade';
+import RelatorioNotas from './pages/RelatorioNotas';
+import RelatorioAcordos from './pages/RelatorioAcordos';
+import DashboardCarteiras from './pages/DashboardCarteiras';
 
 const AppContent: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
@@ -104,6 +111,37 @@ const AppContent: React.FC = () => {
               <Feedback />
             </ProtectedRoute>
           } />
+          <Route path="/seu-guru" element={
+            <ProtectedRoute>
+              <SeuGuruPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/knowledge-base" element={
+            <ProtectedRoute requiredPermission="admin">
+              <KnowledgeBase />
+            </ProtectedRoute>
+          } />
+          <Route path="/relatorios/produtividade" element={
+            <ProtectedRoute requiredPermission="admin">
+              <RelatorioProdutividade />
+            </ProtectedRoute>
+          } />
+          <Route path="/relatorios/notas" element={
+            <ProtectedRoute requiredPermission="admin">
+              <RelatorioNotas />
+            </ProtectedRoute>
+          } />
+            <Route path="/relatorios/acordos" element={
+              <ProtectedRoute requiredPermission="admin">
+                <RelatorioAcordos />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard-carteiras" element={
+              <ProtectedRoute requiredPermission="admin">
+                <DashboardCarteiras />
+              </ProtectedRoute>
+            } />
+          <Route path="/test" element={<TestPage />} />
         </Routes>
       </main>
     </div>

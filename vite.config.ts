@@ -17,7 +17,9 @@ export default ({ mode }: { mode: string }) => {
     optimizeDeps: {
       include: ['use-callback-ref'],
       exclude: [],
+      force: true,
     },
+    cacheDir: false,
     server: {
       host: true,
       port: 5174,

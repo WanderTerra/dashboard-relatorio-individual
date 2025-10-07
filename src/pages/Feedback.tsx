@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -58,7 +58,7 @@ interface FeedbackItem {
   criterio: string;
   performanceAtual: number;
   observacao: string;
-  status: 'pendente' | 'aplicado' | 'aceito' | 'revisao';
+  status: 'pendente' | 'aceito' | 'revisao';
   dataCriacao: string;
   dataAplicacao?: string;
   origem: 'ia' | 'monitor';
@@ -75,8 +75,9 @@ interface FeedbackItem {
 const Feedback: React.FC = () => {
   const { user } = useAuth();
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aplicado' | 'aceito' | 'revisao'>('todos');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   // Estado para edição
@@ -114,36 +115,115 @@ const Feedback: React.FC = () => {
   const [expandedCallWithTranscription, setExpandedCallWithTranscription] = useState<string | null>(null);
   const [selectedCallForTranscription, setSelectedCallForTranscription] = useState<{callId: string, avaliacaoId: string} | null>(null);
 
+  // Infinite scroll
+  const pageSize = 50;
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
   // Lógica de permissões
   const isAdmin = user?.permissions?.includes('admin') || false;
   const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
   const isAgentUser = currentAgentId && !isAdmin;
 
+  // Debug: Log das permissões do usuário
+  console.log('Debug permissões:', {
+    user,
+    isAdmin,
+    isAgentUser,
+    currentAgentId,
+    agentPermission,
+    permissions: user?.permissions
+  });
 
 
-  // Filtros para API - sem filtro de data por padrão
+
+  // Filtros para API - incluindo apenas parâmetros com valores
   const apiFilters = {
-    start: filters.start || '',
-    end: filters.end || '',
-    carteira: filters.carteira
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
+    ...(filters.carteira ? { carteira: filters.carteira } : {}),
+    // Adicionar filtro de agente se for um agente comum
+    ...(isAgentUser && currentAgentId ? { agent_id: currentAgentId } : {})
   };
 
-  // Buscar feedbacks com pontuações das avaliações
-  const { data: feedbacks, isLoading: feedbacksLoading, error: feedbacksError, refetch: refetchFeedbacks } = useQuery({
+  // Debug: Log dos filtros da API
+  console.log('Debug apiFilters:', {
+    apiFilters,
+    isAgentUser,
+    currentAgentId,
+    filters
+  });
+
+  // Buscar feedbacks com pontuações das avaliações (infinite scroll)
+  const {
+    data: feedbacksPages,
+    isLoading: feedbacksLoading,
+    error: feedbacksError,
+    refetch: refetchFeedbacks,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: ['feedbacks-with-scores', apiFilters],
-    queryFn: () => {
-      return fetch('/api/feedbacks/with-scores')
-        .then(res => res.json())
-        .catch(err => {
-          throw err;
-        });
+    initialPageParam: 0,
+    queryFn: ({ pageParam = 0 }) => {
+      const params = new URLSearchParams();
+      params.append('limit', String(pageSize));
+      params.append('offset', String(pageParam));
+      if (apiFilters.start) params.append('start', apiFilters.start);
+      if (apiFilters.end) params.append('end', apiFilters.end);
+      if (apiFilters.carteira) params.append('carteira', apiFilters.carteira);
+      if (apiFilters.agent_id) params.append('agent_id', apiFilters.agent_id);
+
+      return fetch(`/api/feedbacks/with-scores?${params.toString()}`)
+        .then(res => res.json());
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      return Array.isArray(lastPage) && lastPage.length === pageSize
+        ? allPages.length * pageSize
+        : undefined;
     },
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 1000,
     refetchOnWindowFocus: false
   });
+
+  // Array achatado para manter compatibilidade com o restante do componente
+  const feedbacks = useMemo(() => {
+    const flattened = feedbacksPages?.pages ? feedbacksPages.pages.flat() : [];
+    
+    // Debug: Log dos feedbacks recebidos
+    console.log('Debug feedbacks recebidos:', {
+      totalPages: feedbacksPages?.pages?.length || 0,
+      totalFeedbacks: flattened.length,
+      firstFewFeedbacks: flattened.slice(0, 3).map((fb: any) => ({
+        id: fb.id,
+        avaliacao_id: fb.avaliacao_id,
+        agent_id: fb.agent_id,
+        status: fb.status,
+        aceite: fb.aceite
+      }))
+    });
+    
+    return flattened;
+  }, [feedbacksPages]);
+
+  // IntersectionObserver para carregar próximas páginas
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    const el = bottomRef.current;
+
+    const observer = new IntersectionObserver((entries) => {
+      const isVisible = entries.some(e => e.isIntersecting);
+      if (isVisible && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 
 
@@ -183,12 +263,8 @@ const Feedback: React.FC = () => {
   const feedbackData = useMemo(() => {
     if (feedbacks && feedbacks.length > 0) {
       // Usar feedbacks reais da tabela
+      // O backend já filtra por agent_id se necessário, não precisamos filtrar novamente aqui
       let filteredFeedbacks = feedbacks;
-      
-      // Se for um agente (não admin), filtrar apenas feedbacks do próprio agente
-      if (isAgentUser && currentAgentId) {
-        filteredFeedbacks = feedbacks.filter((fb: any) => String(fb.agent_id) === String(currentAgentId));
-      }
       
       const mapped = filteredFeedbacks.map((fb: any) => {
         // A pontuação já vem do backend via JOIN com a tabela avaliacoes
@@ -197,13 +273,11 @@ const Feedback: React.FC = () => {
         // Normalizar nome do agente como na página Agents
         const nomeNormalizado = formatAgentName({ agent_id: fb.agent_id, nome: fb.nome_agente });
         // Mapear status visual considerando aceite vindo do backend
-        const statusVisual = (fb?.aceite === 1 || fb?.status === 'ACEITO')
+        const statusVisual: 'pendente' | 'aceito' | 'revisao' = (fb?.aceite === 1 || fb?.status === 'ACEITO')
           ? 'aceito'
-          : (fb?.status === 'APLICADO')
-            ? 'aplicado'
-            : (fb?.status === 'REVISAO')
-              ? 'revisao'
-              : 'pendente';
+          : (fb?.status === 'REVISAO')
+            ? 'revisao'
+            : 'pendente';
         
         return {
           id: String(fb.id),
@@ -216,7 +290,7 @@ const Feedback: React.FC = () => {
           observacao: fb.comentario,
           status: statusVisual,
           dataCriacao: fb.criado_em,
-          origem: fb.origem === 'monitoria' ? 'monitor' : 'ia',
+          origem: (fb.origem === 'monitoria' ? 'monitor' : 'ia') as 'ia' | 'monitor',
           comentario: fb.comentario,
           contestacaoId: fb.contestacao_id,
           contestacaoComentario: fb.contestacao_comentario,
@@ -346,7 +420,9 @@ const Feedback: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter((item: FeedbackItem) => 
         item.criterio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.agenteNome.toLowerCase().includes(searchTerm.toLowerCase())
+        item.agenteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.callId && String(item.callId).toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.avaliacaoId && String(item.avaliacaoId).toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -376,10 +452,7 @@ const Feedback: React.FC = () => {
     filteredFeedback.forEach((feedback: FeedbackItem) => {
       const agenteKey = feedback.agenteId || 'sem-agente-id';
       
-      // Se for agente comum, só mostrar seus próprios feedbacks
-      if (isAgentUser && currentAgentId && String(feedback.agenteId) !== String(currentAgentId)) {
-        return; // Pular feedbacks de outros agentes
-      }
+      // O backend já filtra por agent_id se necessário, não precisamos filtrar novamente aqui
       
       if (!agrupadosPorAgente[agenteKey]) {
         agrupadosPorAgente[agenteKey] = [];
@@ -410,7 +483,6 @@ const Feedback: React.FC = () => {
             feedbacks: feedbacksAvaliacao,
             totalFeedbacks: feedbacksAvaliacao.length,
             feedbacksPendentes: feedbacksAvaliacao.filter(fb => fb.status === 'pendente').length,
-            feedbacksAplicados: feedbacksAvaliacao.filter(fb => fb.status === 'aplicado').length,
             feedbacksAceitos: feedbacksAvaliacao.filter(fb => fb.status === 'aceito').length,
             feedbacksRevisao: feedbacksAvaliacao.filter(fb => fb.status === 'revisao').length,
             performanceMedia: Math.round(feedbacksAvaliacao.reduce((acc, fb) => acc + fb.performanceAtual, 0) / feedbacksAvaliacao.length),
@@ -424,7 +496,6 @@ const Feedback: React.FC = () => {
           totalFeedbacks: feedbacks.length,
           totalAvaliacoes: avaliacoes.length,
           feedbacksPendentes: feedbacks.filter(fb => fb.status === 'pendente').length,
-          feedbacksAplicados: feedbacks.filter(fb => fb.status === 'aplicado').length,
           feedbacksAceitos: feedbacks.filter(fb => fb.status === 'aceito').length,
           feedbacksRevisao: feedbacks.filter(fb => fb.status === 'revisao').length,
           performanceMedia: Math.round(performanceMedia),
@@ -460,7 +531,6 @@ const Feedback: React.FC = () => {
           performanceMedia: Math.round(performanceMedia),
           totalFeedbacks: feedbacks.length,
           feedbacksPendentes,
-          feedbacksAplicados: feedbacks.filter(fb => fb.status === 'aplicado').length,
           feedbacksAceitos: feedbacks.filter(fb => fb.status === 'aceito').length,
           feedbacksRevisao: feedbacks.filter(fb => fb.status === 'revisao').length,
           dataLigacao: feedbacks[0]?.dataCriacao || 'N/A'
@@ -469,16 +539,22 @@ const Feedback: React.FC = () => {
       .sort((a, b) => b.feedbacksPendentes - a.feedbacksPendentes);
   }, [filteredFeedback]);
 
+  // Buscar contestações pendentes para estatísticas
+  const { data: contestacoesPendentesStats = [] } = useQuery({
+    queryKey: ['contestacoes-pendentes-stats'],
+    queryFn: () => getContestacoesPendentes(),
+    refetchInterval: 30000, // Refetch a cada 30 segundos
+  });
+
   // Estatísticas
   const stats = useMemo(() => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
-    const aplicado = feedbackData.filter((f: FeedbackItem) => f.status === 'aplicado').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
-    const revisao = feedbackData.filter((f: FeedbackItem) => f.status === 'revisao').length;
+    const revisao = contestacoesPendentesStats.length; // Usar contestações pendentes ao invés de status revisão
 
-    return { total, pendente, aplicado, aceito, revisao };
-  }, [feedbackData]);
+    return { total, pendente, aceito, revisao };
+  }, [feedbackData, contestacoesPendentesStats]);
 
   const getPerformanceColor = (performance: number) => {
     if (performance >= 80) return 'text-green-600';
@@ -489,7 +565,6 @@ const Feedback: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pendente': return 'text-yellow-600';
-      case 'aplicado': return 'text-green-600';
       case 'aceito': return 'text-blue-600';
       case 'revisao': return 'text-orange-600';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -555,7 +630,6 @@ const Feedback: React.FC = () => {
       // Converter status visual -> status backend
       status:
         feedback.status === 'pendente' ? 'ENVIADO' :
-        feedback.status === 'aplicado' ? 'APLICADO' :
         feedback.status === 'aceito' ? 'ACEITO' : 'REVISAO',
     });
     setShowEditModal(true);
@@ -649,6 +723,33 @@ const Feedback: React.FC = () => {
     setShowAnaliseModal(true);
   };
 
+  // Função para navegar ao feedback específico
+  const handleVerFeedback = (contestacao: any) => {
+    setShowContestacoesModal(false);
+    
+    // Expandir o agente correspondente
+    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
+    
+    // Expandir a avaliação correspondente
+    setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
+    
+    // Scroll suave para o feedback após um pequeno delay
+    setTimeout(() => {
+      const feedbackElement = document.getElementById(`feedback-${contestacao.feedback_id}`);
+      if (feedbackElement) {
+        feedbackElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Destacar temporariamente o feedback
+        feedbackElement.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        setTimeout(() => {
+          feedbackElement.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        }, 3000);
+      }
+    }, 100);
+  };
+
   const handleBuscarContestacoesPendentes = async () => {
     try {
       const contestacoes = await getContestacoesPendentes();
@@ -658,6 +759,7 @@ const Feedback: React.FC = () => {
       alert(`Erro ao buscar contestações: ${error.response?.data?.detail || error.message}`);
     }
   };
+
 
   const handleAceitarContestacao = (contestacao: any) => {
     setContestacaoParaAnalisar(contestacao);
@@ -669,24 +771,24 @@ const Feedback: React.FC = () => {
   const handleConfirmarAceitacao = async () => {
     if (!contestacaoParaAnalisar) return;
 
-    try {
-      const analise = {
+    const debugInfo = {
+      contestacaoId: contestacaoParaAnalisar.id,
+      timestamp: new Date().toISOString(),
+      user: user?.full_name || user?.username,
+      analise: {
         aceitar_contestacao: true,
         novo_resultado: novoResultado,
         observacao: comentarioMonitor.trim() || undefined
-      };
+      }
+    };
+    
+    console.log('🚀 Iniciando aceitação de contestação:', debugInfo);
 
-      console.log('Confirmando aceitação:', { contestacaoId: contestacaoParaAnalisar.id, analise });
-
-      await analisarContestacao(Number(contestacaoParaAnalisar.id), analise);
-      alert(`Contestação aceita com sucesso! Resultado alterado para ${novoResultado}.`);
+    try {
+      const response = await analisarContestacao(Number(contestacaoParaAnalisar.id), debugInfo.analise);
+      console.log('✅ Resposta do servidor:', response);
       
-      // Fechar modais
-      setShowAceitarModal(false);
-      setContestacaoParaAnalisar(null);
-      setComentarioMonitor('');
-      
-      // Atualizar feedback selecionado se estiver aberto
+      // ✅ SÓ AGORA atualiza o estado local após confirmação do BD
       if (selectedFeedback && selectedFeedback.contestacaoId === contestacaoParaAnalisar.id) {
         setSelectedFeedback(prev => prev ? {
           ...prev,
@@ -694,10 +796,45 @@ const Feedback: React.FC = () => {
         } : null);
       }
       
+      alert(`✅ Contestação aceita com sucesso! Resultado alterado para ${novoResultado}.\n\nID: ${contestacaoParaAnalisar.id}`);
+      
+      // Fechar modais
+      setShowAceitarModal(false);
+      setContestacaoParaAnalisar(null);
+      setComentarioMonitor('');
+      
+      // Força reload dos dados do servidor
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('Erro ao aceitar contestação:', error);
-      alert(`Erro ao aceitar contestação: ${error.response?.data?.detail || error.message}`);
+      console.error('❌ Falha completa ao aceitar contestação:', {
+        ...debugInfo,
+        error: error,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Timeout: A operação demorou muito. Verifique se foi processada.';
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Erro interno do servidor. A operação pode ter sido processada.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Contestação não encontrada no servidor.';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Dados inválidos: ${error.response?.data?.detail || 'Verifique os campos.'}`;
+      } else {
+        errorMessage = error.response?.data?.detail || error.message || 'Erro desconhecido';
+      }
+      
+      alert(`❌ FALHA ao aceitar contestação:\n\n${errorMessage}\n\nID: ${contestacaoParaAnalisar.id}\nHorário: ${debugInfo.timestamp}\n\nVerifique o console para mais detalhes.`);
+      
+      // Força reload para verificar se a operação foi processada no servidor
+      console.log('🔄 Forçando reload para verificar estado no servidor...');
+      refetchFeedbacks();
     }
   };
 
@@ -712,24 +849,25 @@ const Feedback: React.FC = () => {
 
     if (!contestacao) return;
 
-    try {
-      const analise = {
+    const debugInfo = {
+      contestacaoId: contestacao.id,
+      aceitar,
+      timestamp: new Date().toISOString(),
+      user: user?.full_name || user?.username,
+      analise: {
         aceitar_contestacao: aceitar,
-        novo_resultado: aceitar ? 'CONFORME' as const : undefined,  // Sempre usar CONFORME quando aceitar
-        observacao: comentarioMonitor.trim() || undefined  // Incluir comentário do monitor se fornecido
-      };
+        novo_resultado: aceitar ? 'CONFORME' as const : undefined,
+        observacao: comentarioMonitor.trim() || undefined
+      }
+    };
+    
+    console.log('🚀 Iniciando análise de contestação:', debugInfo);
 
-      console.log('Enviando análise:', { contestacaoId: contestacao.id, analise });
-
-      await analisarContestacao(Number(contestacao.id), analise);
-      alert(`Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!`);
+    try {
+      const response = await analisarContestacao(Number(contestacao.id), debugInfo.analise);
+      console.log('✅ Resposta do servidor:', response);
       
-      // Fechar modais se estiverem abertos
-      setShowAnaliseModal(false);
-      setContestacaoParaAnalisar(null);
-      setComentarioMonitor('');
-      
-      // Atualizar feedback selecionado se estiver aberto
+      // ✅ SÓ AGORA atualiza o estado local após confirmação do BD
       if (selectedFeedback && selectedFeedback.contestacaoId === contestacao.id) {
         setSelectedFeedback(prev => prev ? {
           ...prev,
@@ -737,10 +875,45 @@ const Feedback: React.FC = () => {
         } : null);
       }
       
+      alert(`✅ Contestação ${aceitar ? 'aceita' : 'rejeitada'} com sucesso!\n\nID: ${contestacao.id}`);
+      
+      // Fechar modais se estiverem abertos
+      setShowAnaliseModal(false);
+      setContestacaoParaAnalisar(null);
+      setComentarioMonitor('');
+      
+      // Força reload dos dados do servidor
       refetchFeedbacks();
     } catch (error: any) {
-      console.error('Erro ao analisar contestação:', error);
-      alert(`Erro ao analisar contestação: ${error.response?.data?.detail || error.message}`);
+      console.error('❌ Falha completa ao analisar contestação:', {
+        ...debugInfo,
+        error: error,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Timeout: A operação demorou muito. Verifique se foi processada.';
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Erro interno do servidor. A operação pode ter sido processada.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Contestação não encontrada no servidor.';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Dados inválidos: ${error.response?.data?.detail || 'Verifique os campos.'}`;
+      } else {
+        errorMessage = error.response?.data?.detail || error.message || 'Erro desconhecido';
+      }
+      
+      alert(`❌ FALHA ao ${aceitar ? 'aceitar' : 'rejeitar'} contestação:\n\n${errorMessage}\n\nID: ${contestacao.id}\nHorário: ${debugInfo.timestamp}\n\nVerifique o console para mais detalhes.`);
+      
+      // Força reload para verificar se a operação foi processada no servidor
+      console.log('🔄 Forçando reload para verificar estado no servidor...');
+      refetchFeedbacks();
     }
   };
 
@@ -782,7 +955,7 @@ const Feedback: React.FC = () => {
     try {
       // Buscar o call_id real através dos dados do backend
       const feedbacksAvaliacao = feedbacks.filter((f: any) => f.avaliacao_id.toString() === avaliacaoId);
-      const callIdReal = feedbacksAvaliacao[0]?.call_id; // Pegar o call_id real do backend
+      const callIdReal = (feedbacksAvaliacao[0] as any)?.call_id; // Pegar o call_id real do backend
       
       if (!callIdReal) {
         return;
@@ -898,7 +1071,6 @@ const Feedback: React.FC = () => {
                 >
                   <option value="todos">📊 Todos os Status</option>
                   <option value="pendente">⏳ Pendente</option>
-                  <option value="aplicado">✅ Aplicado</option>
                   <option value="aceito">🎯 Aceito</option>
                   <option value="revisao">🔍 Em Revisão</option>
                 </select>
@@ -909,19 +1081,36 @@ const Feedback: React.FC = () => {
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Digite agente ou critério..."
+                    placeholder="Digite agente, critério ou número da ligação..."
                     value={searchTerm}
                     onChange={e => handleSearchChange(e.target.value)}
                     className="h-12 pl-12 pr-4 border-2 border-gray-200 rounded-xl text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300"
                   />
                 </div>
               </div>
+              
               <div className="flex flex-col justify-end">
                 <button
-                  onClick={() => {
-                    refetchAgents();
-                    refetchTrend();
-                    refetchFeedbacks();
+                  onClick={async () => {
+                    console.log('🔄 Botão Atualizar clicado - iniciando refetch...');
+                    try {
+                      // Invalidar queries primeiro para forçar refetch
+                      queryClient.invalidateQueries({ queryKey: ['feedbacks-agents-mixed'] });
+                      queryClient.invalidateQueries({ queryKey: ['mixed-trend'] });
+                      queryClient.invalidateQueries({ queryKey: ['feedbacks-with-scores'] });
+                      queryClient.invalidateQueries({ queryKey: ['contestacoes-pendentes-stats'] });
+                      
+                      // Executar refetch
+                      await Promise.all([
+                        refetchAgents(),
+                        refetchTrend(),
+                        refetchFeedbacks()
+                      ]);
+                      
+                      console.log('✅ Refetch concluído com sucesso');
+                    } catch (error) {
+                      console.error('❌ Erro no refetch:', error);
+                    }
                   }}
                   className="h-12 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-300 flex items-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
                 >
@@ -934,7 +1123,7 @@ const Feedback: React.FC = () => {
         </div>
 
         {/* Estatísticas Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
               <div>
@@ -974,18 +1163,6 @@ const Feedback: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg border border-emerald-200 p-6 hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Aplicados</p>
-                <p className="text-3xl font-bold text-emerald-900 mt-1">{stats.aplicado}</p>
-                <p className="text-xs text-emerald-500 mt-1">Implementados</p>
-              </div>
-              <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <CheckCircle className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-          </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border border-blue-200 p-6 hover:shadow-xl transition-all duration-300 group">
             <div className="flex items-center justify-between">
@@ -1000,12 +1177,16 @@ const Feedback: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group">
+          <div 
+            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-lg border border-orange-200 p-6 hover:shadow-xl transition-all duration-300 group cursor-pointer"
+            onClick={handleBuscarContestacoesPendentes}
+            title="Clique para ver contestações pendentes"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Revisão</p>
                 <p className="text-3xl font-bold text-orange-900 mt-1">{stats.revisao}</p>
-                <p className="text-xs text-orange-500 mt-1">Em análise</p>
+                <p className="text-xs text-orange-500 mt-1">Contestações pendentes</p>
               </div>
               <div className="p-3 bg-white/80 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
@@ -1143,10 +1324,6 @@ const Feedback: React.FC = () => {
                               <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pendentes</div>
                             </div>
                             <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
-                              <div className="text-3xl font-bold text-emerald-600 mb-1">{agente.feedbacksAplicados}</div>
-                              <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Aplicados</div>
-                            </div>
-                            <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                               <div className="text-3xl font-bold text-blue-600 mb-1">{agente.feedbacksAceitos}</div>
                               <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Aceitos</div>
                             </div>
@@ -1265,7 +1442,7 @@ const Feedback: React.FC = () => {
                                       {/* Lista de Critérios */}
                                       <div className="grid gap-3">
                                         {avaliacao.feedbacks.map((feedback) => (
-                                          <div key={feedback.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                                          <div key={feedback.id} id={`feedback-${feedback.id}`} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
                                             <div className="flex items-center justify-between">
                                               <div className="flex items-center gap-3 flex-1">
                                                 <div className="p-2 bg-gray-100 rounded-lg">
@@ -1279,7 +1456,6 @@ const Feedback: React.FC = () => {
                                                     </span>
                                                     <span className={`text-xs font-semibold ${getStatusColor(feedback.status)}`}>
                                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                                       feedback.status === 'aplicado' ? 'Aplicado' :
                                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                                                     </span>
                                                   </div>
@@ -1360,10 +1536,6 @@ const Feedback: React.FC = () => {
                         <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                           <div className="text-3xl font-bold text-amber-600 mb-1">{ligacao.feedbacksPendentes}</div>
                           <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pendentes</div>
-                        </div>
-                        <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
-                          <div className="text-3xl font-bold text-emerald-600 mb-1">{ligacao.feedbacksAplicados}</div>
-                          <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Aplicados</div>
                         </div>
                         <div className="text-center bg-white/90 px-5 py-4 rounded-xl shadow-inner border border-gray-100">
                           <div className="text-3xl font-bold text-blue-600 mb-1">{ligacao.feedbacksAceitos}</div>
@@ -1462,7 +1634,7 @@ const Feedback: React.FC = () => {
                          {/* Grid de Critérios */}
                          <div className="grid gap-4">
                            {ligacao.feedbacks.map((feedback: FeedbackItem) => (
-                             <div key={feedback.id} className="bg-white border-2 border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
+                             <div key={feedback.id} id={`feedback-${feedback.id}`} className="bg-white border-2 border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300">
                                <div className="flex items-center justify-between">
                                  {/* Informações do Critério */}
                                  <div className="flex items-center gap-5 flex-1">
@@ -1482,26 +1654,26 @@ const Feedback: React.FC = () => {
 
                                  {/* Métricas - Performance e Status */}
                                  <div className="flex items-center gap-8">
-                                   <div className="text-center">
-                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Performance</p>
-                                     <div className={`px-6 py-3 font-bold text-xl ${getPerformanceColor(feedback.performanceAtual)}`}>
-                                       {feedback.performanceAtual}%
-                                     </div>
-                                   </div>
-                                   
-                                   <div className="text-center">
-                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
-                                     <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
-                                       {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
-                                        feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
-                                        feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
-                                        <AlertTriangle className="h-4 w-4 mr-2" />}
-                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                        feedback.status === 'aplicado' ? 'Aplicado' :
-                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
-                                     </span>
-                                   </div>
-                                 </div>
+                                  <div className="text-center">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Performance</p>
+                                    <div className={`px-6 py-3 font-bold text-xl ${getPerformanceColor(feedback.performanceAtual)}`}>
+                                      {feedback.performanceAtual}%
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-center">
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
+                                    <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
+                                      {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
+                                       feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
+                                       feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
+                                       <AlertTriangle className="h-4 w-4 mr-2" />}
+                                      {feedback.status === 'pendente' ? 'Pendente' : 
+                                       feedback.status === 'aplicado' ? 'Aplicado' :
+                                       feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
+                                    </span>
+                                  </div>
+                                </div>
 
                                  {/* Botões de Ação */}
                                  <div className="flex items-center gap-3">
@@ -1553,6 +1725,11 @@ const Feedback: React.FC = () => {
                   </Collapsible>
                 </div>
                 ))
+              )}
+              {hasNextPage && (
+                <div ref={bottomRef} className="py-6 text-center text-gray-500">
+                  {isFetchingNextPage ? 'Carregando mais...' : 'Desça para carregar mais'}
+                </div>
               )}
             </div>
           )}
@@ -1732,7 +1909,6 @@ const Feedback: React.FC = () => {
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-amber-100 rounded-xl">
                         {selectedFeedback.status === 'pendente' ? <Clock className="h-5 w-5 text-amber-600" /> : 
-                         selectedFeedback.status === 'aplicado' ? <CheckCircle className="h-5 w-5 text-green-600" /> :
                          selectedFeedback.status === 'aceito' ? <CheckCircle className="h-5 w-5 text-blue-600" /> :
                          <AlertTriangle className="h-5 w-5 text-orange-600" />}
                       </div>
@@ -1740,7 +1916,6 @@ const Feedback: React.FC = () => {
                     </div>
                     <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold ${getStatusColor(selectedFeedback.status)}`}>
                       {selectedFeedback.status === 'pendente' ? 'Pendente' : 
-                       selectedFeedback.status === 'aplicado' ? 'Aplicado' :
                        selectedFeedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                     </span>
                   </div>
@@ -1892,7 +2067,6 @@ const Feedback: React.FC = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="ENVIADO">Pendente</option>
-                  <option value="APLICADO">Aplicado</option>
                   <option value="ACEITO">Aceito</option>
                   <option value="REVISAO">Em Revisão</option>
                 </select>
@@ -2174,27 +2348,36 @@ const Feedback: React.FC = () => {
                           </div>
                         </div>
                         
-                        <div className="ml-4 flex gap-2">
+                        <div className="ml-4 flex flex-col gap-2">
                           <button
-                            onClick={() => {
-                              setShowContestacoesModal(false);
-                              handleAceitarContestacao(contestacao);
-                            }}
-                            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            onClick={() => handleVerFeedback(contestacao)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
                           >
-                            <CheckCircle className="h-4 w-4" />
-                            Aceitar
+                            <Eye className="h-4 w-4" />
+                            Ver Feedback
                           </button>
-                          <button
-                            onClick={() => {
-                              setShowContestacoesModal(false);
-                              handleAnalisarContestacao(contestacao);
-                            }}
-                            className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
-                          >
-                            <XCircle className="h-4 w-4" />
-                            Rejeitar
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowContestacoesModal(false);
+                                handleAceitarContestacao(contestacao);
+                              }}
+                              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Aceitar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowContestacoesModal(false);
+                                handleAnalisarContestacao(contestacao);
+                              }}
+                              className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              Rejeitar
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

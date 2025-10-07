@@ -6,9 +6,12 @@ import KpiCards from '../components/KpiCards';
 import TrendLineChart from '../components/TrendLineChart';
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
+import PeriodFilter from '../components/PeriodFilter';
 import { Combobox } from '../components/ui/select-simple';
-import { getMixedKpis, getMixedTrend, getMixedCarteirasFromAvaliacoes } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
+import AcordosDashboard from '../components/dashboard/AcordosDashboard';
+import QuartilesSection from '../components/QuartilesSection';
 
 const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
@@ -26,12 +29,24 @@ const Dashboard: React.FC = () => {
     label: item.carteira
   }));
 
-  // Construir objeto de filtros para a API (incluindo carteira apenas se tiver valor)
+  // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 
-    start: filters.start, 
-    end: filters.end, 
+    ...(filters.start ? { start: filters.start } : {}),
+    ...(filters.end ? { end: filters.end } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
+
+  // Filtros para o gráfico comparativo mensal (sem filtros de data)
+  const apiFiltersNoDate = { 
+    ...(filters.carteira ? { carteira: filters.carteira } : {}) 
+  };
+
+  // Debug: Log dos filtros aplicados
+  React.useEffect(() => {
+    console.log('🔍 [FILTERS DEBUG] Filtros do hook:', filters);
+    console.log('🔍 [FILTERS DEBUG] Filtros para API (com data):', apiFilters);
+    console.log('🔍 [FILTERS DEBUG] Filtros para API (sem data):', apiFiltersNoDate);
+  }, [filters, apiFilters, apiFiltersNoDate]);
 
   // KPIs e tendência mistos
   const { data: kpis } = useQuery({ 
@@ -42,6 +57,19 @@ const Dashboard: React.FC = () => {
     queryKey: ['mixed-trend', apiFilters], 
     queryFn: () => getMixedTrend(apiFilters) 
   });
+  
+  // Dados de tendência para o gráfico comparativo mensal (sem filtros de data)
+  const { data: trendAllMonths } = useQuery({ 
+    queryKey: ['mixed-trend-all-months', apiFiltersNoDate], 
+    queryFn: () => getMixedTrendAllMonths(apiFiltersNoDate) 
+  });
+  
+  // Número de agentes avaliados
+  const { data: agentesCount } = useQuery({ 
+    queryKey: ['mixed-agents-count', apiFilters], 
+    queryFn: () => getMixedAgentsCount(apiFilters) 
+  });
+
 
   return (
     <div>
@@ -55,30 +83,12 @@ const Dashboard: React.FC = () => {
               <span className="text-sm font-medium text-gray-700">Filtros</span>
             </div>
             <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex flex-col">
-                <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="h-3 w-3" />
-                  Data Início
-                </label>
-                <input
-                  type="date"
-                  value={filters.start}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="h-3 w-3" />
-                  Data Fim
-                </label>
-                <input
-                  type="date"
-                  value={filters.end}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="h-10 border border-gray-300 rounded-xl px-3 text-sm shadow-sm bg-white !text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                />
-              </div>
+              <PeriodFilter
+                startDate={filters.start}
+                endDate={filters.end}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+              />
               <div className="min-w-[180px] flex flex-col">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Carteira</label>
                 <Combobox
@@ -101,25 +111,43 @@ const Dashboard: React.FC = () => {
         <KpiCards
           media={kpis?.media_geral ?? null}
           total={kpis?.total_ligacoes ?? 0}
-          pior={kpis?.pior_item ?? null}
+          agentesCount={agentesCount ?? null}
         />
 
-        {/* Gráfico de linha */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
-          <div className="min-h-[500px]">
+        {/* Gráficos lado a lado */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Gráfico de comparativo mensal */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Análise da média mensal de pontuação das ligações (incluindo uploads) - Histórico completo
+            </p>
+          <MonthlyComparisonChart trendData={trendAllMonths ?? trend ?? []} />
+          </div>
+
+          {/* Gráfico de linha */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência Temporal</h2>
             <TrendLineChart data={trend ?? []} />
           </div>
         </div>
 
-        {/* Gráfico de comparativo mensal */}
+        {/* Seção de métricas de acordos */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Comparativo Mensal</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Análise da média mensal de pontuação das ligações (incluindo uploads)
-          </p>
-          <MonthlyComparisonChart trendData={trend ?? []} />
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Efetividade - Acordos</h2>
+          <AcordosDashboard 
+            start={filters.start || undefined} 
+            end={filters.end || undefined} 
+            carteira={filters.carteira || undefined} 
+          />
         </div>
+
+        {/* Seção de análise de quartis */}
+        <QuartilesSection 
+          start={filters.start || undefined} 
+          end={filters.end || undefined} 
+          carteira={filters.carteira || undefined} 
+        />
       </div>
     </div>
   );

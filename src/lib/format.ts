@@ -371,8 +371,8 @@ export const categorizeCriteria = (criteriaName: string): string => {
     return "Encerramento";
   }
   
-  // Se não conseguir categorizar, usar "Outros"
-  return "Outros";
+  // Se não conseguir categorizar, retorna string vazia (não será incluído)
+  return "";
 };
 
 // Função para organizar itens por categoria
@@ -383,8 +383,7 @@ export const organizeItemsByCategory = (items: any[]) => {
     "Check-list": [],
     "Negociação": [],
     "Falha Crítica": [],
-    "Encerramento": [],
-    "Outros": []
+    "Encerramento": []
   };
   
   items.forEach(item => {
@@ -412,9 +411,11 @@ export const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure
 
   // Criar um mapa dos itens por categoria
   const itemsByCategory: Record<string, any[]> = items.reduce((acc, item) => {
-    const category = item.categoria || 'Outros';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(item);
+    const category = item.categoria;
+    if (category && carteiraStructure.categories.some((cat: any) => cat.name === category)) {
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(item);
+    }
     return acc;
   }, {} as Record<string, any[]>);
 

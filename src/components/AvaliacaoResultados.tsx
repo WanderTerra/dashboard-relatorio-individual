@@ -159,6 +159,68 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
           </div>
         </div>
 
+        {/* Falhas Críticas - Nova seção */}
+        {avaliacao.falha_critica && (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-red-700 flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600" />
+              Falhas Críticas Identificadas
+            </h3>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="space-y-3">
+                {/* Verificar se é a estrutura nova (array) ou antiga (objeto) */}
+                {Array.isArray(avaliacao.itens) ? (
+                  // Nova estrutura: array de itens
+                  avaliacao.itens
+                    .filter(item => {
+                      const isNaoConforme = item.status === 'NAO CONFORME';
+                      const isFalhaCritica = item.categoria === 'Falha Crítica';
+                      return isNaoConforme && isFalhaCritica;
+                    })
+                    .map((item, index) => (
+                      <div key={index} className="flex items-start gap-3 p-3 bg-white border border-red-200 rounded-lg">
+                        <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium text-red-800 text-sm">{item.criterio_nome}</div>
+                          {item.categoria && (
+                            <div className="text-xs text-red-600 mt-1">
+                              <span className="font-medium">Categoria:</span> {item.categoria}
+                            </div>
+                          )}
+                          {item.observacao && (
+                            <div className="text-xs text-red-700 mt-1 bg-red-100 p-2 rounded">
+                              <span className="font-medium">Observação:</span> {item.observacao}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  // Estrutura antiga: objeto aninhado
+                  avaliacao.itens && Object.entries(avaliacao.itens).map(([categoria, criterios]) => 
+                    Object.entries(criterios).filter(([_, item]) => item.status === 'NAO CONFORME' && categoria === 'Falha Crítica').map(([criterioNome, item]) => (
+                      <div key={`${categoria}-${criterioNome}`} className="flex items-start gap-3 p-3 bg-white border border-red-200 rounded-lg">
+                        <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium text-red-800 text-sm">{criterioNome}</div>
+                          <div className="text-xs text-red-600 mt-1">
+                            <span className="font-medium">Categoria:</span> {categoria}
+                          </div>
+                          {item.observacao && (
+                            <div className="text-xs text-red-700 mt-1 bg-red-100 p-2 rounded">
+                              <span className="font-medium">Observação:</span> {item.observacao}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Erro de Processamento */}
         {avaliacao.erro_processamento && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -171,29 +233,60 @@ const AvaliacaoResultados: React.FC<AvaliacaoResultadosProps> = ({
         <div className="space-y-3">
           <h3 className="text-lg font-semibold">Critérios Avaliados</h3>
           <div className="space-y-4">
-            {avaliacao.itens.map((item, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{item.criterio_nome}</div>
-                  {item.observacao && (
-                    <div className="text-xs text-gray-600 mt-1">
-                      {item.observacao}
+            {Array.isArray(avaliacao.itens) ? (
+              // Nova estrutura: array de itens
+              avaliacao.itens.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{item.criterio_nome}</div>
+                    {item.observacao && (
+                      <div className="text-xs text-gray-600 mt-1">
+                        {item.observacao}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      className={`text-xs ${getStatusColor(item.status)}`}
+                    >
+                      <span className="mr-1">{getStatusIcon(item.status)}</span>
+                      {item.status}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      Peso: {item.peso.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Estrutura antiga: objeto aninhado
+              avaliacao.itens && Object.entries(avaliacao.itens).map(([categoria, criterios]) => 
+                Object.entries(criterios).map(([criterioNome, item]) => (
+                  <div key={`${categoria}-${criterioNome}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{criterioNome}</div>
+                      <div className="text-xs text-gray-500">Categoria: {categoria}</div>
+                      {item.observacao && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          {item.observacao}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    className={`text-xs ${getStatusColor(item.status)}`}
-                  >
-                    <span className="mr-1">{getStatusIcon(item.status)}</span>
-                    {item.status}
-                  </Badge>
-                  <span className="text-xs text-gray-500">
-                    Peso: {item.peso.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            ))}
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        className={`text-xs ${getStatusColor(item.status)}`}
+                      >
+                        <span className="mr-1">{getStatusIcon(item.status)}</span>
+                        {item.status}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        Peso: {item.peso.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
           </div>
         </div>
       </CardContent>

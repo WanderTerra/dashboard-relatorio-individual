@@ -30,20 +30,21 @@ class SpeakerClassifier:
             "sinistro", "indenização", "benefício", "muito obrigado", "agradeço",
             "fico à disposição", "qualquer dúvida", "mais alguma coisa",
             "protocolo", "abertura", "solicitação", "documentação",
-            "prazo", "sistema", "cadastro", "verificar", "consultar",
+            "prazo", "sistema", "cadastro", "verificar", "consultar", "eu gostaria de falar com",
+            "estamos disponibilizando", "referente a um desconto", "consta aqui no sistema","foi disponibilizado um desconto",
             # Novos indicadores importantes:
             "falo com", "representante", "empresa", "tecnologias", 
             "atendimento", "central", "setor", "departamento",
-            "confirmar", "verificar seus dados", "cpf", "rg",
+            "confirmar", "verificar seus dados", "cpf", "rg", "forma bem breve",
             "endereço", "telefone para contato", "posso confirmar"
         ]
         
         # Indicadores de CLIENTE (peso 1x)
         self.client_indicators = [
-            "quero saber", "preciso de", "gostaria de", "tenho uma dúvida",
+            "quero saber", "preciso de", "tenho uma dúvida",
             "não entendi", "pode me explicar", "quanto custa", "qual o valor",
             "como faço para", "preciso fazer", "quero cancelar", "quero contratar",
-            "meu nome é", "eu sou", "tá bem", "entendi", "ok", "certo",
+            "eu sou", "tá bem", "entendi", "ok", "certo", "eu já paguei",
             "minha situação", "meu caso", "aconteceu comigo", "estou precisando",
             "queria fazer", "me ajuda", "socorro", "urgente", "problema",
             "isso mesmo", "correto", "é isso aí"
