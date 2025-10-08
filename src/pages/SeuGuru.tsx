@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Users, Brain, Target, MessageSquare, Sparkles, Send, Loader2, ArrowLeft } from 'lucide-react';
+import { Users, Brain, Target, MessageSquare, Sparkles, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Assistant {
@@ -13,12 +13,18 @@ interface Assistant {
   welcomeMessage: string;
 }
 
+interface QuickReply {
+  label: string;
+  query: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   assistant_used?: string;
+  quick_replies?: QuickReply[];
 }
 
 const SeuGuru: React.FC = () => {
@@ -26,22 +32,10 @@ const SeuGuru: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [chatOpened, setChatOpened] = useState(false);
-  const [skipTyping, setSkipTyping] = useState(false); // Opção para pular animação
-  const typingIntervalRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-
-  // Limpeza de intervalos ao desmontar
-  useEffect(() => {
-    return () => {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
-      }
-    };
-  }, []);
 
   // Lista de assistentes disponíveis
   const assistants: Assistant[] = [
@@ -82,28 +76,13 @@ const SeuGuru: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Função para efeito de digitação (otimizada - mais rápida)
-  const typeOutMessage = (text: string, messageId: string, speedMs = 5) => {
-    return new Promise<void>((resolve) => {
-      setIsTyping(true);
-      let index = 0;
-      typingIntervalRef.current = window.setInterval(() => {
-        index += 10; // acrescenta 10 caracteres por tick para ser mais rápido
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: text.slice(0, Math.min(index, text.length)) } : m));
-        if (index >= text.length) {
-          if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
-          setIsTyping(false);
-          resolve();
-        }
-      }, speedMs);
-    });
-  };
-
   // Função para selecionar assistente e abrir chat
   const handleAssistantSelect = (assistantId: string) => {
+    console.log('✅ Assistente selecionado:', {
+      id: assistantId,
+      nome: assistants.find(a => a.id === assistantId)?.name
+    });
+    
     setSelectedAssistant(assistantId);
     setChatOpened(true);
     
@@ -149,51 +128,98 @@ const SeuGuru: React.FC = () => {
     try {
       const token = localStorage.getItem('auth_token');
 
-      const response = await fetch('/api/ai/chat', {
+      // Log para debug
+      const requestPayload = {
+        message: userMessage.content,
+        agent_id: String(user?.id ?? '1111'),
+        assistant_type: selectedAssistant,
+      };
+      
+      console.log('🔍 Enviando para backend:', {
+        endpoint: '/api/ai/chat/stream',
+        assistente_selecionado: selectedAssistant,
+        payload: requestPayload
+      });
+
+      // Tentar primeiro o endpoint de streaming
+      let response = await fetch('/api/ai/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          message: userMessage.content,
-          agent_id: String(user?.id ?? '1111'),
-          assistant_type: selectedAssistant,
-        })
+        body: JSON.stringify(requestPayload)
       });
 
       if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        throw new Error(`Erro ao enviar mensagem (status ${response.status}): ${body}`);
+        throw new Error(`Erro ao enviar mensagem (status ${response.status})`);
       }
 
-      const data = await response.json();
-      const fullText: string = data?.message ?? '';
-
+      // Criar mensagem do assistente
       const assistantMessageId = (Date.now() + 1).toString();
-      const emptyAssistantMessage: Message = {
+      const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
         content: '',
         timestamp: new Date(),
         assistant_used: selectedAssistant
       };
-      setMessages(prev => [...prev, emptyAssistantMessage]);
+      setMessages(prev => [...prev, assistantMessage]);
 
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
-      }
-      
-      // Se skipTyping estiver ativo, mostrar tudo de uma vez
-      if (skipTyping) {
-        setMessages(prev => prev.map(m => m.id === assistantMessageId ? { ...m, content: fullText } : m));
-      } else {
-        await typeOutMessage(fullText, assistantMessageId, 5);
+      // Sempre tratar como streaming - mais rápido e direto
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      let quickReplies: QuickReply[] = [];
+
+      setIsStreaming(true);
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6);
+              try {
+                const event = JSON.parse(jsonStr);
+                
+                if (event.type === 'token') {
+                  fullResponse += event.content;
+                  
+                  // Mostrar conteúdo em tempo real conforme chega
+                  if (fullResponse.trim()) {
+                    setMessages(prev => prev.map(m => 
+                      m.id === assistantMessageId 
+                        ? { ...m, content: fullResponse }
+                        : m
+                    ));
+                  }
+                }
+                else if (event.type === 'quick_replies') {
+                  quickReplies = event.replies || [];
+                  // Adicionar quick replies à mensagem IMEDIATAMENTE
+                  setMessages(prev => prev.map(m => 
+                    m.id === assistantMessageId 
+                      ? { ...m, quick_replies: quickReplies }
+                      : m
+                  ));
+                }
+              } catch (e) {
+                // Linha não é JSON válido, ignora
+              }
+            }
+          }
+        }
       }
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
+      // Criar mensagem de erro
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -203,7 +229,15 @@ const SeuGuru: React.FC = () => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
+  };
+
+  const handleQuickReply = (query: string) => {
+    if (isLoading) return;
+    setInputMessage(query);
+    // Pequeno delay para mostrar a query no input antes de enviar
+    setTimeout(() => sendMessage(), 100);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -237,6 +271,22 @@ const SeuGuru: React.FC = () => {
     return assistants.find(a => a.id === selectedAssistant);
   };
 
+
+  const renderMessageContent = (message: Message) => {
+    if (!message.content && isLoading && message.role === 'assistant') {
+      return "Pensando...".split('').map((char, index) => 
+        `<span class="inline-block animate-bounce" style="animation-delay: ${index * 30}ms; animation-duration: 1.5s;">${char === ' ' ? '&nbsp;' : char}</span>`
+      ).join('');
+    }
+    
+    // O conteúdo já vem parseado do backend, apenas aplicar formatação markdown
+    return message.content
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+      .replace(/•/g, '<span class="inline-block mr-2">•</span>')
+      .replace(/\n/g, '<br/>');
+  };
+
   // Se o chat estiver aberto, mostrar apenas o chat em tela cheia
   if (chatOpened && selectedAssistant) {
     const assistant = getSelectedAssistantData();
@@ -260,22 +310,12 @@ const SeuGuru: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-bold text-white">{assistant?.name}</h2>
                   <p className="text-sm text-white/80">
-                    {isTyping ? 'Digitando...' : 'Online • Pronto para ajudar'}
+                    {isStreaming ? 'Digitando...' : 'Online • Pronto para ajudar'}
                   </p>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Toggle para animação de digitação */}
-              <button
-                onClick={() => setSkipTyping(!skipTyping)}
-                className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all text-sm font-medium text-white flex items-center gap-2"
-                title={skipTyping ? 'Ativar animação de digitação' : 'Desativar animação de digitação'}
-              >
-                <Sparkles size={16} className={skipTyping ? 'opacity-50' : ''} />
-                <span>{skipTyping ? 'Resposta Rápida' : 'Com Animação'}</span>
-              </button>
-              
               <div className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full">
                 <span className="text-sm font-medium text-white">{assistant?.category}</span>
               </div>
@@ -289,79 +329,72 @@ const SeuGuru: React.FC = () => {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-4 animate-in slide-in-from-bottom-2 duration-500 ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className="space-y-3"
               >
-                {message.role === 'assistant' && (
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
-                    style={{ background: `linear-gradient(135deg, ${assistant?.color}, ${assistant?.color}dd)` }}
-                  >
-                    <div className="text-white scale-75">
-                      {assistant?.icon}
-                    </div>
-                  </div>
-                )}
-
                 <div
-                  className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-sm ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-                      : 'bg-white text-gray-900 border border-gray-200'
+                  className={`flex gap-4 animate-in slide-in-from-bottom-2 duration-500 ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
+                  {message.role === 'assistant' && (
+                    <div 
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
+                      style={{ background: `linear-gradient(135deg, ${assistant?.color}, ${assistant?.color}dd)` }}
+                    >
+                      <div className="text-white scale-75">
+                        {assistant?.icon}
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-sm ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
+                        : 'bg-white text-gray-900 border border-gray-200'
+                    }`}
+                  >
                   <div 
                     className="text-sm leading-relaxed whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{ 
-                      __html: message.content
-                        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                        .replace(/•/g, '<span class="inline-block mr-2">•</span>')
-                        .replace(/\n/g, '<br/>')
+                      __html: renderMessageContent(message)
                     }} 
                   />
-                  <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
-                    {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                    <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
+                      {message.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+
+                  {message.role === 'user' && (
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                      <MessageSquare size={20} className="text-white" />
+                    </div>
+                  )}
                 </div>
 
-                {message.role === 'user' && (
-                  <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <MessageSquare size={20} className="text-white" />
+                {/* Quick Replies */}
+                {message.role === 'assistant' && message.quick_replies && message.quick_replies.length > 0 && (
+                  <div className="flex flex-wrap gap-2 ml-14 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                    {message.quick_replies.map((reply: QuickReply, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleQuickReply(reply.query)}
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-white border-2 text-sm font-medium rounded-full hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
+                          borderColor: assistant?.color,
+                          color: assistant?.color,
+                          backgroundColor: `${assistant?.color}15`
+                        }}
+                      >
+                        {reply.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
             ))}
 
-            {isLoading && (
-              <div className="flex gap-4 justify-start animate-in slide-in-from-bottom-2 duration-500">
-                <div 
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-                  style={{ background: `linear-gradient(135deg, ${assistant?.color}, ${assistant?.color}dd)` }}
-                >
-                  <div className="text-white scale-75">
-                    {assistant?.icon}
-                  </div>
-                </div>
-                <div className="bg-white rounded-2xl px-5 py-4 border border-gray-200 shadow-sm">
-                  <div className="text-gray-600 text-sm">
-                    {"Pensando...".split('').map((char, index) => (
-                      <span
-                        key={index}
-                        className="inline-block animate-bounce"
-                        style={{ 
-                          animationDelay: `${index * 30}ms`,
-                          animationDuration: '1.5s'
-                        }}
-                      >
-                        {char === ' ' ? '\u00A0' : char}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -441,7 +474,7 @@ const SeuGuru: React.FC = () => {
               Seu Guru
             </h1>
             <p className="text-gray-600 text-lg">
-              Escolha seu assistente especializado para começar a conversar
+              Escolha seu assistente especializado para começar um novo chat
             </p>
           </div>
         </div>
