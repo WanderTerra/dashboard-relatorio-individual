@@ -27,8 +27,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  console.log('🔍 AuthProvider render:', { user: user ? { id: user.id, username: user.username, permissions: user.permissions } : null, isLoading });
-
   useEffect(() => {
     const initializeAuth = async () => {
       try {

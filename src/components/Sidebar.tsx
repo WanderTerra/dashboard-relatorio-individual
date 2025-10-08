@@ -65,32 +65,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
   const agentPerm = user?.permissions?.find((p) => p.startsWith("agent_"));
   const agentId = agentPerm ? agentPerm.replace("agent_", "") : null;
 
-  // Debug logs temporários
-  console.log('🔍 Sidebar debug:', {
-    isLoading,
-    user: user ? { id: user.id, username: user.username, permissions: user.permissions } : null,
-    isAdmin,
-    agentPerm,
-    agentId
-  });
-
   // Links conforme perfil - aguardar carregamento do usuário
   let links: SidebarLink[] = [];
   
   if (isLoading) {
-    console.log('⏳ Ainda carregando, links vazios');
     links = [];
   } else if (!user) {
-    console.log('❌ Nenhum usuário logado, links vazios');
     links = [];
   } else if (isAdmin) {
-    console.log('✅ Usuário é admin, usando adminLinks');
     links = adminLinks;
   } else if (agentId) {
-    console.log('✅ Usuário é agente, usando agentLinks para agentId:', agentId);
     links = agentLinks(agentId);
   } else {
-    console.log('⚠️ Usuário logado mas sem permissões reconhecidas. Permissões:', user.permissions);
     // Fallback: mostrar links básicos para usuários logados sem permissões específicas
     links = [
       { label: "Dashboard", to: "/", icon: <Home size={20} /> },
@@ -98,8 +84,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
       { label: "Seu Guru", to: "/seu-guru", icon: <Bot size={20} /> },
     ];
   }
-
-  console.log('🔍 Links finais:', { linksCount: links.length, links });
 
 
 
