@@ -60,23 +60,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
   const { user, logout, isLoading } = useAuth();
   const location = useLocation();
 
-  // Detecta se é admin ou agente
-  const isAdmin = user?.permissions?.includes("admin");
-  const agentPerm = user?.permissions?.find((p) => p.startsWith("agent_"));
-  const agentId = agentPerm ? agentPerm.replace("agent_", "") : null;
+  // Detecta se é admin ou agente - versão mais robusta e defensiva
+  const isAdmin = user?.permissions && Array.isArray(user.permissions) 
+    ? user.permissions.some(permission => 
+        permission && typeof permission === 'string' && 
+        (permission.toLowerCase().includes("admin") || permission === "admin")
+      )
+    : false;
+  
+  const agentPerm = user?.permissions && Array.isArray(user.permissions)
+    ? user.permissions.find((p) => p && typeof p === 'string' && p.toLowerCase().startsWith("agent_"))
+    : undefined;
+    
+  const agentId = agentPerm ? agentPerm.replace("agent_", "").replace("Agent_", "") : null;
+
+  // Debug temporário para admin
+  console.log('🔍 Sidebar Debug Admin:', {
+    isLoading,
+    user: user ? { id: user.id, username: user.username, permissions: user.permissions } : null,
+    permissionsType: typeof user?.permissions,
+    permissionsIsArray: Array.isArray(user?.permissions),
+    permissionsLength: user?.permissions?.length,
+    isAdmin,
+    agentPerm,
+    agentId,
+    adminLinksCount: adminLinks.length
+  });
 
   // Links conforme perfil - aguardar carregamento do usuário
   let links: SidebarLink[] = [];
   
   if (isLoading) {
+    console.log('⏳ Ainda carregando...');
     links = [];
   } else if (!user) {
+    console.log('❌ Nenhum usuário...');
     links = [];
   } else if (isAdmin) {
+    console.log('✅ Usuário é admin, usando adminLinks');
     links = adminLinks;
   } else if (agentId) {
+    console.log('✅ Usuário é agente, usando agentLinks');
     links = agentLinks(agentId);
   } else {
+    console.log('⚠️ Fallback - usuário sem permissões reconhecidas');
     // Fallback: mostrar links básicos para usuários logados sem permissões específicas
     links = [
       { label: "Dashboard", to: "/", icon: <Home size={20} /> },
@@ -84,6 +111,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
       { label: "Seu Guru", to: "/seu-guru", icon: <Bot size={20} /> },
     ];
   }
+
+  console.log('🔍 Links finais:', { linksCount: links.length, isAdmin });
 
 
 

@@ -27,6 +27,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Debug temporário para admin
+  console.log('🔍 AuthProvider render:', { 
+    user: user ? { id: user.id, username: user.username, permissions: user.permissions } : null, 
+    isLoading 
+  });
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -37,10 +43,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (token && storedUser) {
           // ✅ Verificar se o token ainda é válido fazendo uma chamada ao backend
           try {
+            console.log('🔍 Chamando getCurrentUser...');
             const currentUser = await getCurrentUser();
+            console.log('🔍 Usuário retornado da API:', currentUser);
+            console.log('🔍 Permissões do usuário:', currentUser.permissions);
+            
+            // ✅ Se a API não retornou permissões, usar as permissões armazenadas como fallback
+            if (!currentUser.permissions && storedUser.permissions) {
+              console.log('⚠️ API não retornou permissões, usando permissões armazenadas:', storedUser.permissions);
+              currentUser.permissions = storedUser.permissions;
+            }
+            
             setUser(currentUser);
           } catch (error) {
-            console.log('Token inválido, limpando dados de autenticação');
+            console.log('❌ Token inválido, limpando dados de autenticação:', error);
             logout();
           }
         }

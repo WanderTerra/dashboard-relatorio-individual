@@ -33,6 +33,8 @@ const AppContent: React.FC = () => {
   const isLoginPage = location.pathname === '/login';
   const { isLoading } = useAuth();
 
+  console.log('🔍 AppRouter render:', { isLoading, isLoginPage });
+
   if (isLoginPage) {
     return (
       <div className="min-h-screen bg-gray-50">
