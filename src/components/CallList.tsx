@@ -333,6 +333,7 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                       to={`/call/${c.avaliacao_id}/items`}
                       state={{ 
                         agentId,
+                        returnTab: 'calls', // ✅ Adicionar informação da aba de retorno
                         callData: {
                           pontuacao: c.pontuacao,
                           status_avaliacao: c.status_avaliacao,
@@ -348,7 +349,10 @@ const CallList: React.FC<CallListProps> = ({ calls, user }) => {
                     </Link>
                     <Link
                       to={`/call/${c.avaliacao_id}/transcription`}
-                      state={{ agentId }}
+                      state={{ 
+                        agentId,
+                        returnTab: 'calls' // ✅ Adicionar informação da aba de retorno
+                      }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-all duration-200 shadow-sm"
                     >
                       <MessageSquare className="h-3 w-3" />

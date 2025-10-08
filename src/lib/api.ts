@@ -134,8 +134,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid
       removeAuthToken();
-      // Redirect to login page
-      window.location.href = '/login';
+      // ✅ Não redirecionar automaticamente - deixar o AuthContext gerenciar
+      // O ProtectedRoute vai detectar que não há usuário e redirecionar
     }
     return Promise.reject(error);
   }

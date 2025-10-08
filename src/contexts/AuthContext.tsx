@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserInfoFromStorage, logout, type UserInfo } from '../lib/api';
+import { getUserInfoFromStorage, logout, getCurrentUser, getAuthToken, type UserInfo } from '../lib/api';
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -27,13 +27,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  console.log('🔍 AuthProvider render:', { user: user ? { id: user.id, username: user.username, permissions: user.permissions } : null, isLoading });
+
   useEffect(() => {
-    // Check for stored user info on app load
-    const storedUser = getUserInfoFromStorage();
-    if (storedUser) {
-      setUser(storedUser);
-    }
-    setIsLoading(false);
+    const initializeAuth = async () => {
+      try {
+        // Verificar se há token armazenado
+        const token = getAuthToken();
+        const storedUser = getUserInfoFromStorage();
+        
+        if (token && storedUser) {
+          // ✅ Verificar se o token ainda é válido fazendo uma chamada ao backend
+          try {
+            const currentUser = await getCurrentUser();
+            setUser(currentUser);
+          } catch (error) {
+            console.log('Token inválido, limpando dados de autenticação');
+            logout();
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar autenticação:', error);
+        // Se houver erro, limpar dados inválidos
+        logout();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const handleLogin = (user: UserInfo) => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
+import { useAuth } from './contexts/AuthContext';
 
 import Dashboard   from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
@@ -30,6 +31,9 @@ const AppContent: React.FC = () => {
   const [collapsed, setCollapsed] = useState(true);
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
+  const { isLoading } = useAuth();
+
+  console.log('🔍 AppRouter render:', { isLoading, isLoginPage });
 
   if (isLoginPage) {
     return (
@@ -37,6 +41,18 @@ const AppContent: React.FC = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
         </Routes>
+      </div>
+    );
+  }
+
+  // ✅ Mostrar loading enquanto verifica autenticação
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
       </div>
     );
   }
