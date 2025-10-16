@@ -57,20 +57,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed: collapsedProp, setC
   const [openDropdowns, setOpenDropdowns] = useState<Set<string>>(new Set()); // controla dropdowns abertos
   const collapsed = collapsedProp !== undefined ? collapsedProp : internalCollapsed;
   const setCollapsed = setCollapsedProp !== undefined ? setCollapsedProp : setInternalCollapsed;
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const location = useLocation();
 
-  // Detecta se é admin ou agente
-  const isAdmin = user?.permissions?.includes("admin");
-  const agentPerm = user?.permissions?.find((p) => p.startsWith("agent_"));
-  const agentId = agentPerm ? agentPerm.replace("agent_", "") : null;
+  // Detecta se é admin ou agente - versão mais robusta e defensiva
+  const isAdmin = user?.permissions && Array.isArray(user.permissions) 
+    ? user.permissions.some(permission => 
+        permission && typeof permission === 'string' && 
+        (permission.toLowerCase().includes("admin") || permission === "admin")
+      )
+    : false;
+  
+  const agentPerm = user?.permissions && Array.isArray(user.permissions)
+    ? user.permissions.find((p) => p && typeof p === 'string' && p.toLowerCase().startsWith("agent_"))
+    : undefined;
+    
+  const agentId = agentPerm ? agentPerm.replace("agent_", "").replace("Agent_", "") : null;
 
-  // Links conforme perfil
-  const links = isAdmin
-    ? adminLinks
-    : agentId
-    ? agentLinks(agentId)
-    : [];
+  // Links conforme perfil - aguardar carregamento do usuário
+  let links: SidebarLink[] = [];
+  
+  if (isLoading) {
+    links = [];
+  } else if (!user) {
+    links = [];
+  } else if (isAdmin) {
+    links = adminLinks;
+  } else if (agentId) {
+    links = agentLinks(agentId);
+  } else {
+    // Fallback: mostrar links básicos para usuários logados sem permissões específicas
+    links = [
+      { label: "Dashboard", to: "/", icon: <Home size={20} /> },
+      { label: "Feedback", to: "/feedback", icon: <MessageSquare size={20} /> },
+      { label: "Seu Guru", to: "/seu-guru", icon: <Bot size={20} /> },
+    ];
+  }
 
 
 

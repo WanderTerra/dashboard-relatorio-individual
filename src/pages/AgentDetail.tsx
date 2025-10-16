@@ -89,6 +89,16 @@ const AgentDetail: React.FC = () => {
     }
   }, [tabFromUrl]);
 
+  // ✅ NOVO: Detectar retorno de ligação e restaurar aba
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.returnTab) {
+      setActiveTab(state.returnTab);
+      // Limpar o state para evitar loops
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   useEffect(() => {
     setPersistedDate('agent_filter_start', startDate);
   }, [startDate]);
@@ -376,7 +386,10 @@ const AgentDetail: React.FC = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => {
+                setActiveTab('overview');
+                navigate(`/agent/${agentId}?tab=overview`, { replace: true });
+              }}
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                 activeTab === 'overview'
                   ? 'border-blue-500 text-blue-600'
@@ -386,7 +399,10 @@ const AgentDetail: React.FC = () => {
               Visão Geral
             </button>
             <button
-              onClick={() => setActiveTab('calls')}
+              onClick={() => {
+                setActiveTab('calls');
+                navigate(`/agent/${agentId}?tab=calls`, { replace: true });
+              }}
               className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                 activeTab === 'calls'
                   ? 'border-blue-500 text-blue-600'
@@ -397,7 +413,10 @@ const AgentDetail: React.FC = () => {
             </button>
             {isAgent && (
               <button
-                onClick={() => setActiveTab('feedback')}
+                onClick={() => {
+                  setActiveTab('feedback');
+                  navigate(`/agent/${agentId}?tab=feedback`, { replace: true });
+                }}
                 className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                   activeTab === 'feedback'
                     ? 'border-blue-500 text-blue-600'
