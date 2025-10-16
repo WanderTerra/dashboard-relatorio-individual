@@ -8,7 +8,7 @@ import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
 import PeriodFilter from '../components/PeriodFilter';
 import { Combobox } from '../components/ui/select-simple';
-import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import AcordosDashboard from '../components/dashboard/AcordosDashboard';
 import QuartilesSection from '../components/QuartilesSection';
@@ -17,17 +17,11 @@ const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
 
   // Buscar carteiras únicas das tabelas mistas (avaliacoes + avaliacoes_uploads)
-  const { data: carteirasRaw = [] } = useQuery({
-    queryKey: ['carteiras-mixed'],
-    queryFn: getMixedCarteirasFromAvaliacoes,
+  const { data: carteiras = [] } = useQuery({
+    queryKey: ['carteiras-avaliacoes'],
+    queryFn: getCarteirasFromAvaliacoes,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
-
-  // Transformar carteiras para o formato esperado pelo Combobox
-  const carteiras = carteirasRaw.map((item: { carteira: string }) => ({
-    value: item.carteira,
-    label: item.carteira
-  }));
 
   // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 
