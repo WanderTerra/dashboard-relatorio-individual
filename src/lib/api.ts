@@ -44,6 +44,20 @@ export const downloadAudio     = (callId: string)     => api.get(`/call/${callId
 // Nova função para buscar informações do caller (telefone)
 export const getCallerInfo     = (avaliacaoId: string)   => api.get(`/call/${avaliacaoId}/caller`).then(r => r.data);
 
+// Função para buscar estrutura da carteira (opcional - retorna null se não disponível)
+export const getCarteiraStructure = async (avaliacaoId: string) => {
+  try {
+    const response = await api.get(`/carteiras/structure-by-avaliacao/${avaliacaoId}`);
+    return response.data;
+  } catch (error: any) {
+    // Endpoint opcional - retornar null se não disponível
+    if (error.response?.status === 404 || error.response?.status === 401 || error.response?.status === 403) {
+      return null;
+    }
+    return null;
+  }
+};
+
 // Função para atualizar um item de avaliação usando o novo endpoint item-id (recomendado)
 export const updateItem = (avaliacaoId: string, itemId: string, resultado: string, descricao: string) => {
   return api.put(`/call/${avaliacaoId}/item-id/${itemId}`, {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
-import { useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import Dashboard   from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
@@ -9,7 +9,6 @@ import CallItems from './pages/CallItems';
 import Transcription from './pages/Transcription'
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './contexts/AuthContext';
 import Agents from './pages/Agents';
 import UsersAdmin from './pages/UsersAdmin';
 import Carteiras from './pages/Carteiras';

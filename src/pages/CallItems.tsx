@@ -80,9 +80,9 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
     // Organizar baseado na estrutura da carteira
     const organizedCategories = carteiraStructure.categories
-      .map(category => {
+      .map((category: any) => {
         const categoryItems = category.criteria
-          .map(criteria => itemsById[criteria.id])
+          .map((criteria: any) => itemsById[criteria.id])
           .filter(Boolean); // Remove itens não encontrados
 
         return {
@@ -91,8 +91,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
           order: category.order || 0
         };
       })
-      .filter(category => category.items.length > 0) // Remove categorias vazias
-      .sort((a, b) => a.order - b.order);
+      .filter((category: any) => category.items.length > 0) // Remove categorias vazias
+      .sort((a: any, b: any) => a.order - b.order);
 
     return organizedCategories;
   };
@@ -469,7 +469,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             </div>
           ) : (
             <div className="space-y-6">
-              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup) => (
+              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup: any) => (
                 <div key={categoryGroup.category} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   {/* Header da categoria */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -487,7 +487,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   {/* Itens da categoria */}
                   <div className="p-6">
                     <ul className="space-y-4">
-                      {categoryGroup.items.map((it, idx) => (
+                      {categoryGroup.items.map((it: any, idx: number) => (
                         <li 
                           key={idx} 
                           className={`rounded-xl bg-gray-50 p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
