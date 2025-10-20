@@ -245,7 +245,20 @@ const Agents: React.FC = () => {
                   else if (wi && wi.isError) piorLabel = 'Erro';
                   else if (wi && wi.data && typeof wi.data === 'object' && 'categoria' in wi.data && 'taxa_nao_conforme' in wi.data) {
                     const data = wi.data as { categoria: string; taxa_nao_conforme: number };
-                    piorLabel = `${formatItemName(data.categoria)} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
+                    piorLabel = `${(() => {
+                      // Se categoria contém underscore (nome técnico específico), usar ela
+                      if (data.categoria && data.categoria.includes('_')) {
+                        return formatItemName(data.categoria);
+                      }
+                      
+                      // Se categoria é uma categoria ampla, usar a descrição
+                      if (data.descricao) {
+                        return formatItemName(data.descricao);
+                      }
+                      
+                      // Fallback final
+                      return formatItemName(data.categoria);
+                    })()} (${(data.taxa_nao_conforme * 100).toFixed(0)}%)`;
                   }
 
                   return (

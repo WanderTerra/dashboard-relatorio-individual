@@ -81,7 +81,20 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
     },
     onSuccess: () => {
       toast.success('Sucesso', {
-        description: `Item "${formatItemName(item.categoria)}" atualizado com sucesso!`,
+        description: `Item "${(() => {
+          // Se categoria contém underscore (nome técnico específico), usar ela
+          if (item.categoria && item.categoria.includes('_')) {
+            return formatItemName(item.categoria);
+          }
+          
+          // Se categoria é uma categoria ampla, usar a descrição
+          if (item.descricao) {
+            return formatItemName(item.descricao);
+          }
+          
+          // Fallback final
+          return formatItemName(item.categoria);
+        })()}" atualizado com sucesso!`,
         duration: 4000,
       });
       onClose(true, item.categoria);
@@ -124,7 +137,20 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({ isOpen, onClose, item, av
           </button>
         </div>        <div className="mb-5">
           <div className="inline-block px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-md text-sm font-medium border border-blue-100 shadow-sm">
-            {formatItemName(item.categoria)}
+            {(() => {
+              // Se categoria contém underscore (nome técnico específico), usar ela
+              if (item.categoria && item.categoria.includes('_')) {
+                return formatItemName(item.categoria);
+              }
+              
+              // Se categoria é uma categoria ampla, usar a descrição
+              if (item.descricao) {
+                return formatItemName(item.descricao);
+              }
+              
+              // Fallback final
+              return formatItemName(item.categoria);
+            })()}
           </div>
         </div>
           <div className="mb-6">

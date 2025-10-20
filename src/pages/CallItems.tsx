@@ -40,7 +40,38 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
   const { data = [], isLoading } = useQuery<Item[]>({
     queryKey: ['mixed-callItems', avaliacaoId],
-    queryFn : () => getMixedCallItems(avaliacaoId!),
+    queryFn : async () => {
+      const items = await getMixedCallItems(avaliacaoId!);
+      console.log(`📋 Itens recebidos para avaliação ${avaliacaoId}:`, items);
+      if (items && items.length > 0) {
+        console.log(`🔍 Primeiro item:`, items[0]);
+        console.log(`📝 Campos disponíveis no primeiro item:`, Object.keys(items[0]));
+      }
+      return items;
+    },
+  });
+
+  // Buscar critérios para obter os nomes corretos
+  const { data: criterios = [] } = useQuery({
+    queryKey: ['criterios'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/criterios/', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+        });
+        if (response.ok) {
+          const criterios = await response.json();
+          console.log(`📚 Critérios carregados:`, criterios);
+          console.log(`🔍 Primeiros 5 critérios:`, criterios.slice(0, 5));
+          return criterios;
+        }
+        return [];
+      } catch (error) {
+        console.warn('Erro ao carregar critérios:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   // Buscar a estrutura da carteira baseada no avaliacaoId
@@ -64,6 +95,57 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     enabled: !!avaliacaoId,
     retry: false // Não tentar novamente se falhar
   });
+
+  // Função para encontrar o nome correto do critério
+  const getCriterioName = (item: any) => {
+    console.log(`🔍 Processando item:`, item);
+    
+    // Se categoria contém underscore (nome técnico específico), usar ela
+    if (item.categoria && item.categoria.includes('_')) {
+      console.log(`✅ Usando categoria técnica: ${item.categoria}`);
+      return formatItemName(item.categoria);
+    }
+    
+    // Tentar encontrar o critério na lista de critérios pelo ID ou categoria
+    if (criterios && criterios.length > 0) {
+      console.log(`🔍 Buscando critério para categoria: ${item.categoria}`);
+      
+      // Buscar por categoria exata
+      let criterio = criterios.find((c: any) => c.categoria === item.categoria);
+      if (criterio) {
+        console.log(`✅ Encontrado por categoria:`, criterio);
+        return formatItemName(criterio.nome);
+      }
+      
+      // Buscar por nome exato
+      criterio = criterios.find((c: any) => c.nome === item.categoria);
+      if (criterio) {
+        console.log(`✅ Encontrado por nome:`, criterio);
+        return formatItemName(criterio.nome);
+      }
+      
+      // Buscar por ID se existir
+      if (item.criterio_id) {
+        criterio = criterios.find((c: any) => c.id === item.criterio_id);
+        if (criterio) {
+          console.log(`✅ Encontrado por ID:`, criterio);
+          return formatItemName(criterio.nome);
+        }
+      }
+      
+      console.log(`❌ Critério não encontrado para: ${item.categoria}`);
+    }
+    
+    // Se categoria é uma categoria ampla, usar a descrição
+    if (item.descricao) {
+      console.log(`📝 Usando descrição como fallback: ${item.descricao}`);
+      return formatItemName(item.descricao);
+    }
+    
+    // Fallback final
+    console.log(`🔄 Fallback final: ${item.categoria}`);
+    return formatItemName(item.categoria);
+  };
 
   // Função para organizar itens baseado na estrutura da carteira
   const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
@@ -501,7 +583,9 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                                   it.resultado === 'CONFORME' ? 'bg-green-500 shadow-sm shadow-green-200' :
                                   it.resultado === 'NAO CONFORME' ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-gray-400 shadow-sm shadow-gray-200'
                                 }`}></div>
-                                <span className="text-sm font-semibold text-gray-800">{formatItemName(it.categoria)}</span>
+                                <span className="text-sm font-semibold text-gray-800">
+                                  {getCriterioName(it)}
+                                </span>
                               </div>
                               <div className="text-xs text-gray-600 mb-2 leading-relaxed">{it.descricao}</div>
                               <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center ${
