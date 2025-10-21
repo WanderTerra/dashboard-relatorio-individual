@@ -119,11 +119,14 @@ const Feedback: React.FC = () => {
   const pageSize = 50;
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Lógica de permissões
+  // Lógica de permissões - CORRIGIDA para evitar acesso indevido
   const isAdmin = user?.permissions?.includes('admin') || false;
   const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
-  const isAgentUser = currentAgentId && !isAdmin;
+  
+  // ✅ CORREÇÃO: Se tem permissão de agente, sempre aplicar filtro (mesmo sendo admin)
+  // Isso garante que agentes não vejam feedbacks de outros agentes
+  const isAgentUser = !!currentAgentId;
 
   // Debug: Log das permissões do usuário
   console.log('Debug permissões:', {

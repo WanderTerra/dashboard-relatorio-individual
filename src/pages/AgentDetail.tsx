@@ -226,11 +226,17 @@ const AgentDetail: React.FC = () => {
     return worstCriterion;
   }, [criteria]);
 
-  // Verifica se o usuário autenticado é o próprio agente da página
-  const isAgent = user && user.id && (
-    user.id.toString() === agentId || 
-    user.id === parseInt(agentId)
-  );
+  // ✅ CORREÇÃO: Verificação de permissões baseada em agent_id das permissões
+  // Isso garante que apenas o agente correto ou admins puros possam acessar
+  const isAdmin = user?.permissions?.includes('admin') || false;
+  const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
+  const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
+  
+  // Se tem permissão de agente, verificar se é o agente correto
+  // Se não tem permissão de agente, só pode acessar se for admin puro
+  const isAgent = currentAgentId ? 
+    (currentAgentId === agentId) : 
+    (isAdmin && !currentAgentId);
 
   // ✅ Adicionar estado para o modal de níveis
   const [showLevelsModal, setShowLevelsModal] = useState<boolean>(false);
