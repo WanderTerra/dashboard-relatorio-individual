@@ -148,18 +148,10 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
   // Função para encontrar o nome correto do critério (otimizada)
   const getCriterioName = React.useCallback((item: any) => {
-    console.log('🔍 [DEBUG] Processando item:', {
-      id: item.id,
-      categoria: item.categoria,
-      descricao: item.descricao,
-      criterio_id: item.criterio_id,
-      criteriosDisponiveis: criterios?.length || 0,
-      carteiraStructureDisponivel: !!carteiraStructure
-    });
+    // Debug removido para melhorar performance
 
     // Se categoria contém underscore (nome técnico específico), usar ela
     if (item.categoria && item.categoria.includes('_')) {
-      console.log('✅ [DEBUG] Usando categoria técnica:', item.categoria);
       return formatItemName(item.categoria);
     }
     
@@ -262,10 +254,6 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     
     // Tentar usar mapeamento de fallback
     if (item.descricao && criterioMapping[item.descricao]) {
-      console.log('✅ [DEBUG] Usando mapeamento de fallback:', {
-        descricao: item.descricao,
-        nomeMapeado: criterioMapping[item.descricao]
-      });
       return formatItemName(criterioMapping[item.descricao]);
     }
     

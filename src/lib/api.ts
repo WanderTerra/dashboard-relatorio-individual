@@ -119,6 +119,9 @@ api.interceptors.request.use(
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // Se não há token, remover header de autorização
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -133,9 +136,14 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid
+      console.warn('⚠️ Token expirado ou inválido, limpando dados de autenticação');
       removeAuthToken();
-      // ✅ Não redirecionar automaticamente - deixar o AuthContext gerenciar
-      // O ProtectedRoute vai detectar que não há usuário e redirecionar
+      
+      // Se não estiver na página de login, redirecionar
+      if (window.location.pathname !== '/login') {
+        // Usar replace para evitar voltar na história
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

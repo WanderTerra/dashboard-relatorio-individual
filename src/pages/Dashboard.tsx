@@ -35,33 +35,67 @@ const Dashboard: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
-  // Debug: Log dos filtros aplicados
-  React.useEffect(() => {
-    console.log('🔍 [FILTERS DEBUG] Filtros do hook:', filters);
-    console.log('🔍 [FILTERS DEBUG] Filtros para API (com data):', apiFilters);
-    console.log('🔍 [FILTERS DEBUG] Filtros para API (sem data):', apiFiltersNoDate);
-  }, [filters, apiFilters, apiFiltersNoDate]);
 
   // KPIs e tendência mistos
   const { data: kpis } = useQuery({ 
     queryKey: ['mixed-kpis', apiFilters], 
-    queryFn: () => getMixedKpis(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedKpis(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para KPIs mistos - usuário sem permissão');
+        }
+        return null;
+      }
+    },
+    retry: false
   });
   const { data: trend } = useQuery({ 
     queryKey: ['mixed-trend', apiFilters], 
-    queryFn: () => getMixedTrend(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedTrend(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para tendência mista - usuário sem permissão');
+        }
+        return [];
+      }
+    },
+    retry: false
   });
   
   // Dados de tendência para o gráfico comparativo mensal (sem filtros de data)
   const { data: trendAllMonths } = useQuery({ 
     queryKey: ['mixed-trend-all-months', apiFiltersNoDate], 
-    queryFn: () => getMixedTrendAllMonths(apiFiltersNoDate) 
+    queryFn: async () => {
+      try {
+        return await getMixedTrendAllMonths(apiFiltersNoDate);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para tendência mensal - usuário sem permissão');
+        }
+        return [];
+      }
+    },
+    retry: false
   });
   
   // Número de agentes avaliados
   const { data: agentesCount } = useQuery({ 
     queryKey: ['mixed-agents-count', apiFilters], 
-    queryFn: () => getMixedAgentsCount(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedAgentsCount(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para contagem de agentes - usuário sem permissão');
+        }
+        return 0;
+      }
+    },
+    retry: false
   });
 
 
@@ -78,8 +112,8 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-4 items-end">
               <PeriodFilter
-                startDate={filters.start}
-                endDate={filters.end}
+                startDate={filters.start || ''}
+                endDate={filters.end || ''}
                 onStartDateChange={setStartDate}
                 onEndDateChange={setEndDate}
               />

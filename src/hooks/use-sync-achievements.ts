@@ -16,7 +16,7 @@ interface AgentData {
 const ACHIEVEMENT_ID_TO_TYPE: Record<string, string> = {
   // Conquistas de Milestone
   'first_call': 'primeira_ligacao',
-  'calls_10': 'dedicacao_inicial', // ✅ CORRIGIDO: era primeira_ligacao
+  'calls_10': 'dedicacao_inicial',
   'calls_50': 'dedicacao',
   'calls_100': 'veterano',
   
@@ -127,13 +127,19 @@ export const useSyncAchievements = (agentId: string, agentData: AgentData | null
                 message: error?.message
               });
               syncedAchievementsRef.current.add(achievement.id);
+            } else if (error?.response?.status === 500) {
+              // Erro interno do servidor - não logar como erro crítico
+              console.warn('⚠️ Erro interno do servidor ao sincronizar conquista:', {
+                name: achievement.name,
+                status: error?.response?.status,
+                message: 'Tentando novamente na próxima sincronização'
+              });
             } else {
               console.error('❌ Erro ao sincronizar conquista:', {
                 name: achievement.name,
                 error: error?.message || error,
                 status: error?.response?.status,
-                data: error?.response?.data,
-                fullError: error
+                data: error?.response?.data
               });
             }
           }

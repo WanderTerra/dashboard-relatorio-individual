@@ -522,8 +522,19 @@ const Feedback: React.FC = () => {
   // Buscar contestações pendentes para estatísticas
   const { data: contestacoesPendentesStats = [] } = useQuery({
     queryKey: ['contestacoes-pendentes-stats'],
-    queryFn: () => getContestacoesPendentes(),
+    queryFn: async () => {
+      try {
+        return await getContestacoesPendentes();
+      } catch (error: any) {
+        // Só logar o erro uma vez, não a cada 30 segundos
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para contestações pendentes - usuário sem permissão');
+        }
+        return [];
+      }
+    },
     refetchInterval: 30000, // Refetch a cada 30 segundos
+    retry: false, // Não tentar novamente em caso de erro
   });
 
   // Função para navegar ao feedback específico
@@ -556,8 +567,8 @@ const Feedback: React.FC = () => {
   // Detectar parâmetro de contestação na URL e abrir modal automaticamente
   useEffect(() => {
     const contestacaoId = searchParams.get('contestacao');
-    if (contestacaoId && contestacoesPendentesStats && contestacoesPendentesStats.length > 0) {
-      const contestacao = contestacoesPendentesStats.find(c => c.id.toString() === contestacaoId);
+    if (contestacaoId && Array.isArray(contestacoesPendentesStats) && contestacoesPendentesStats.length > 0) {
+      const contestacao = contestacoesPendentesStats.find((c: any) => c.id.toString() === contestacaoId);
       if (contestacao) {
         console.log('🔍 [DEBUG] Contestação encontrada na URL:', contestacao);
         handleVerFeedback(contestacao);
@@ -576,7 +587,7 @@ const Feedback: React.FC = () => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
-    const revisao = contestacoesPendentesStats.length; // Usar contestações pendentes ao invés de status revisão
+    const revisao = Array.isArray(contestacoesPendentesStats) ? contestacoesPendentesStats.length : 0; // Usar contestações pendentes ao invés de status revisão
 
     return { total, pendente, aceito, revisao };
   }, [feedbackData, contestacoesPendentesStats]);
@@ -755,7 +766,11 @@ const Feedback: React.FC = () => {
       setContestacoesPendentes(contestacoes);
       setShowContestacoesModal(true);
     } catch (error: any) {
-      alert(`Erro ao buscar contestações: ${error.response?.data?.detail || error.message}`);
+      if (error?.response?.status === 403) {
+        alert('Você não tem permissão para acessar as contestações pendentes.');
+      } else {
+        alert(`Erro ao buscar contestações: ${error.response?.data?.detail || error.message}`);
+      }
     }
   };
 
@@ -1392,7 +1407,6 @@ const Feedback: React.FC = () => {
                                         
                                         <div className="flex items-center gap-2">
                                           <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
-                                          <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
                                           <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
                                           <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
                                         </div>
@@ -1658,11 +1672,9 @@ const Feedback: React.FC = () => {
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
                                     <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
                                       {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
-                                       feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                        feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                        <AlertTriangle className="h-4 w-4 mr-2" />}
                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                       feedback.status === 'aplicado' ? 'Aplicado' :
                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                                     </span>
                                   </div>

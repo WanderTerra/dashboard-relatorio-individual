@@ -19,6 +19,12 @@ export const ACHIEVEMENT_CONFIGS = {
     xp_reward: 25,
     icon: '⚡'
   },
+  'dedicacao_inicial': {
+    name: 'Dedicação Inicial',
+    description: 'Complete 10 ligações',
+    xp_reward: 25,
+    icon: '📞'
+  },
   'dedicacao': {
     name: 'Dedicação',
     description: 'Realize mais de 50 ligações',

@@ -35,12 +35,13 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
   } = useLevelUpAnimation();
 
   // Buscar dados de gamificação
-  const { data: gamificationData, isLoading: isLoadingGamification } = useQuery({
+  const { data: gamificationData, isLoading: isLoadingGamification, error: gamificationError } = useQuery({
     queryKey: ['agent-gamification', agentId],
     queryFn: () => getAgentGamification(agentId),
     enabled: !!agentId,
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
+
 
   // Buscar conquistas do backend
   const { data: backendAchievements = [] } = useQuery({
@@ -157,13 +158,8 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     setPreviousXp(currentXp);
   }, [gamificationData?.current_level, currentXp, previousLevel, previousXp, showLevelUp]);
 
-  // Se não há dados de gamificação, não renderizar nada
-  if (!gamificationData) {
-    return null;
-  }
-
   // Loading state
-  if (isLoadingGamification) {
+  if (isLoadingGamification || !gamificationData) {
     return (
       <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-b border-emerald-200">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
