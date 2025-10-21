@@ -31,12 +31,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
 
   // Sincronizar notificações locais com as da API
   useEffect(() => {
-    console.log('🔄 Sincronizando notificações locais com API:', {
-      apiNotifications: notifications.length,
-      localNotifications: localNotifications.length
-    });
-    setLocalNotifications(notifications);
-  }, [notifications]);
+    if (notifications && notifications.length !== localNotifications.length) {
+      setLocalNotifications(notifications);
+    }
+  }, [notifications, localNotifications.length]);
 
   // Mutação para marcar notificação como lida
   const markAsReadMutation = useMutation({
@@ -50,7 +48,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
   const markAllAsReadMutation = useMutation({
     mutationFn: () => markAllNotificationsAsRead(agentId),
     onSuccess: () => {
-      console.log('✅ API: Todas as notificações marcadas como lidas com sucesso');
       // Invalidar query para sincronizar com o servidor
       queryClient.invalidateQueries({ queryKey: ['notifications', agentId] });
     },
@@ -63,32 +60,17 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
   const displayNotifications = localNotifications;
   const unreadCount = displayNotifications.filter(n => !n.isRead).length;
 
-  // Debug: Log quando as notificações mudam
-  useEffect(() => {
-    console.log(' Estado das notificações:', {
-      notificationsFromAPI: notifications.length,
-      localNotifications: localNotifications.length,
-      displayNotifications: displayNotifications.length,
-      unreadCount,
-      isBlinking,
-      isLoading: markAllAsReadMutation.isPending
-    });
-  }, [notifications, localNotifications, displayNotifications, unreadCount, isBlinking, markAllAsReadMutation.isPending]);
+  // Debug removido para melhorar performance
 
   // Efeito de piscar quando há notificações não lidas
   useEffect(() => {
-    console.log('🔔 Verificando se deve piscar:', { unreadCount, isBlinking });
-    
     if (unreadCount > 0) {
-      console.log('🔴 Iniciando piscar do sino - notificações não lidas:', unreadCount);
       setIsBlinking(true);
       const timer = setTimeout(() => {
-        console.log('⏰ Parando piscar do sino (timeout)');
         setIsBlinking(false);
       }, 5000);
       return () => clearTimeout(timer);
     } else {
-      console.log('✅ Parando piscar do sino - todas as notificações foram lidas');
       setIsBlinking(false);
     }
   }, [unreadCount]);
@@ -100,22 +82,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ agentId }) => {
 
   // Função para marcar todas como lidas
   const markAllAsRead = () => {
-    console.log('🔔 Marcando todas as notificações como lidas...', {
-      agentId,
-      notificationsCount: notifications.length,
-      localNotificationsCount: localNotifications.length,
-      unreadCount
-    });
-    
     // Atualizar estado local imediatamente (otimista)
     setLocalNotifications(prev => {
       const updated = prev.map(notification => ({ ...notification, isRead: true }));
-      console.log(' Estado local atualizado:', {
-        before: prev.length,
-        after: updated.length,
-        unreadBefore: prev.filter(n => !n.isRead).length,
-        unreadAfter: updated.filter(n => !n.isRead).length
-      });
       return updated;
     });
     

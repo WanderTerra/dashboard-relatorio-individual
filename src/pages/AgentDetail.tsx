@@ -240,11 +240,7 @@ const AgentDetail: React.FC = () => {
       if (!standardized.isNotApplicable && standardized.value < worstValue) {
         worstValue = standardized.value;
         const taxaNaoConforme = 100 - standardized.value;
-        console.log('🔍 Calculando taxa de não conformidade:', {
-          nome: standardized.name,
-          valorOriginal: standardized.value,
-          taxaNaoConforme: taxaNaoConforme
-        });
+        // Debug removido para melhorar performance
         worstCriterion = {
           categoria: standardized.name,
           taxa_nao_conforme: taxaNaoConforme

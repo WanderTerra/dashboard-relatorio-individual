@@ -82,23 +82,12 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
   // Calcular conquistas do backend (fonte real das conquistas)
   useEffect(() => {
     if (backendAchievements && backendAchievements.length > 0) {
-      console.log('🏆 Conquistas do Backend:', {
-        agentId,
-        backendAchievements,
-        totalAchievements: backendAchievements.length
-      });
+      // Debug removido para melhorar performance
       
       const totalXp = backendAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
       setAchievementXp(totalXp);
       
-      console.log('🏆 XP Total das Conquistas do Backend:', {
-        totalXp,
-        individualXp: backendAchievements.map(a => ({ 
-          name: a.achievement_name, 
-          xp: a.xp_reward,
-          type: a.achievement_type 
-        }))
-      });
+      // Debug removido para melhorar performance
     } else {
       setAchievementXp(0);
     }
@@ -133,28 +122,7 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
   const xpProgress = currentXp - xpForCurrentLevel;
   const progressPercentage = Math.min((xpProgress / xpNeeded) * 100, 100);
 
-  // Debug logs
-  useEffect(() => {
-    if (gamificationData) {
-      console.log('🎮 Dados de Gamificação (Backend):', gamificationData);
-      console.log('🏆 XP Conquistas Locais (não somado):', localAchievementXp);
-      console.log('📊 XP Oficial do Backend:', currentXp);
-      console.log('🎯 Nível do Backend:', backendLevel, currentLevelInfo.name);
-      console.log('📈 Progresso para próximo nível:', `${progressPercentage.toFixed(1)}%`);
-      console.log('🔍 Cálculo Detalhado:', {
-        backendLevel,
-        currentXpFromBackend: gamificationData.current_xp,
-        localAchievementXp,
-        totalXpEarned,
-        currentLevelName: currentLevelInfo.name,
-        xpForCurrentLevel,
-        xpForNextLevel,
-        xpNeeded,
-        xpProgress,
-        progressPercentage
-      });
-    }
-  }, [gamificationData, localAchievementXp, currentXp, progressPercentage, backendLevel, currentLevelInfo]);
+  // Debug removido para melhorar performance
 
   // ✅ CORREÇÃO: Detectar subida de nível apenas quando o backend atualizar
   useEffect(() => {
@@ -170,14 +138,7 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     const hasEnoughXp = currentXpAmount >= requiredXp;
     
     if (previousLevel !== null && officialLevel > previousLevel && hasEnoughXp) {
-      console.log('🎉 LEVEL UP detectado (backend):', {
-        de: previousLevel,
-        para: officialLevel,
-        xpGanho: currentXp - (previousXp || 0),
-        xpTotal: currentXp,
-        requiredXp,
-        hasEnoughXp
-      });
+      // Debug removido para melhorar performance
       
       showLevelUp(
         officialLevel,

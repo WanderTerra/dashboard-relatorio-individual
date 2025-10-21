@@ -36,7 +36,7 @@ const loadFiltersFromStorage = (): Filters => {
       carteira: storedCarteira || ''
     };
     
-    console.log('🔍 [STORAGE DEBUG] Filtros carregados do localStorage:', loadedFilters);
+    // Debug removido para melhorar performance
     return loadedFilters;
   } catch (error) {
     console.warn('Erro ao carregar filtros do localStorage:', error);
@@ -52,7 +52,7 @@ const loadFiltersFromStorage = (): Filters => {
 // Função para salvar filtros no localStorage
 const saveFiltersToStorage = (filters: Filters) => {
   try {
-    console.log('🔍 [STORAGE DEBUG] Salvando filtros no localStorage:', filters);
+    // Debug removido para melhorar performance
     localStorage.setItem(STORAGE_KEYS.START_DATE, filters.start || '');
     localStorage.setItem(STORAGE_KEYS.END_DATE, filters.end || '');
     if (filters.carteira) {
@@ -70,12 +70,11 @@ export const useFilters = () => {
 
   // Função para atualizar filtros
   const setFilters = (newFilters: Partial<Filters>) => {
-    console.log('🔍 [USE-FILTERS DEBUG] Atualizando filtros:', newFilters);
-    console.log('🔍 [USE-FILTERS DEBUG] Estado atual dos filtros:', filters);
+    // Debug removido para melhorar performance
     
     setFiltersState(prevFilters => {
       const updatedFilters = { ...prevFilters, ...newFilters };
-      console.log('🔍 [USE-FILTERS DEBUG] Filtros atualizados:', updatedFilters);
+      // Debug removido para melhorar performance
       saveFiltersToStorage(updatedFilters);
       return updatedFilters;
     });
@@ -111,15 +110,15 @@ export const useFilters = () => {
     clearStoredFilters,
     // Helpers para atualizar campos individuais
     setStartDate: (start: string) => {
-      console.log('🔍 [USE-FILTERS DEBUG] setStartDate chamado com:', start);
+      // Debug removido para melhorar performance
       setFilters({ start });
     },
     setEndDate: (end: string) => {
-      console.log('🔍 [USE-FILTERS DEBUG] setEndDate chamado com:', end);
+      // Debug removido para melhorar performance
       setFilters({ end });
     },
     setCarteira: (carteira: string) => {
-      console.log('🔍 [USE-FILTERS DEBUG] setCarteira chamado com:', carteira);
+      // Debug removido para melhorar performance
       setFilters({ carteira });
     }
   };
