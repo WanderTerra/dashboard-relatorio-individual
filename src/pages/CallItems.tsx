@@ -42,13 +42,10 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     queryKey: ['mixed-callItems', avaliacaoId],
     queryFn : async () => {
       const items = await getMixedCallItems(avaliacaoId!);
-      console.log(`📋 Itens recebidos para avaliação ${avaliacaoId}:`, items);
-      if (items && items.length > 0) {
-        console.log(`🔍 Primeiro item:`, items[0]);
-        console.log(`📝 Campos disponíveis no primeiro item:`, Object.keys(items[0]));
-      }
       return items;
     },
+    enabled: !!avaliacaoId, // Só executar se tiver avaliacaoId
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   // Buscar critérios para obter os nomes corretos
@@ -149,10 +146,15 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
 
   // Função para organizar itens baseado na estrutura da carteira
   const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+    console.log(`🔍 [ORGANIZE DEBUG] Função chamada com:`, { items: items.length, carteiraStructure });
+    
     if (!carteiraStructure || !carteiraStructure.categories) {
+      console.log(`🔄 [ORGANIZE DEBUG] Usando organização padrão (sem estrutura)`);
       // Fallback para organização padrão se não houver estrutura
       return organizeItemsByCategory(items);
     }
+
+    console.log(`📋 [ORGANIZE DEBUG] Usando estrutura da carteira:`, carteiraStructure);
 
     // Criar um mapa dos itens por ID do critério
     const itemsById = items.reduce((acc, item) => {
@@ -160,12 +162,32 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
       return acc;
     }, {});
 
+    console.log(`🗂️ [ORGANIZE DEBUG] Mapa de itens por ID:`, itemsById);
+
     // Organizar baseado na estrutura da carteira
     const organizedCategories = carteiraStructure.categories
       .map(category => {
-        const categoryItems = category.criteria
-          .map(criteria => itemsById[criteria.id])
+        console.log(`🔍 [CATEGORY DEBUG] Processando categoria:`, category);
+        
+        // Primeiro tentar mapear por ID
+        let categoryItems = category.criteria
+          .map(criteria => {
+            console.log(`🔍 [CRITERIA DEBUG] Buscando item para critério ID ${criteria.id}:`, itemsById[criteria.id]);
+            return itemsById[criteria.id];
+          })
           .filter(Boolean); // Remove itens não encontrados
+
+        // Se não encontrou itens por ID, tentar por categoria diretamente
+        if (categoryItems.length === 0) {
+          console.log(`🔄 [CATEGORY DEBUG] Nenhum item encontrado por ID, tentando por categoria: ${category.name}`);
+          categoryItems = items.filter(item => {
+            console.log(`🔍 [FALLBACK DEBUG] Comparando item categoria "${item.categoria}" com categoria "${category.name}"`);
+            return item.categoria === category.name;
+          });
+          console.log(`📋 [FALLBACK DEBUG] Itens encontrados por categoria direta:`, categoryItems.length);
+        }
+
+        console.log(`📋 [CATEGORY DEBUG] Itens encontrados para categoria ${category.name}:`, categoryItems.length);
 
         return {
           category: category.name,
@@ -176,6 +198,14 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
       .filter(category => category.items.length > 0) // Remove categorias vazias
       .sort((a, b) => a.order - b.order);
 
+    console.log(`✅ [ORGANIZE DEBUG] Categorias organizadas:`, organizedCategories);
+    
+    // Se não encontrou nenhuma categoria, usar organização padrão
+    if (organizedCategories.length === 0) {
+      console.log(`🔄 [ORGANIZE DEBUG] Nenhuma categoria encontrada, usando organização padrão`);
+      return organizeItemsByCategory(items);
+    }
+    
     return organizedCategories;
   };
 
@@ -551,7 +581,16 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             </div>
           ) : (
             <div className="space-y-6">
-              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup) => (
+              {(() => {
+                console.log(`🔍 [RENDER DEBUG] Dados para renderização:`, data);
+                console.log(`🔍 [RENDER DEBUG] Quantidade de itens:`, data.length);
+                console.log(`🔍 [RENDER DEBUG] Estrutura da carteira:`, carteiraStructure);
+                
+                const organizedItems = organizeItemsByCarteiraStructure(data, carteiraStructure);
+                console.log(`🔍 [RENDER DEBUG] Itens organizados:`, organizedItems);
+                console.log(`🔍 [RENDER DEBUG] Quantidade de categorias:`, organizedItems.length);
+                
+                return organizedItems.map((categoryGroup) => (
                 <div key={categoryGroup.category} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   {/* Header da categoria */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -612,7 +651,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                     </ul>
                   </div>
                 </div>
-              ))}
+                ));
+              })()}
             </div>
           )}
 

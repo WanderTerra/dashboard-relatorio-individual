@@ -19,12 +19,6 @@ export const ACHIEVEMENT_CONFIGS = {
     xp_reward: 25,
     icon: '⚡'
   },
-  'dedicacao_inicial': {
-    name: 'Dedicação Inicial',
-    description: 'Complete 10 ligações',
-    xp_reward: 25,
-    icon: '🎯'
-  },
   'dedicacao': {
     name: 'Dedicação',
     description: 'Realize mais de 50 ligações',
@@ -84,6 +78,12 @@ export const ACHIEVEMENT_CONFIGS = {
     description: 'Seja o melhor do mês',
     xp_reward: 1000,
     icon: '🏆'
+  },
+  'primeira_estrela': {
+    name: 'Primeira Estrela',
+    description: 'Alcance sua primeira estrela de excelência',
+    xp_reward: 50,
+    icon: '⭐'
   }
 } as const;
 

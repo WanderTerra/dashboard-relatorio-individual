@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAgentGamification, type GamificationData } from '../lib/gamification-api';
 import { getAgentSummary, getAgentCalls, getAgentCriteria } from '../lib/api';
 import { getLocalAchievements } from '../lib/achievements';
+import { getAgentAchievements } from '../lib/achievements-api';
 import { useToast } from '../hooks/use-toast';
 import NotificationBell from './NotificationBell';
 import ConfettiEffect from './ConfettiEffect';
@@ -41,6 +42,14 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
+  // Buscar conquistas do backend
+  const { data: backendAchievements = [] } = useQuery({
+    queryKey: ['agent-achievements', agentId],
+    queryFn: () => getAgentAchievements(agentId),
+    enabled: !!agentId,
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
+
   // Buscar dados do agente para calcular conquistas locais
   // Usar os mesmos filtros do AgentDetail (sem filtro de data para pegar todas as ligações)
   const { data: summary } = useQuery({
@@ -70,53 +79,30 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     enabled: !!agentId,
   });
 
-  // Calcular conquistas locais (mesma fonte do painel "Suas Conquistas")
+  // Calcular conquistas do backend (fonte real das conquistas)
   useEffect(() => {
-    if (gamificationData && calls && criteria) {
-      const agentData = {
-        agent_id: agentId,
-        current_level: gamificationData.current_level || 1,
-        current_xp: gamificationData.current_xp || 0,
-        total_xp_earned: gamificationData.total_xp_earned || 0,
-        calls: calls || [],
-        criteria: criteria || [],
-        summary: summary
-      };
-      
-      console.log(' DEBUG CONQUISTAS - Dados do Agente:', {
+    if (backendAchievements && backendAchievements.length > 0) {
+      console.log('🏆 Conquistas do Backend:', {
         agentId,
-        callsCount: calls.length,
-        callsData: calls.slice(0, 3), // Primeiras 3 ligações para debug
-        summary: summary
+        backendAchievements,
+        totalAchievements: backendAchievements.length
       });
       
-      const achievements = getLocalAchievements(agentData);
-      const unlockedAchievements = achievements.filter(a => a.is_unlocked);
-      const totalXp = unlockedAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
-      
+      const totalXp = backendAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
       setAchievementXp(totalXp);
       
-      console.log('🏆 Conquistas Locais Calculadas:', {
-        agentData,
-        achievements,
-        unlockedAchievements,
+      console.log('🏆 XP Total das Conquistas do Backend:', {
         totalXp,
-        individualXp: unlockedAchievements.map(a => ({ name: a.name, xp: a.xp_reward })),
-        // Debug específico para conquistas de ligações
-        callsAchievements: achievements.filter(a => a.category === 'milestone' && a.name.includes('Ligação')).map(a => ({
-          name: a.name,
-          condition: a.condition(agentData),
-          is_unlocked: a.is_unlocked,
-          callsRequired: a.name === 'Primeira Ligação' ? 1 : 
-                        a.name === 'Dedicação Inicial' ? 10 :
-                        a.name === 'Dedicação' ? 50 :
-                        a.name === 'Veterano' ? 100 : 0
+        individualXp: backendAchievements.map(a => ({ 
+          name: a.achievement_name, 
+          xp: a.xp_reward,
+          type: a.achievement_type 
         }))
       });
     } else {
       setAchievementXp(0);
     }
-  }, [gamificationData, calls, criteria, summary, agentId]);
+  }, [backendAchievements, agentId]);
 
   // ✅ CORREÇÃO: Usar apenas XP do backend (fonte única da verdade)
   // O backend já deve incluir XP das conquistas após sincronização

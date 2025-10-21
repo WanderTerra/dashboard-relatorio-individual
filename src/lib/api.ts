@@ -843,12 +843,64 @@ export const checkAgentAchievements = async (agentId: string) => {
 export const getAgentAchievements = async (agentId: string) => {
   try {
     const response = await api.get(`/achievements/agent/${agentId}`);
-    return response.data;
-  } catch (error) {
+    
+    // Mapear os dados da API para o formato esperado pelo frontend
+    const mappedAchievements = response.data.map((achievement: any) => ({
+      id: achievement.id.toString(),
+      name: achievement.achievement_name || achievement.name,
+      description: achievement.description,
+      xp_reward: achievement.xp_reward,
+      icon: getAchievementIcon(achievement.achievement_type),
+      category: getAchievementCategory(achievement.achievement_type),
+      is_unlocked: true, // Se está na lista, já foi desbloqueada
+      unlocked_at: achievement.unlocked_at,
+      achievement_type: achievement.achievement_type
+    }));
+    
+    return mappedAchievements;
+  } catch (error: any) {
     console.error('Erro ao buscar conquistas:', error);
     return [];
   }
 };
+
+// Função auxiliar para obter ícone da conquista
+function getAchievementIcon(achievementType: string): string {
+  const iconMap: Record<string, string> = {
+    'primeira_ligacao': '🎉',
+    'primeira_estrela': '⭐',
+    'dedicacao': '📞',
+    'veterano': '🏆',
+    'perfeccionista': '🎯',
+    'consistencia': '📈',
+    'excelencia': '🌟',
+    'primeira_semana': '🔥',
+    'maratonista': '🏃',
+    'jogador_equipe': '👥',
+    'mentor': '🎓',
+    'campeao': '👑'
+  };
+  return iconMap[achievementType] || '🏆';
+}
+
+// Função auxiliar para obter categoria da conquista
+function getAchievementCategory(achievementType: string): 'evaluation' | 'performance' | 'consistency' | 'milestone' {
+  const categoryMap: Record<string, 'evaluation' | 'performance' | 'consistency' | 'milestone'> = {
+    'primeira_ligacao': 'milestone',
+    'primeira_estrela': 'milestone',
+    'dedicacao': 'milestone',
+    'veterano': 'milestone',
+    'perfeccionista': 'performance',
+    'consistencia': 'consistency',
+    'excelencia': 'performance',
+    'primeira_semana': 'consistency',
+    'maratonista': 'consistency',
+    'jogador_equipe': 'performance',
+    'mentor': 'performance',
+    'campeao': 'performance'
+  };
+  return categoryMap[achievementType] || 'milestone';
+}
 
 // Buscar ranking de conquistas
 export const getAchievementsLeaderboard = async () => {
