@@ -398,7 +398,7 @@ const Feedback: React.FC = () => {
     if (!isSearchingById || !hasNextPage || isFetchingNextPage) return;
     
     const found = feedbackData.some((item: FeedbackItem) => 
-      item.avaliacaoId === searchId || item.callId === searchId
+      String(item.avaliacaoId) === String(searchId) || String(item.callId) === String(searchId)
     );
     
     if (!found) {
@@ -554,22 +554,19 @@ const Feedback: React.FC = () => {
     retry: false, // Não tentar novamente em caso de erro
   });
 
-  // Função para navegar ao feedback específico - OTIMIZADA
+  // Função para navegar ao feedback específico - FILTRA POR ID
   const handleVerFeedback = (contestacao: any) => {
     setShowContestacoesModal(false);
     
-    // Limpar TODOS os filtros
+    // Limpar outros filtros, mas buscar pelo ID da avaliação
     setStatusFilter('todos');
-    setSearchTerm('');
     setStartDate('');
     setEndDate('');
+    setSearchTerm(contestacao.avaliacao_id.toString());
     
     // Expandir agente e avaliação
     setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
     setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
-    
-    // Invalidar cache e recarregar
-    queryClient.invalidateQueries({ queryKey: ['feedbacks-with-scores'] });
     
     // Aguardar dados carregarem e navegar
     setTimeout(() => {
@@ -580,7 +577,7 @@ const Feedback: React.FC = () => {
         element.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
         setTimeout(() => element.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75'), 3000);
       } else {
-        alert(`Avaliação #${contestacao.avaliacao_id} não encontrada. Use os filtros de data para carregar avaliações mais antigas.`);
+        alert(`Avaliação #${contestacao.avaliacao_id} não encontrada.`);
       }
     }, 2000);
   };
