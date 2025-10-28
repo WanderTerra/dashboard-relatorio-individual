@@ -35,8 +35,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Trophy, Star, XCircle, CheckCircle, Info, Filter } from 'lucide-react';
 import { Combobox } from '../components/ui/select-simple';
 import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
+import { getAgentAchievements } from '../lib/achievements-api';
 import NotificationBell from '../components/NotificationBell';
-import AchievementsPanel from '../components/AchievementsPanel';
 import AIAgentSuggestion from '../components/AIAgentSuggestion';
 import { useSyncAchievements } from '../hooks/use-sync-achievements';
 
@@ -65,6 +65,27 @@ const AgentDetail: React.FC = () => {
   const [activeChart, setActiveChart] = React.useState<'radar' | 'bar'>('radar');
   
   if (!agentId) return <div>Agente não especificado.</div>;
+
+  // Função para obter ícone específico da conquista
+  const getAchievementIcon = (achievementType: string) => {
+    const iconMap: Record<string, string> = {
+      'primeira_ligacao': '⚡',      // Raio para primeira ligação
+      'primeira_estrela': '⭐',      // Estrela para primeira estrela
+      'dedicacao': '📞',             // Telefone para dedicação
+      'dedicacao_inicial': '🎯',     // Alvo para dedicação inicial
+      'veterano': '🏆',              // Troféu para veterano
+      'perfeccionista': '🎯',        // Alvo para perfeccionista
+      'consistencia': '📈',          // Gráfico para consistência
+      'excelencia': '🌟',            // Estrela brilhante para excelência
+      'primeira_semana': '📅',       // Calendário para primeira semana
+      'maratonista': '🏃',           // Corredor para maratonista
+      'jogador_equipe': '👥',        // Pessoas para jogador de equipe
+      'mentor': '👨‍🏫',              // Professor para mentor
+      'campeao': '👑'                // Coroa para campeão
+    };
+    
+    return iconMap[achievementType] || '🏆'; // Ícone padrão
+  };
 
   const { filters, setCarteira } = useFilters();
   
@@ -167,6 +188,14 @@ const AgentDetail: React.FC = () => {
     refetchOnWindowFocus: false
   });
 
+  // Buscar conquistas do backend
+  const { data: backendAchievements = [] } = useQuery({
+    queryKey: ['agentAchievements', agentId],
+    queryFn: () => getAgentAchievements(agentId),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false
+  });
+
   // calls
   const { data: calls, isLoading: callsLoading, error: callsError } = useQuery({
     queryKey: ['agentCalls', agentId, apiFilters],
@@ -211,11 +240,7 @@ const AgentDetail: React.FC = () => {
       if (!standardized.isNotApplicable && standardized.value < worstValue) {
         worstValue = standardized.value;
         const taxaNaoConforme = 100 - standardized.value;
-        console.log('🔍 Calculando taxa de não conformidade:', {
-          nome: standardized.name,
-          valorOriginal: standardized.value,
-          taxaNaoConforme: taxaNaoConforme
-        });
+        // Debug removido para melhorar performance
         worstCriterion = {
           categoria: standardized.name,
           taxa_nao_conforme: taxaNaoConforme
@@ -602,7 +627,7 @@ const AgentDetail: React.FC = () => {
                 </div>
                 
                 {(() => {
-                  if (!gamificationData && !calls && !criteria) {
+                  if (!backendAchievements || backendAchievements.length === 0) {
                     return (
                       <div className="text-center py-8">
                         <div className="animate-pulse">
@@ -613,18 +638,7 @@ const AgentDetail: React.FC = () => {
                     );
                   }
 
-                  const agentData = {
-                    agent_id: agentId,
-                    current_level: gamificationData?.current_level || 1,
-                    current_xp: gamificationData?.current_xp || 0,
-                    total_xp_earned: gamificationData?.total_xp_earned || 0,
-                    calls: calls || [],
-                    criteria: criteria || [],
-                    summary: summary
-                  };
-                  
-                  const achievements = getLocalAchievements(agentData);
-                  const unlockedAchievements = achievements.filter(a => a.is_unlocked);
+                  const totalXp = backendAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
                   
                   return (
                     <div className="space-y-4">
@@ -632,29 +646,29 @@ const AgentDetail: React.FC = () => {
                       <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
                         <div className="flex items-center">
                           <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center mr-3">
-                            <span className="text-green-800 font-bold text-sm">{unlockedAchievements.length}</span>
+                            <span className="text-green-800 font-bold text-sm">{backendAchievements.length}</span>
                           </div>
                           <div>
                             <p className="text-sm font-medium text-green-800">Conquistas Desbloqueadas</p>
-                            <p className="text-xs text-green-600">{achievements.length} conquistas disponíveis</p>
+                            <p className="text-xs text-green-600">Conquistas do backend</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-green-800">
-                            {unlockedAchievements.reduce((sum, a) => sum + a.xp_reward, 0)} XP
+                            {totalXp} XP
                           </p>
                           <p className="text-xs text-green-600">Total ganho</p>
                         </div>
                       </div>
 
                       {/* Lista de Conquistas Desbloqueadas */}
-                      {unlockedAchievements.length > 0 ? (
+                      {backendAchievements.length > 0 ? (
                         <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {unlockedAchievements.slice(0, 5).map((achievement) => (
+                          {backendAchievements.slice(0, 5).map((achievement) => (
                             <div key={achievement.id} className="flex items-center p-3 bg-green-50 rounded-lg border border-green-200">
-                              <div className="text-2xl mr-3">{achievement.icon}</div>
+                              <div className="text-2xl mr-3">{getAchievementIcon(achievement.achievement_type)}</div>
                               <div className="flex-1">
-                                <h4 className="font-medium text-green-800 text-sm">{achievement.name}</h4>
+                                <h4 className="font-medium text-green-800 text-sm">{achievement.achievement_name}</h4>
                                 <p className="text-xs text-green-600">{achievement.description}</p>
                               </div>
                               <div className="text-right">
@@ -664,10 +678,10 @@ const AgentDetail: React.FC = () => {
                               </div>
                             </div>
                           ))}
-                          {unlockedAchievements.length > 5 && (
+                          {backendAchievements.length > 5 && (
                             <div className="text-center py-2">
                               <span className="text-xs text-gray-500">
-                                +{unlockedAchievements.length - 5} outras conquistas
+                                +{backendAchievements.length - 5} outras conquistas
                               </span>
                             </div>
                           )}
@@ -1053,11 +1067,9 @@ const AgentDetail: React.FC = () => {
               </p>
             </div>
           )}
-
-          {/* Painel de Conquistas */}
-          <AchievementsPanel agentId={agentId} />
         </div>
       )}
+
 
       {/* Modal para exibir todos os níveis */}
       {showLevelsModal && (

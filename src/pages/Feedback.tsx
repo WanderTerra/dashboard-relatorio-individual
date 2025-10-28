@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -76,6 +77,7 @@ const Feedback: React.FC = () => {
   const { user } = useAuth();
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aceito' | 'revisao'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
@@ -129,14 +131,7 @@ const Feedback: React.FC = () => {
   const isAgentUser = !!currentAgentId;
 
   // Debug: Log das permissões do usuário
-  console.log('Debug permissões:', {
-    user,
-    isAdmin,
-    isAgentUser,
-    currentAgentId,
-    agentPermission,
-    permissions: user?.permissions
-  });
+  // Debug removido para melhorar performance
 
 
 
@@ -150,12 +145,7 @@ const Feedback: React.FC = () => {
   };
 
   // Debug: Log dos filtros da API
-  console.log('Debug apiFilters:', {
-    apiFilters,
-    isAgentUser,
-    currentAgentId,
-    filters
-  });
+  // Debug removido para melhorar performance
 
   // Buscar feedbacks com pontuações das avaliações (infinite scroll)
   const {
@@ -196,18 +186,7 @@ const Feedback: React.FC = () => {
   const feedbacks = useMemo(() => {
     const flattened = feedbacksPages?.pages ? feedbacksPages.pages.flat() : [];
     
-    // Debug: Log dos feedbacks recebidos
-    console.log('Debug feedbacks recebidos:', {
-      totalPages: feedbacksPages?.pages?.length || 0,
-      totalFeedbacks: flattened.length,
-      firstFewFeedbacks: flattened.slice(0, 3).map((fb: any) => ({
-        id: fb.id,
-        avaliacao_id: fb.avaliacao_id,
-        agent_id: fb.agent_id,
-        status: fb.status,
-        aceite: fb.aceite
-      }))
-    });
+    // Debug removido para melhorar performance
     
     return flattened;
   }, [feedbacksPages]);
@@ -227,6 +206,7 @@ const Feedback: React.FC = () => {
     observer.observe(el);
     return () => observer.unobserve(el);
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
 
 
 
@@ -545,16 +525,72 @@ const Feedback: React.FC = () => {
   // Buscar contestações pendentes para estatísticas
   const { data: contestacoesPendentesStats = [] } = useQuery({
     queryKey: ['contestacoes-pendentes-stats'],
-    queryFn: () => getContestacoesPendentes(),
+    queryFn: async () => {
+      try {
+        return await getContestacoesPendentes();
+      } catch (error: any) {
+        // Só logar o erro uma vez, não a cada 30 segundos
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para contestações pendentes - usuário sem permissão');
+        }
+        return [];
+      }
+    },
     refetchInterval: 30000, // Refetch a cada 30 segundos
+    retry: false, // Não tentar novamente em caso de erro
   });
+
+  // Função para navegar ao feedback específico
+  const handleVerFeedback = (contestacao: any) => {
+    setShowContestacoesModal(false);
+    
+    // Expandir o agente correspondente
+    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
+    
+    // Expandir a avaliação correspondente
+    setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
+    
+    // Scroll suave para o feedback após um pequeno delay
+    setTimeout(() => {
+      const feedbackElement = document.getElementById(`feedback-${contestacao.feedback_id}`);
+      if (feedbackElement) {
+        feedbackElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Destacar temporariamente o feedback
+        feedbackElement.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        setTimeout(() => {
+          feedbackElement.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        }, 3000);
+      }
+    }, 100);
+  };
+
+  // Detectar parâmetro de contestação na URL e abrir modal automaticamente
+  useEffect(() => {
+    const contestacaoId = searchParams.get('contestacao');
+    if (contestacaoId && Array.isArray(contestacoesPendentesStats) && contestacoesPendentesStats.length > 0) {
+      const contestacao = contestacoesPendentesStats.find((c: any) => c.id.toString() === contestacaoId);
+      if (contestacao) {
+        console.log('🔍 [DEBUG] Contestação encontrada na URL:', contestacao);
+        handleVerFeedback(contestacao);
+        // Limpar o parâmetro da URL após usar
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('contestacao');
+          return newParams;
+        });
+      }
+    }
+  }, [searchParams, contestacoesPendentesStats, setSearchParams]);
 
   // Estatísticas
   const stats = useMemo(() => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
-    const revisao = contestacoesPendentesStats.length; // Usar contestações pendentes ao invés de status revisão
+    const revisao = Array.isArray(contestacoesPendentesStats) ? contestacoesPendentesStats.length : 0; // Usar contestações pendentes ao invés de status revisão
 
     return { total, pendente, aceito, revisao };
   }, [feedbackData, contestacoesPendentesStats]);
@@ -726,32 +762,6 @@ const Feedback: React.FC = () => {
     setShowAnaliseModal(true);
   };
 
-  // Função para navegar ao feedback específico
-  const handleVerFeedback = (contestacao: any) => {
-    setShowContestacoesModal(false);
-    
-    // Expandir o agente correspondente
-    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
-    
-    // Expandir a avaliação correspondente
-    setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
-    
-    // Scroll suave para o feedback após um pequeno delay
-    setTimeout(() => {
-      const feedbackElement = document.getElementById(`feedback-${contestacao.feedback_id}`);
-      if (feedbackElement) {
-        feedbackElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-        // Destacar temporariamente o feedback
-        feedbackElement.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
-        setTimeout(() => {
-          feedbackElement.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75');
-        }, 3000);
-      }
-    }, 100);
-  };
 
   const handleBuscarContestacoesPendentes = async () => {
     try {
@@ -759,7 +769,11 @@ const Feedback: React.FC = () => {
       setContestacoesPendentes(contestacoes);
       setShowContestacoesModal(true);
     } catch (error: any) {
-      alert(`Erro ao buscar contestações: ${error.response?.data?.detail || error.message}`);
+      if (error?.response?.status === 403) {
+        alert('Você não tem permissão para acessar as contestações pendentes.');
+      } else {
+        alert(`Erro ao buscar contestações: ${error.response?.data?.detail || error.message}`);
+      }
     }
   };
 
@@ -922,13 +936,7 @@ const Feedback: React.FC = () => {
 
   const isMonitor = isAdmin; // Apenas administradores são considerados monitores
   
-  // Debug: Log das permissões do usuário
-  console.log('Debug permissões:', {
-    user,
-    isAdmin,
-    isMonitor,
-    permissions: user?.permissions
-  });
+  // Debug removido para melhorar performance
 
   // Filtros de status
   const handleStatusFilterChange = (newStatus: string) => {
@@ -1402,7 +1410,6 @@ const Feedback: React.FC = () => {
                                         
                                         <div className="flex items-center gap-2">
                                           <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
-                                          <span className="text-xs font-semibold text-emerald-600">{avaliacao.feedbacksAplicados}A</span>
                                           <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
                                           <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
                                         </div>
@@ -1668,11 +1675,9 @@ const Feedback: React.FC = () => {
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
                                     <span className={`inline-flex items-center px-6 py-3 text-sm font-bold ${getStatusColor(feedback.status)}`}>
                                       {feedback.status === 'pendente' ? <Clock className="h-4 w-4 mr-2" /> : 
-                                       feedback.status === 'aplicado' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                        feedback.status === 'aceito' ? <CheckCircle className="h-4 w-4 mr-2" /> :
                                        <AlertTriangle className="h-4 w-4 mr-2" />}
                                       {feedback.status === 'pendente' ? 'Pendente' : 
-                                       feedback.status === 'aplicado' ? 'Aplicado' :
                                        feedback.status === 'aceito' ? 'Aceito' : 'Revisão'}
                                     </span>
                                   </div>
@@ -2001,15 +2006,7 @@ const Feedback: React.FC = () => {
               )}
 
               {/* Ações para Contestação - Só aparece para monitores quando há contestação pendente */}
-              {(() => {
-                console.log('Debug contestação:', {
-                  isMonitor,
-                  contestacaoId: selectedFeedback.contestacaoId,
-                  contestacaoStatus: selectedFeedback.contestacaoStatus,
-                  selectedFeedback: selectedFeedback
-                });
-                return isMonitor && selectedFeedback.contestacaoId && selectedFeedback.contestacaoStatus === 'PENDENTE';
-              })() && (
+              {isMonitor && selectedFeedback.contestacaoId && selectedFeedback.contestacaoStatus === 'PENDENTE' && (
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-6 border border-orange-200">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="text-sm text-orange-700">

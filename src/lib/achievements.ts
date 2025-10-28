@@ -265,6 +265,7 @@ function getAchievementCategory(achievementType: string): 'performance' | 'strea
   const categoryMap: Record<string, 'performance' | 'streak' | 'milestone' | 'special'> = {
     'primeira_ligacao': 'milestone',
     'dedicacao': 'milestone',
+    'dedicacao_inicial': 'milestone',
     'veterano': 'milestone',
     'perfeccionista': 'performance',
     'consistencia': 'performance',
@@ -273,7 +274,8 @@ function getAchievementCategory(achievementType: string): 'performance' | 'strea
     'maratonista': 'streak',
     'jogador_equipe': 'special',
     'mentor': 'special',
-    'campeao': 'special'
+    'campeao': 'special',
+    'primeira_estrela': 'performance'
   };
   
   return categoryMap[achievementType] || 'milestone';

@@ -33,6 +33,7 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
     refetchInterval: 30000,
   });
 
+
   // Verificar conquistas automaticamente
   useEffect(() => {
     const checkAchievements = async () => {
@@ -65,12 +66,12 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
   }, [agentId, refetch, showMultipleAchievements]);
 
   // Calcular estatísticas
-  const totalXp = achievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
-  const unlockedCount = achievements.filter(a => a.is_unlocked).length;
-  const lockedCount = achievements.filter(a => !a.is_unlocked).length;
+  const totalXp = achievements.reduce((sum: number, achievement: Achievement) => sum + achievement.xp_reward, 0);
+  const unlockedCount = achievements.filter((a: Achievement) => a.is_unlocked).length;
+  const lockedCount = achievements.filter((a: Achievement) => !a.is_unlocked).length;
 
   // Agrupar conquistas por categoria
-  const achievementsByCategory = achievements.reduce((acc, achievement) => {
+  const achievementsByCategory = achievements.reduce((acc: Record<string, Achievement[]>, achievement: Achievement) => {
     const category = achievement.category;
     if (!acc[category]) {
       acc[category] = [];
@@ -197,91 +198,95 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
               </div>
 
               {/* Conquistas por categoria */}
-              {Object.entries(achievementsByCategory).map(([category, categoryAchievements]) => (
-                <div key={category} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    {getCategoryIcon(category)}
-                    <h4 className="font-semibold text-gray-900">
-                      {getCategoryName(category)}
-                    </h4>
-                    <span className="text-sm text-gray-500">
-                      ({categoryAchievements.filter(a => a.is_unlocked).length}/{categoryAchievements.length})
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {categoryAchievements.map((achievement) => (
-                      <div
-                        key={achievement.id}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          achievement.is_unlocked
-                            ? 'border-green-200 bg-green-50'
-                            : 'border-gray-200 bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div className={`p-2 rounded-full ${
+              {Object.entries(achievementsByCategory).map(([category, categoryAchievements]) => {
+                const achievements = categoryAchievements as Achievement[];
+                
+                return (
+                  <div key={category} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {getCategoryIcon(category)}
+                      <h4 className="font-semibold text-gray-900">
+                        {getCategoryName(category)}
+                      </h4>
+                      <span className="text-sm text-gray-500">
+                        ({achievements.filter((a: Achievement) => a.is_unlocked).length}/{achievements.length})
+                      </span>
+                    </div>
+                
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {achievements.map((achievement: Achievement) => (
+                        <div
+                          key={achievement.id}
+                          className={`p-4 rounded-lg border-2 transition-all ${
                             achievement.is_unlocked
-                              ? 'bg-green-100'
-                              : 'bg-gray-100'
-                          }`}>
-                            {achievement.is_unlocked ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <Lock className="h-5 w-5 text-gray-400" />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h5 className={`font-semibold ${
-                                achievement.is_unlocked ? 'text-green-900' : 'text-gray-700'
-                              }`}>
-                                {achievement.name}
-                              </h5>
-                              <div className="flex items-center space-x-2">
-                                <span className={`text-sm font-medium ${
-                                  achievement.is_unlocked ? 'text-green-600' : 'text-gray-500'
-                                }`}>
-                                  +{achievement.xp_reward} XP
-                                </span>
-                              </div>
-                            </div>
-                            <p className={`text-sm mt-1 ${
-                              achievement.is_unlocked ? 'text-green-700' : 'text-gray-600'
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              achievement.is_unlocked
+                                ? 'bg-green-100'
+                                : 'bg-gray-100'
                             }`}>
-                              {achievement.description}
-                            </p>
-                            
-                            {/* Progresso para conquistas bloqueadas */}
-                            {!achievement.is_unlocked && achievement.progress !== undefined && (
-                              <div className="mt-3">
-                                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                                  <span>Progresso</span>
-                                  <span>{Math.round(achievement.progress)}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${achievement.progress}%` }}
-                                  ></div>
+                              {achievement.is_unlocked ? (
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                              ) : (
+                                <Lock className="h-5 w-5 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <h5 className={`font-semibold ${
+                                  achievement.is_unlocked ? 'text-green-900' : 'text-gray-700'
+                                }`}>
+                                  {achievement.name}
+                                </h5>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`text-sm font-medium ${
+                                    achievement.is_unlocked ? 'text-green-600' : 'text-gray-500'
+                                  }`}>
+                                    +{achievement.xp_reward} XP
+                                  </span>
                                 </div>
                               </div>
-                            )}
-                            
-                            {/* Data de desbloqueio */}
-                            {achievement.is_unlocked && achievement.unlocked_at && (
-                              <div className="mt-2 text-xs text-green-600 flex items-center">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Desbloqueado em {formatDate(achievement.unlocked_at)}
-                              </div>
-                            )}
+                              <p className={`text-sm mt-1 ${
+                                achievement.is_unlocked ? 'text-green-700' : 'text-gray-600'
+                              }`}>
+                                {achievement.description}
+                              </p>
+                              
+                              {/* Progresso para conquistas bloqueadas */}
+                              {!achievement.is_unlocked && achievement.progress !== undefined && (
+                                <div className="mt-3">
+                                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Progresso</span>
+                                    <span>{Math.round(achievement.progress)}%</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${achievement.progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Data de desbloqueio */}
+                              {achievement.is_unlocked && achievement.unlocked_at && (
+                                <div className="mt-2 text-xs text-green-600 flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Desbloqueado em {formatDate(achievement.unlocked_at)}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -319,8 +324,9 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
                   <h4 className="font-semibold text-gray-900 mb-4">Distribuição por Categoria</h4>
                   <div className="space-y-3">
                     {Object.entries(achievementsByCategory).map(([category, categoryAchievements]) => {
-                      const unlocked = categoryAchievements.filter(a => a.is_unlocked).length;
-                      const total = categoryAchievements.length;
+                      const achievements = categoryAchievements as Achievement[];
+                      const unlocked = achievements.filter((a: Achievement) => a.is_unlocked).length;
+                      const total = achievements.length;
                       const percentage = total > 0 ? (unlocked / total) * 100 : 0;
                       
                       return (
@@ -345,9 +351,9 @@ const AchievementsPanel: React.FC<AchievementsPanelProps> = ({ agentId }) => {
                   <h4 className="font-semibold text-gray-900 mb-4">Próximas Conquistas</h4>
                   <div className="space-y-3">
                     {achievements
-                      .filter(a => !a.is_unlocked)
+                      .filter((a: Achievement) => !a.is_unlocked)
                       .slice(0, 3)
-                      .map((achievement) => (
+                      .map((achievement: Achievement) => (
                         <div key={achievement.id} className="flex items-center space-x-3">
                           <div className="p-2 bg-gray-100 rounded-full">
                             <Lock className="h-4 w-4 text-gray-400" />

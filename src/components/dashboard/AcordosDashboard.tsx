@@ -10,17 +10,77 @@ import { TrendingUp, TrendingDown, Target, Users } from 'lucide-react';
 export default function AcordosDashboard({ start, end, carteira }: { start?: string; end?: string; carteira?: string }) {
 	const params = { ...(start ? { start } : {}), ...(end ? { end } : {}), ...(carteira ? { carteira } : {}) };
 	
-	// Debug: Log dos filtros recebidos
-	React.useEffect(() => {
-		console.log('🔍 [ACORDOS DEBUG] Filtros recebidos:', { start, end, carteira });
-		console.log('🔍 [ACORDOS DEBUG] Parâmetros para API:', params);
-	}, [start, end, carteira, params]);
 	
-	const { data: resumo } = useQuery({ queryKey: ['acordosResumo', params], queryFn: () => getAcordosResumo(params) });
-	const { data: trend } = useQuery({ queryKey: ['acordosTrend', params], queryFn: () => getAcordosTrend(params) });
-	const { data: motivos } = useQuery({ queryKey: ['acordosMotivos', params], queryFn: () => getAcordosMotivos(params) });
-	const { data: valores } = useQuery({ queryKey: ['acordosValores', params], queryFn: () => getAcordosValores(params) });
-	const { data: agentesRanking } = useQuery({ queryKey: ['acordosAgentesRanking', params], queryFn: () => getAcordosAgentesRanking(params) });
+	const { data: resumo } = useQuery({ 
+		queryKey: ['acordosResumo', params], 
+		queryFn: async () => {
+			try {
+				return await getAcordosResumo(params);
+			} catch (error: any) {
+				if (error?.response?.status === 403) {
+					console.warn('⚠️ Acesso negado para resumo de acordos - usuário sem permissão');
+				}
+				return null;
+			}
+		},
+		retry: false
+	});
+	const { data: trend } = useQuery({ 
+		queryKey: ['acordosTrend', params], 
+		queryFn: async () => {
+			try {
+				return await getAcordosTrend(params);
+			} catch (error: any) {
+				if (error?.response?.status === 403) {
+					console.warn('⚠️ Acesso negado para tendência de acordos - usuário sem permissão');
+				}
+				return [];
+			}
+		},
+		retry: false
+	});
+	const { data: motivos } = useQuery({ 
+		queryKey: ['acordosMotivos', params], 
+		queryFn: async () => {
+			try {
+				return await getAcordosMotivos(params);
+			} catch (error: any) {
+				if (error?.response?.status === 403) {
+					console.warn('⚠️ Acesso negado para motivos de acordos - usuário sem permissão');
+				}
+				return [];
+			}
+		},
+		retry: false
+	});
+	const { data: valores } = useQuery({ 
+		queryKey: ['acordosValores', params], 
+		queryFn: async () => {
+			try {
+				return await getAcordosValores(params);
+			} catch (error: any) {
+				if (error?.response?.status === 403) {
+					console.warn('⚠️ Acesso negado para valores de acordos - usuário sem permissão');
+				}
+				return [];
+			}
+		},
+		retry: false
+	});
+	const { data: agentesRanking } = useQuery({ 
+		queryKey: ['acordosAgentesRanking', params], 
+		queryFn: async () => {
+			try {
+				return await getAcordosAgentesRanking(params);
+			} catch (error: any) {
+				if (error?.response?.status === 403) {
+					console.warn('⚠️ Acesso negado para ranking de agentes - usuário sem permissão');
+				}
+				return [];
+			}
+		},
+		retry: false
+	});
 
 	const COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 	const GRADIENT_COLORS = ['#10B981', '#34D399', '#6EE7B7'];

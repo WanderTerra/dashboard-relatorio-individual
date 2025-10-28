@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAgentGamification, type GamificationData } from '../lib/gamification-api';
 import { getAgentSummary, getAgentCalls, getAgentCriteria } from '../lib/api';
 import { getLocalAchievements } from '../lib/achievements';
+import { getAgentAchievements } from '../lib/achievements-api';
 import { useToast } from '../hooks/use-toast';
 import NotificationBell from './NotificationBell';
 import ConfettiEffect from './ConfettiEffect';
@@ -34,9 +35,18 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
   } = useLevelUpAnimation();
 
   // Buscar dados de gamificação
-  const { data: gamificationData, isLoading: isLoadingGamification } = useQuery({
+  const { data: gamificationData, isLoading: isLoadingGamification, error: gamificationError } = useQuery({
     queryKey: ['agent-gamification', agentId],
     queryFn: () => getAgentGamification(agentId),
+    enabled: !!agentId,
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
+
+
+  // Buscar conquistas do backend
+  const { data: backendAchievements = [] } = useQuery({
+    queryKey: ['agent-achievements', agentId],
+    queryFn: () => getAgentAchievements(agentId),
     enabled: !!agentId,
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
@@ -70,53 +80,19 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     enabled: !!agentId,
   });
 
-  // Calcular conquistas locais (mesma fonte do painel "Suas Conquistas")
+  // Calcular conquistas do backend (fonte real das conquistas)
   useEffect(() => {
-    if (gamificationData && calls && criteria) {
-      const agentData = {
-        agent_id: agentId,
-        current_level: gamificationData.current_level || 1,
-        current_xp: gamificationData.current_xp || 0,
-        total_xp_earned: gamificationData.total_xp_earned || 0,
-        calls: calls || [],
-        criteria: criteria || [],
-        summary: summary
-      };
+    if (backendAchievements && backendAchievements.length > 0) {
+      // Debug removido para melhorar performance
       
-      console.log(' DEBUG CONQUISTAS - Dados do Agente:', {
-        agentId,
-        callsCount: calls.length,
-        callsData: calls.slice(0, 3), // Primeiras 3 ligações para debug
-        summary: summary
-      });
-      
-      const achievements = getLocalAchievements(agentData);
-      const unlockedAchievements = achievements.filter(a => a.is_unlocked);
-      const totalXp = unlockedAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
-      
+      const totalXp = backendAchievements.reduce((sum, achievement) => sum + achievement.xp_reward, 0);
       setAchievementXp(totalXp);
       
-      console.log('🏆 Conquistas Locais Calculadas:', {
-        agentData,
-        achievements,
-        unlockedAchievements,
-        totalXp,
-        individualXp: unlockedAchievements.map(a => ({ name: a.name, xp: a.xp_reward })),
-        // Debug específico para conquistas de ligações
-        callsAchievements: achievements.filter(a => a.category === 'milestone' && a.name.includes('Ligação')).map(a => ({
-          name: a.name,
-          condition: a.condition(agentData),
-          is_unlocked: a.is_unlocked,
-          callsRequired: a.name === 'Primeira Ligação' ? 1 : 
-                        a.name === 'Dedicação Inicial' ? 10 :
-                        a.name === 'Dedicação' ? 50 :
-                        a.name === 'Veterano' ? 100 : 0
-        }))
-      });
+      // Debug removido para melhorar performance
     } else {
       setAchievementXp(0);
     }
-  }, [gamificationData, calls, criteria, summary, agentId]);
+  }, [backendAchievements, agentId]);
 
   // ✅ CORREÇÃO: Usar apenas XP do backend (fonte única da verdade)
   // O backend já deve incluir XP das conquistas após sincronização
@@ -147,28 +123,7 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
   const xpProgress = currentXp - xpForCurrentLevel;
   const progressPercentage = Math.min((xpProgress / xpNeeded) * 100, 100);
 
-  // Debug logs
-  useEffect(() => {
-    if (gamificationData) {
-      console.log('🎮 Dados de Gamificação (Backend):', gamificationData);
-      console.log('🏆 XP Conquistas Locais (não somado):', localAchievementXp);
-      console.log('📊 XP Oficial do Backend:', currentXp);
-      console.log('🎯 Nível do Backend:', backendLevel, currentLevelInfo.name);
-      console.log('📈 Progresso para próximo nível:', `${progressPercentage.toFixed(1)}%`);
-      console.log('🔍 Cálculo Detalhado:', {
-        backendLevel,
-        currentXpFromBackend: gamificationData.current_xp,
-        localAchievementXp,
-        totalXpEarned,
-        currentLevelName: currentLevelInfo.name,
-        xpForCurrentLevel,
-        xpForNextLevel,
-        xpNeeded,
-        xpProgress,
-        progressPercentage
-      });
-    }
-  }, [gamificationData, localAchievementXp, currentXp, progressPercentage, backendLevel, currentLevelInfo]);
+  // Debug removido para melhorar performance
 
   // ✅ CORREÇÃO: Detectar subida de nível apenas quando o backend atualizar
   useEffect(() => {
@@ -184,14 +139,7 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     const hasEnoughXp = currentXpAmount >= requiredXp;
     
     if (previousLevel !== null && officialLevel > previousLevel && hasEnoughXp) {
-      console.log('🎉 LEVEL UP detectado (backend):', {
-        de: previousLevel,
-        para: officialLevel,
-        xpGanho: currentXp - (previousXp || 0),
-        xpTotal: currentXp,
-        requiredXp,
-        hasEnoughXp
-      });
+      // Debug removido para melhorar performance
       
       showLevelUp(
         officialLevel,
@@ -210,13 +158,8 @@ const GamifiedAgentHeader: React.FC<GamifiedAgentHeaderProps> = ({
     setPreviousXp(currentXp);
   }, [gamificationData?.current_level, currentXp, previousLevel, previousXp, showLevelUp]);
 
-  // Se não há dados de gamificação, não renderizar nada
-  if (!gamificationData) {
-    return null;
-  }
-
   // Loading state
-  if (isLoadingGamification) {
+  if (isLoadingGamification || !gamificationData) {
     return (
       <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-b border-emerald-200">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
