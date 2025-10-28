@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Filter } from 'lucide-react';
+import { Filter, MessageCircle, X } from 'lucide-react';
 
 import PageHeader from '../components/PageHeader';
 import { Combobox } from '../components/ui/select-simple';
-import { getActiveAgents, getAgentWorstItem, getCarteirasFromAvaliacoes } from '../lib/api';
+import { getActiveAgents, getAgentWorstItem, getCarteirasFromAvaliacoes, contestarFeedback } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import { formatItemName, formatAgentName } from '../lib/format';
+import { useAuth } from '../contexts/AuthContext';
 
 const Agents: React.FC = () => {
   const queryClient = useQueryClient();
   const { filters, setCarteira } = useFilters();
+  const { user } = useAuth();
   
   // Estados para filtros específicos da página Agents
   const [showOnlyActive, setShowOnlyActive] = React.useState<boolean>(true);
@@ -22,6 +24,12 @@ const Agents: React.FC = () => {
   
   // Estado para pesquisa de agente
   const [agentSearch, setAgentSearch] = React.useState('');
+  
+  // Estados para contestação de feedback
+  const [showContestacaoModal, setShowContestacaoModal] = useState(false);
+  const [feedbackParaContestar, setFeedbackParaContestar] = useState<any>(null);
+  const [comentarioContestacao, setComentarioContestacao] = useState('');
+  const [agenteParaContestar, setAgenteParaContestar] = useState<any>(null);
 
   // Buscar carteiras únicas da tabela avaliacoes
   const { data: carteiras = [] } = useQuery({
@@ -87,9 +95,42 @@ const Agents: React.FC = () => {
 
   // Forçar invalidação da query quando os filtros mudam
   React.useEffect(() => {
-    // Invalidar a query para forçar nova execução
     queryClient.invalidateQueries({ queryKey: ['active-agents'] });
   }, [showOnlyActive, filters.carteira, queryClient]);
+
+  // Verificar se usuário é agente (não admin)
+  const isAdmin = user?.permissions?.includes('admin') || false;
+
+  // Função para abrir modal de contestação
+  const handleContestarFeedback = (agent: any) => {
+    setAgenteParaContestar(agent);
+    setFeedbackParaContestar({
+      agentId: agent.agent_id,
+      agentName: formatAgentName(agent),
+      ligacoes: agent.ligacoes,
+      media: agent.media
+    });
+    setComentarioContestacao('');
+    setShowContestacaoModal(true);
+  };
+
+  // Função para enviar contestação
+  const enviarContestacao = async () => {
+    if (!comentarioContestacao.trim()) {
+      alert('Por favor, escreva um comentário para a contestação.');
+      return;
+    }
+
+    try {
+      alert('Funcionalidade de contestação em implementação. Em breve você poderá contestar feedbacks individuais.');
+      setShowContestacaoModal(false);
+      setFeedbackParaContestar(null);
+      setAgenteParaContestar(null);
+      setComentarioContestacao('');
+    } catch (error: any) {
+      alert(`Erro ao contestar feedback: ${error.response?.data?.detail || error.message}`);
+    }
+  };
 
   return (
     <div>
@@ -304,12 +345,23 @@ const Agents: React.FC = () => {
                         {piorLabel}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <Link
-                          to={`/agent/${agent.agent_id}`}
-                          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm"
-                        >
-                          Ver Detalhes
-                        </Link>
+                        <div className="flex items-center justify-center gap-2">
+                          {!isAdmin && (
+                            <button
+                              onClick={() => handleContestarFeedback(agent)}
+                              className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-full text-white bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-200 shadow-sm"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              Contestar
+                            </button>
+                          )}
+                          <Link
+                            to={`/agent/${agent.agent_id}`}
+                            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm"
+                          >
+                            Ver Detalhes
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -374,9 +426,90 @@ const Agents: React.FC = () => {
             </div>
           )}
         </div>
+
+      {/* Modal de Contestação */}
+      {showContestacaoModal && feedbackParaContestar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
+            <div className="bg-gradient-to-r from-orange-600 to-red-700 px-8 py-6 text-white rounded-t-3xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                    <MessageCircle className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Contestar Feedback</h3>
+                    <p className="text-orange-100 text-lg">{feedbackParaContestar.agentName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowContestacaoModal(false)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="mb-6">
+                <h4 className="text-lg font-bold text-gray-800 mb-3">Informações do Agente:</h4>
+                <div className="bg-gray-50 rounded-xl p-4 border">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Nome:</p>
+                      <p className="text-gray-900 font-medium">{feedbackParaContestar.agentName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">ID:</p>
+                      <p className="text-gray-900 font-medium">{feedbackParaContestar.agentId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Ligações:</p>
+                      <p className="text-gray-900 font-medium">{feedbackParaContestar.ligacoes}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Média:</p>
+                      <p className="text-gray-900 font-medium">{feedbackParaContestar.media.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-lg font-bold text-gray-800 mb-3">
+                  Sua Contestação:
+                </label>
+                <textarea
+                  value={comentarioContestacao}
+                  onChange={(e) => setComentarioContestacao(e.target.value)}
+                  rows={6}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
+                  placeholder="Explique por que você não concorda com o feedback recebido..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setShowContestacaoModal(false)}
+                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={enviarContestacao}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                >
+                  Enviar Contestação
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
 };
 
-export default Agents; 
+export default Agents;
