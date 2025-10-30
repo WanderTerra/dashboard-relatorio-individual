@@ -23,10 +23,16 @@ const QuartilesSection: React.FC<QuartilesSectionProps> = ({ start, end, carteir
     staleTime: 5 * 60 * 1000,
   });
 
-  const carteiras = carteirasRaw.map((item: { carteira: string }) => ({
-    value: item.carteira,
-    label: item.carteira
-  }));
+  const carteiras = carteirasRaw
+    .map((item: { carteira: string }) => ({
+      value: item.carteira,
+      label: item.carteira
+    }))
+    .filter((item, index, self) => 
+      item.value && 
+      item.label && 
+      self.findIndex(t => t.value === item.value) === index
+    );
 
   const params = { 
     ...(filtroStart ? { start: filtroStart } : {}), 
@@ -37,15 +43,35 @@ const QuartilesSection: React.FC<QuartilesSectionProps> = ({ start, end, carteir
   // Query para dados de desempenho
   const { data: quartisDesempenho, isLoading: loadingDesempenho } = useQuery({
     queryKey: ['quartis-desempenho', params],
-    queryFn: () => getQuartisDesempenho(params),
-    enabled: tipoQuartis === 'desempenho'
+    queryFn: async () => {
+      try {
+        return await getQuartisDesempenho(params);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para quartis de desempenho - usuário sem permissão');
+        }
+        return null;
+      }
+    },
+    enabled: tipoQuartis === 'desempenho',
+    retry: false
   });
 
   // Query para dados de acordos
   const { data: quartisAcordos, isLoading: loadingAcordos } = useQuery({
     queryKey: ['quartis-acordos', params],
-    queryFn: () => getQuartisAcordos(params),
-    enabled: tipoQuartis === 'acordos'
+    queryFn: async () => {
+      try {
+        return await getQuartisAcordos(params);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para quartis de acordos - usuário sem permissão');
+        }
+        return null;
+      }
+    },
+    enabled: tipoQuartis === 'acordos',
+    retry: false
   });
 
   const isLoading = loadingDesempenho || loadingAcordos;

@@ -169,6 +169,10 @@ const AIAgentSuggestion: React.FC<AIAgentSuggestionProps> = ({
     return null;
   }
 
+  // Limitar título a no máximo 100 caracteres
+// Usa o título do backend (já limitado) e aplica um hard-cap local por segurança
+const title = (suggestion.title ?? 'Sugestão de Melhoria').slice(0, 100);
+
   return (
     <Card className="w-full shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 overflow-hidden">
       {/* Header com gradiente */}
@@ -179,7 +183,7 @@ const AIAgentSuggestion: React.FC<AIAgentSuggestionProps> = ({
               <XCircle className="w-5 h-5 text-white" />
             </div>
             <h4 className="font-bold text-white text-lg">
-              {suggestion.title}
+              {title}
             </h4>
           </div>
           <div className="flex items-center space-x-2">

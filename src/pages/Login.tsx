@@ -67,8 +67,9 @@ const Login: React.FC = () => {
             const agentId = agentPerm.replace('agent_', '');
             navigate(`/agent/${agentId}`);
           } else {
-            // fallback: dashboard
-            navigate('/');
+            // Usuário sem permissões válidas - mostrar erro
+            showErrorToast('Usuário sem permissões para acessar o sistema. Entre em contato com o administrador.');
+            return;
           }
         }
       }

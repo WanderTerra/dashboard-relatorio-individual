@@ -45,9 +45,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
             
             setUser(currentUser);
-          } catch (error) {
-            console.log('Token inválido, limpando dados de autenticação');
+          } catch (error: any) {
+            console.log('Token inválido ou expirado, limpando dados de autenticação:', error?.response?.status);
+            // Limpar dados de autenticação e redirecionar para login
             logout();
+            // Redirecionar para login se não estiver já na página de login
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
           }
         }
       } catch (error) {

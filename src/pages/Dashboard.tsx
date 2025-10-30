@@ -8,7 +8,7 @@ import MonthlyComparisonChart from '../components/MonthlyComparisonChart';
 import PageHeader from '../components/PageHeader';
 import PeriodFilter from '../components/PeriodFilter';
 import { Combobox } from '../components/ui/select-simple';
-import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getMixedCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
+import { getMixedKpis, getMixedTrend, getMixedTrendAllMonths, getCarteirasFromAvaliacoes, getMixedAgentsCount } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import AcordosDashboard from '../components/dashboard/AcordosDashboard';
 import QuartilesSection from '../components/QuartilesSection';
@@ -18,16 +18,26 @@ const Dashboard: React.FC = () => {
 
   // Buscar carteiras únicas das tabelas mistas (avaliacoes + avaliacoes_uploads)
   const { data: carteirasRaw = [] } = useQuery({
-    queryKey: ['carteiras-mixed'],
-    queryFn: getMixedCarteirasFromAvaliacoes,
+    queryKey: ['carteiras-avaliacoes'],
+    queryFn: getCarteirasFromAvaliacoes,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
-  // Transformar carteiras para o formato esperado pelo Combobox
-  const carteiras = carteirasRaw.map((item: { carteira: string }) => ({
-    value: item.carteira,
-    label: item.carteira
-  }));
+  // Filtrar carteiras para evitar duplicatas e valores undefined
+  type CarteiraRow = { carteira?: string | null };
+  type Option = { value: string; label: string };
+
+  const carteiras: Option[] = (carteirasRaw as CarteiraRow[])
+    .filter((item: CarteiraRow): item is Required<Pick<CarteiraRow, 'carteira'>> & { carteira: string } => {
+      return Boolean(item && item.carteira && typeof item.carteira === 'string' && item.carteira.trim().length > 0);
+    })
+    .map((item: { carteira: string }): Option => ({
+      value: item.carteira,
+      label: item.carteira
+    }))
+    .filter((item: Option, index: number, self: Option[]) => 
+      self.findIndex((t: Option) => t.value === item.value) === index
+    );
 
   // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 
@@ -41,33 +51,67 @@ const Dashboard: React.FC = () => {
     ...(filters.carteira ? { carteira: filters.carteira } : {}) 
   };
 
-  // Debug: Log dos filtros aplicados
-  React.useEffect(() => {
-    console.log('🔍 [FILTERS DEBUG] Filtros do hook:', filters);
-    console.log('🔍 [FILTERS DEBUG] Filtros para API (com data):', apiFilters);
-    console.log('🔍 [FILTERS DEBUG] Filtros para API (sem data):', apiFiltersNoDate);
-  }, [filters, apiFilters, apiFiltersNoDate]);
 
   // KPIs e tendência mistos
   const { data: kpis } = useQuery({ 
     queryKey: ['mixed-kpis', apiFilters], 
-    queryFn: () => getMixedKpis(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedKpis(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para KPIs mistos - usuário sem permissão');
+        }
+        return null;
+      }
+    },
+    retry: false
   });
   const { data: trend } = useQuery({ 
     queryKey: ['mixed-trend', apiFilters], 
-    queryFn: () => getMixedTrend(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedTrend(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para tendência mista - usuário sem permissão');
+        }
+        return [];
+      }
+    },
+    retry: false
   });
   
   // Dados de tendência para o gráfico comparativo mensal (sem filtros de data)
   const { data: trendAllMonths } = useQuery({ 
     queryKey: ['mixed-trend-all-months', apiFiltersNoDate], 
-    queryFn: () => getMixedTrendAllMonths(apiFiltersNoDate) 
+    queryFn: async () => {
+      try {
+        return await getMixedTrendAllMonths(apiFiltersNoDate);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para tendência mensal - usuário sem permissão');
+        }
+        return [];
+      }
+    },
+    retry: false
   });
   
   // Número de agentes avaliados
   const { data: agentesCount } = useQuery({ 
     queryKey: ['mixed-agents-count', apiFilters], 
-    queryFn: () => getMixedAgentsCount(apiFilters) 
+    queryFn: async () => {
+      try {
+        return await getMixedAgentsCount(apiFilters);
+      } catch (error: any) {
+        if (error?.response?.status === 403) {
+          console.warn('⚠️ Acesso negado para contagem de agentes - usuário sem permissão');
+        }
+        return 0;
+      }
+    },
+    retry: false
   });
 
 
@@ -84,8 +128,8 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-4 items-end">
               <PeriodFilter
-                startDate={filters.start}
-                endDate={filters.end}
+                startDate={filters.start || ''}
+                endDate={filters.end || ''}
                 onStartDateChange={setStartDate}
                 onEndDateChange={setEndDate}
               />

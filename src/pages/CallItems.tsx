@@ -16,10 +16,52 @@ interface Item {
   resultado:  'CONFORME' | 'NAO CONFORME' | 'NAO SE APLICA';
 }
 
-const cor = (r: Item['resultado']) =>
-  r === 'CONFORME'      ? 'text-green-600'
-  : r === 'NAO SE APLICA'? 'text-gray-600'
-  :                       'text-red-600';
+interface CategoryGroup {
+  category: string;
+  items: Item[];
+  order: number;
+}
+
+interface CarteiraStructure {
+  categories: Array<{
+    name: string;
+    order: number;
+    criteria: Array<{ id: string }>;
+  }>;
+}
+
+// Utilitários para cores e status
+const getStatusColor = (resultado: Item['resultado']) => {
+  switch (resultado) {
+    case 'CONFORME':
+      return {
+        text: 'text-green-600',
+        bg: 'bg-green-100',
+        dot: 'bg-green-500',
+        shadow: 'shadow-green-200'
+      };
+    case 'NAO SE APLICA':
+      return {
+        text: 'text-gray-600',
+        bg: 'bg-gray-100',
+        dot: 'bg-gray-400',
+        shadow: 'shadow-gray-200'
+      };
+    default:
+      return {
+        text: 'text-red-600',
+        bg: 'bg-red-100',
+        dot: 'bg-red-500',
+        shadow: 'shadow-red-200'
+      };
+  }
+};
+
+const getScoreColor = (pontuacao: number) => {
+  if (pontuacao >= 80) return { bg: 'bg-green-100', text: 'text-green-600' };
+  if (pontuacao >= 60) return { bg: 'bg-yellow-100', text: 'text-yellow-600' };
+  return { bg: 'bg-red-100', text: 'text-red-600' };
+};
 
 export default function CallItems() {  const { avaliacaoId } = useParams();
   const location = useLocation();
@@ -40,7 +82,47 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
   const { data = [], isLoading } = useQuery<Item[]>({
     queryKey: ['mixed-callItems', avaliacaoId],
-    queryFn : () => getMixedCallItems(avaliacaoId!),
+    queryFn : async () => {
+      const items = await getMixedCallItems(avaliacaoId!);
+      return items;
+    },
+    enabled: !!avaliacaoId, // Só executar se tiver avaliacaoId
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  // Buscar critérios para obter os nomes corretos
+  const { data: criterios = [] } = useQuery({
+    queryKey: ['criterios'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          console.warn('Token de autenticação não encontrado');
+          return [];
+        }
+        
+        const response = await fetch('/api/criterios/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const criterios = await response.json();
+          return criterios;
+        } else if (response.status === 403) {
+          console.warn('Acesso negado aos critérios - verificar permissões');
+          return [];
+        } else {
+          console.warn(`Erro ao carregar critérios: ${response.status}`);
+          return [];
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar critérios:', error);
+        return [];
+      }
+    },
+    enabled: !!localStorage.getItem('auth_token'), // Só executar se tiver token
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    retry: false // Não tentar novamente se falhar
   });
 
   // Buscar a estrutura da carteira baseada no avaliacaoId
@@ -52,7 +134,6 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
         const response = await fetch(`/api/carteiras/structure-by-avaliacao/${avaliacaoId}`);
         if (!response.ok) {
           // Se o endpoint não existir, retornar null para usar fallback
-          console.warn('Endpoint de estrutura de carteira não disponível, usando organização padrão');
           return null;
         }
         return response.json();
@@ -65,38 +146,205 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
     retry: false // Não tentar novamente se falhar
   });
 
-  // Função para organizar itens baseado na estrutura da carteira
-  const organizeItemsByCarteiraStructure = (items: any[], carteiraStructure: any) => {
+  // Função para encontrar o nome correto do critério (otimizada)
+  const getCriterioName = React.useCallback((item: any) => {
+    // Debug removido para melhorar performance
+
+    // Se categoria contém underscore (nome técnico específico), usar ela
+    if (item.categoria && item.categoria.includes('_')) {
+      return formatItemName(item.categoria);
+    }
+    
+    // Tentar encontrar o critério na estrutura da carteira primeiro
+    if (carteiraStructure && carteiraStructure.categories) {
+      for (const category of carteiraStructure.categories) {
+        // Buscar por ID exato
+        const criterio = category.criteria.find((c: any) => c.id === item.id);
+        if (criterio) {
+          return formatItemName(criterio.nome || criterio.name);
+        }
+        
+        // Buscar por nome similar na categoria
+        const criterioSimilar = category.criteria.find((c: any) => {
+          const nomeCriterio = (c.nome || c.name || '').toLowerCase();
+          const descricaoItem = (item.descricao || '').toLowerCase();
+          return nomeCriterio.includes('identificou') && descricaoItem.includes('identificou') ||
+                 nomeCriterio.includes('abordagem') && descricaoItem.includes('abordagem') ||
+                 nomeCriterio.includes('origem') && descricaoItem.includes('assessoria') ||
+                 nomeCriterio.includes('motivo') && descricaoItem.includes('motivo');
+        });
+        
+        if (criterioSimilar) {
+          return formatItemName(criterioSimilar.nome || criterioSimilar.name);
+        }
+      }
+    }
+    
+    // Tentar encontrar o critério na lista de critérios pelo ID ou categoria
+    if (criterios && criterios.length > 0) {
+      // Buscar por ID se existir (prioridade máxima)
+      if (item.criterio_id) {
+        const criterio = criterios.find((c: any) => c.id === item.criterio_id);
+        if (criterio) {
+          return formatItemName(criterio.nome);
+        }
+      }
+      
+      // Buscar por categoria exata
+      let criterio = criterios.find((c: any) => c.categoria === item.categoria);
+      if (criterio) {
+        return formatItemName(criterio.nome);
+      }
+      
+      // Buscar por nome exato
+      criterio = criterios.find((c: any) => c.nome === item.categoria);
+      if (criterio) {
+        return formatItemName(criterio.nome);
+      }
+    }
+    
+    // Mapeamento de fallback baseado na categoria e descrição
+    const criterioMapping: Record<string, string> = {
+      // Abordagem - Variações de identificação
+      'O agente se apresentou e perguntou o nome do cliente.': 'Conciliador se identificou?',
+      'O agente se identificou corretamente.': 'Realizou a abordagem conforme script de atendimento?',
+      'O agente informou o nome da assessoria corretamente.': 'Informou a origem do atendimento?',
+      'O agente explicou o motivo do contato.': 'Informou o motivo do contato corretamente?',
+      'O agente cumprimentou o cliente e se identificou corretamente.': 'Conciliador se identificou?',
+      'O agente se apresentou informando seu nome.': 'Realizou a abordagem conforme script de atendimento?',
+      'O agente mencionou o nome da assessoria corretamente.': 'Informou a origem do atendimento?',
+      'O agente explicou o motivo do contato de forma clara.': 'Informou o motivo do contato corretamente?',
+      'O agente cumprimentou a cliente e se identificou corretamente.': 'Realizou a abordagem conforme script de atendimento?',
+      'O agente se identificou corretamente ao iniciar a chamada.': 'Realizou a abordagem conforme script de atendimento?',
+      'O agente explicou claramente o motivo do contato.': 'Informou o motivo do contato corretamente?',
+      
+      // Confirmação de dados - Variações de identificação
+      'Não houve confirmação de CPF ou dados pessoais.': 'Realizou a Identificação positiva?',
+      'Confirmou o endereço de cobrança?': 'Confirmou o endereço de cobrança?',
+      'Realizou a Identificação positiva?': 'Realizou a Identificação positiva?',
+      'O agente confirmou o nome completo da cliente para segurança.': 'Realizou a Identificação positiva?',
+      
+      // Negociação - Variações de valores e datas
+      'Não houve fechamento de acordo.': 'Informou a data de vencimento do(s) débito(s) em aberto(s)?',
+      'Não houve objeção, pois não houve negociação.': 'Informou os valores atualizados com juros e multa?',
+      'Informou a data de vencimento do(s) débito(s) em aberto(s)?': 'Informou a data de vencimento do(s) débito(s) em aberto(s)?',
+      'Informou os valores atualizados com juros e multa?': 'Informou os valores atualizados com juros e multa?',
+      'Conciliador aplicou desconto quando necessário?': 'Conciliador aplicou desconto quando necessário?',
+      'Conduziu o cliente adequadamente para o fechamento da negociação?': 'Conduziu o cliente adequadamente para o fechamento da negociação?',
+      'O agente informou a data de vencimento do débito corretamente.': 'Informou a data de vencimento do(s) débito(s) em aberto(s)?',
+      'O agente informou o valor total atualizado do débito.': 'Informou os valores atualizados com juros e multa?',
+      'Não houve negociação para fechamento de acordo.': 'Conciliador aplicou desconto quando necessário?',
+      'O agente conduziu a cliente para o fechamento do acordo de forma adequada.': 'Conduziu o cliente adequadamente para o fechamento da negociação?',
+      'Não houve objeção apresentada pela cliente.': 'Conduziu o cliente adequadamente para o fechamento da negociação?',
+      
+      // Check-list - Variações de checklist
+      'Aplicou desconto conforme política?': 'Aplicou desconto conforme política?',
+      'Informou sobre formas de pagamento?': 'Informou sobre formas de pagamento?',
+      'Confirmou dados para emissão do boleto?': 'Confirmou dados para emissão do boleto?',
+      
+      // Encerramento - Variações de encerramento
+      'O agente agradeceu e se despediu cordialmente.': 'O agente agradeceu e se despediu cordialmente.',
+      'Encerrou a ligação de forma adequada?': 'Encerrou a ligação de forma adequada?',
+      'O agente não questionou se a cliente tinha dúvidas após o fechamento do acordo.': 'Encerrou a ligação de forma adequada?',
+      'O agente agradeceu e se despediu de forma adequada.': 'O agente agradeceu e se despediu cordialmente.',
+      
+      // Falha Crítica
+      'Houve falha crítica na ligação?': 'Houve falha crítica na ligação?'
+    };
+    
+    // Tentar usar mapeamento de fallback
+    if (item.descricao && criterioMapping[item.descricao]) {
+      return formatItemName(criterioMapping[item.descricao]);
+    }
+    
+    // Se categoria é uma categoria ampla, usar a descrição
+    if (item.descricao) {
+      return formatItemName(item.descricao);
+    }
+    
+    // Fallback final
+    return formatItemName(item.categoria);
+  }, [criterios, carteiraStructure]);
+
+  // Função para organizar itens baseado na estrutura da carteira (otimizada)
+  const organizeItemsByCarteiraStructure = React.useCallback((items: Item[], carteiraStructure: CarteiraStructure | null): CategoryGroup[] => {
+    // Ordem fixa das categorias (conforme definido pelo admin)
+    const ordemCategoriasFixas = [
+      'Abordagem',           // #1
+      'Confirmação de dados', // #2
+      'Negociação',          // #3
+      'Check-list',          // #4
+      'Encerramento',        // #5
+      'Falha Crítica'        // #7 (pulando #6)
+    ];
+
     if (!carteiraStructure || !carteiraStructure.categories) {
-      // Fallback para organização padrão se não houver estrutura
-      return organizeItemsByCategory(items);
+      // Fallback para organização padrão com ordem fixa das categorias
+      const organizedItems = organizeItemsByCategory(items);
+      
+      return organizedItems
+        .map((cat) => ({
+          ...cat,
+          order: ordemCategoriasFixas.indexOf(cat.category)
+        }))
+        .sort((a, b) => {
+          const orderA = ordemCategoriasFixas.indexOf(a.category);
+          const orderB = ordemCategoriasFixas.indexOf(b.category);
+          return orderA - orderB;
+        });
     }
 
-    // Criar um mapa dos itens por ID do critério
-    const itemsById = items.reduce((acc, item) => {
+    // Criar um mapa dos itens por ID do critério para busca rápida
+    const itemsById: Record<string, Item> = items.reduce((acc, item) => {
       acc[item.id] = item;
       return acc;
-    }, {});
+    }, {} as Record<string, Item>);
 
-    // Organizar baseado na estrutura da carteira
+    // Organizar baseado na estrutura da carteira (usando ordem fixa das categorias)
     const organizedCategories = carteiraStructure.categories
-      .map(category => {
-        const categoryItems = category.criteria
-          .map(criteria => itemsById[criteria.id])
+      .map((category: any) => {
+        // Primeiro tentar mapear por ID
+        let categoryItems = category.criteria
+          .map((criteria: any) => itemsById[criteria.id])
           .filter(Boolean); // Remove itens não encontrados
+
+        // Se não encontrou itens por ID, tentar por categoria diretamente
+        if (categoryItems.length === 0) {
+          categoryItems = items.filter(item => item.categoria === category.name);
+        }
 
         return {
           category: category.name,
           items: categoryItems,
-          order: category.order || 0
+          order: ordemCategoriasFixas.indexOf(category.name) // Usar ordem fixa das categorias
         };
       })
-      .filter(category => category.items.length > 0) // Remove categorias vazias
-      .sort((a, b) => a.order - b.order);
-
+      .filter((category: any) => category.items.length > 0) // Remove categorias vazias
+      .sort((a: any, b: any) => a.order - b.order); // Ordenar pela ordem fixa das categorias
+    
+    // Se não encontrou nenhuma categoria, usar organização padrão com ordem fixa
+    if (organizedCategories.length === 0) {
+      const organizedItems = organizeItemsByCategory(items);
+      
+      return organizedItems
+        .map((cat) => ({
+          ...cat,
+          order: ordemCategoriasFixas.indexOf(cat.category)
+        }))
+        .sort((a, b) => {
+          const orderA = ordemCategoriasFixas.indexOf(a.category);
+          const orderB = ordemCategoriasFixas.indexOf(b.category);
+          return orderA - orderB;
+        });
+    }
+    
     return organizedCategories;
-  };
+  }, []);
 
+  // Memoizar itens organizados para evitar re-renders desnecessários
+  const organizedItems = React.useMemo(() => {
+    return organizeItemsByCarteiraStructure(data, carteiraStructure);
+  }, [data, carteiraStructure, organizeItemsByCarteiraStructure]);
 
   // Buscar informações do agente para obter o nome
   const { data: agentInfo } = useQuery({
@@ -392,14 +640,8 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
               {callData && (
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      callData.pontuacao >= 80 ? 'bg-green-100' : 
-                      callData.pontuacao >= 60 ? 'bg-yellow-100' : 'bg-red-100'
-                    }`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${
-                        callData.pontuacao >= 80 ? 'text-green-600' : 
-                        callData.pontuacao >= 60 ? 'text-yellow-600' : 'text-red-600'
-                      }`} viewBox="0 0 20 20" fill="currentColor">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getScoreColor(callData.pontuacao).bg}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${getScoreColor(callData.pontuacao).text}`} viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -407,10 +649,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   <div>
                     <p className="text-sm text-gray-500">Pontuação</p>
                     <div className="flex items-center space-x-2">
-                      <p className={`font-bold text-lg ${
-                        callData.pontuacao >= 80 ? 'text-green-600' : 
-                        callData.pontuacao >= 60 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
+                      <p className={`font-bold text-lg ${getScoreColor(callData.pontuacao).text}`}>
                         {callData.pontuacao.toFixed(1)}%
                       </p>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -469,7 +708,7 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
             </div>
           ) : (
             <div className="space-y-6">
-              {organizeItemsByCarteiraStructure(data, carteiraStructure).map((categoryGroup) => (
+              {organizedItems.map((categoryGroup: CategoryGroup) => (
                 <div key={categoryGroup.category} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                   {/* Header da categoria */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -487,48 +726,47 @@ export default function CallItems() {  const { avaliacaoId } = useParams();
                   {/* Itens da categoria */}
                   <div className="p-6">
                     <ul className="space-y-4">
-                      {categoryGroup.items.map((it, idx) => (
-                        <li 
-                          key={idx} 
-                          className={`rounded-xl bg-gray-50 p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
-                            editedItems.has(it.categoria) ? 'border-l-4 border-blue-500' : 'border border-gray-100'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center mb-2">
-                                <div className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                                  it.resultado === 'CONFORME' ? 'bg-green-500 shadow-sm shadow-green-200' :
-                                  it.resultado === 'NAO CONFORME' ? 'bg-red-500 shadow-sm shadow-red-200' : 'bg-gray-400 shadow-sm shadow-gray-200'
-                                }`}></div>
-                                <span className="text-sm font-semibold text-gray-800">{formatItemName(it.categoria)}</span>
+                      {categoryGroup.items.map((it: Item, idx: number) => {
+                        const statusColors = getStatusColor(it.resultado);
+                        return (
+                          <li 
+                            key={it.id || idx} 
+                            className={`rounded-xl bg-gray-50 p-5 shadow-sm hover:shadow-md transition-all duration-300 ${
+                              editedItems.has(it.categoria) ? 'border-l-4 border-blue-500' : 'border border-gray-100'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center mb-2">
+                                  <div className={`w-2.5 h-2.5 rounded-full mr-2 ${statusColors.dot} shadow-sm ${statusColors.shadow}`}></div>
+                                  <span className="text-sm font-semibold text-gray-800">
+                                    {getCriterioName(it)}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-600 mb-2 leading-relaxed">{it.descricao}</div>
+                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center ${statusColors.bg} ${statusColors.text}`}>
+                                  {formatItemName(it.resultado)}
+                                </span>
                               </div>
-                              <div className="text-xs text-gray-600 mb-2 leading-relaxed">{it.descricao}</div>
-                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center ${
-                                it.resultado === 'CONFORME' ? 'bg-green-100 text-green-700' :
-                                it.resultado === 'NAO CONFORME' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {formatItemName(it.resultado)}
-                              </span>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleEditItem(it)}
+                                  className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-full transition-all duration-200 font-light shadow-sm backdrop-blur-sm border border-blue-300/50 group"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                  </svg>
+                                  <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
+                                </button>
+                              )}
                             </div>
-                            {isAdmin && (
-                              <button
-                                onClick={() => handleEditItem(it)}
-                                className="ml-2 flex items-center text-xs px-3.5 py-1.5 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-full transition-all duration-200 font-light shadow-sm backdrop-blur-sm border border-blue-300/50 group"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                </svg>
-                                <span className="group-hover:translate-x-0.5 transition-transform">Editar</span>
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 </div>
-              ))}
+                ))}
             </div>
           )}
 

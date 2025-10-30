@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Users, Brain, Target, MessageSquare, Sparkles, Send, Loader2, ArrowLeft } from 'lucide-react';
+import { Users, Target, MessageSquare, Sparkles, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Assistant {
@@ -58,16 +58,6 @@ const SeuGuru: React.FC = () => {
       gradient: 'from-green-500 to-emerald-700',
       category: 'Recursos Humanos',
       welcomeMessage: 'Olá! 👋 Sou o **Guru do RH**.\n\nPosso te ajudar com:\n\n• Políticas da empresa\n• Benefícios e direitos\n• Procedimentos internos\n• Questões trabalhistas\n\nO que você gostaria de saber?'
-    },
-    {
-      id: 'psychological',
-      name: 'NeuraArmy',
-      description: 'Suporte para bem-estar e desenvolvimento pessoal',
-      icon: <Brain size={32} />,
-      color: '#8b5cf6',
-      gradient: 'from-purple-500 to-violet-700',
-      category: 'Bem-estar',
-      welcomeMessage: 'Olá! 👋 Sou a **NeuraArmy**.\n\nEstou aqui para apoiar seu:\n\n• Bem-estar mental e emocional\n• Desenvolvimento pessoal\n• Gestão de estresse\n• Equilíbrio trabalho-vida\n\nComo posso te apoiar hoje?'
     }
   ];
 
@@ -482,7 +472,7 @@ const SeuGuru: React.FC = () => {
 
       <div className="flex-1 flex items-center justify-center p-6">
         {/* Grid de Cards dos Assistentes */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full">
           {assistants.map((assistant, index) => (
             <div
               key={assistant.id}
