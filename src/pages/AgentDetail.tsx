@@ -36,7 +36,6 @@ import { ArrowLeft, BarChart3, TrendingUp, Award, Target, Zap, Crown, Medal, Tro
 import { Combobox } from '../components/ui/select-simple';
 import { getLocalAchievements, getAchievementsByCategory, type AutomaticAchievement } from '../lib/achievements';
 import { getAgentAchievements } from '../lib/achievements-api';
-import NotificationBell from '../components/NotificationBell';
 import AIAgentSuggestion from '../components/AIAgentSuggestion';
 import { useSyncAchievements } from '../hooks/use-sync-achievements';
 
@@ -98,8 +97,8 @@ const AgentDetail: React.FC = () => {
 
   // ✅ Modificado: detectar aba da URL
   const urlParams = new URLSearchParams(location.search);
-  const tabFromUrl = urlParams.get('tab') as 'overview' | 'feedback' | 'calls' | null;
-  const [activeTab, setActiveTab] = useState<'overview' | 'feedback' | 'calls'>(
+  const tabFromUrl = urlParams.get('tab') as 'overview' | 'calls' | null;
+  const [activeTab, setActiveTab] = useState<'overview' | 'calls'>(
     tabFromUrl || 'overview' // ✅ Usar aba da URL se disponível
   );
 
@@ -251,11 +250,17 @@ const AgentDetail: React.FC = () => {
     return worstCriterion;
   }, [criteria]);
 
-  // Verifica se o usuário autenticado é o próprio agente da página
-  const isAgent = user && user.id && (
-    user.id.toString() === agentId || 
-    user.id === parseInt(agentId)
-  );
+  // ✅ CORREÇÃO: Verificação de permissões baseada em agent_id das permissões
+  // Isso garante que apenas o agente correto ou admins puros possam acessar
+  const isAdmin = user?.permissions?.includes('admin') || false;
+  const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
+  const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
+  
+  // Se tem permissão de agente, verificar se é o agente correto
+  // Se não tem permissão de agente, só pode acessar se for admin puro
+  const isAgent = currentAgentId ? 
+    (currentAgentId === agentId) : 
+    (isAdmin && !currentAgentId);
 
   // ✅ Adicionar estado para o modal de níveis
   const [showLevelsModal, setShowLevelsModal] = useState<boolean>(false);
@@ -436,31 +441,9 @@ const AgentDetail: React.FC = () => {
             >
               {isAgent ? 'Histórico de Ligações' : 'Ligações do Agente'}
             </button>
-            {isAgent && (
-              <button
-                onClick={() => {
-                  setActiveTab('feedback');
-                  navigate(`/agent/${agentId}?tab=feedback`, { replace: true });
-                }}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                  activeTab === 'feedback'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Feedbacks
-              </button>
-            )}
           </nav>
         </div>
       </div>
-
-      {/* Sino de Notificações - Apenas para agentes */}
-      {isAgent && (
-        <div className="absolute top-4 right-4 z-50">
-          <NotificationBell agentId={agentId} />
-        </div>
-      )}
       
 
       {/* Conteúdo da Aba Visão Geral */}
@@ -993,76 +976,6 @@ const AgentDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Conteúdo da Aba Feedbacks */}
-      {activeTab === 'feedback' && (
-        <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          {/* Verificação de Segurança */}
-          {!isAgent && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-full">
-                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-red-800">Acesso Restrito</h3>
-                  <p className="text-sm text-red-700">Apenas o próprio agente pode visualizar seus feedbacks pessoais.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Header dos Feedbacks */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {isAgent ? 'Meus Feedbacks' : 'Feedbacks do Agente'}
-                </h2>
-                <p className="text-gray-600">
-                  {isAgent ? 'Visualize e gerencie seus feedbacks pessoais' : 'Feedbacks deste agente específico'}
-                </p>
-              </div>
-              {!isAgent && (
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-blue-600">
-                    0
-                  </p>
-                  <p className="text-sm text-gray-500">Total de Feedbacks</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Lista de Feedbacks */}
-          {!isAgent ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Acesso Restrito</h3>
-              <p className="text-gray-600">
-                Apenas o próprio agente pode visualizar seus feedbacks pessoais.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum feedback encontrado</h3>
-              <p className="text-gray-600">
-                Você ainda não recebeu feedbacks. Continue se esforçando e os feedbacks aparecerão aqui quando disponíveis.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
 
 
       {/* Modal para exibir todos os níveis */}

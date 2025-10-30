@@ -20,6 +20,7 @@ const Downloads: React.FC = () => {
   const { toast } = useToast();
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [carteiras, setCarteiras] = useState<Array<{id: number, nome: string}>>([]);
+  const [queues, setQueues] = useState<Array<{name: string, description?: string}>>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<DownloadJobCreate>({
     carteira_id: 0,
@@ -34,6 +35,7 @@ const Downloads: React.FC = () => {
   // Carregar carteiras e jobs ao montar o componente
   useEffect(() => {
     loadCarteiras();
+    loadQueues();
     loadJobs();
   }, []);
 
@@ -52,6 +54,17 @@ const Downloads: React.FC = () => {
       setJobs(jobsData);
     } catch (error) {
       console.error('Erro ao carregar jobs:', error);
+    }
+  };
+
+  const loadQueues = async () => {
+    try {
+      const res = await fetch('/api/downloads/queues');
+      if (!res.ok) throw new Error('Falha ao carregar filas');
+      const data = await res.json();
+      setQueues(data);
+    } catch (e) {
+      console.error('Erro ao carregar filas:', e);
     }
   };
 
@@ -167,13 +180,22 @@ const Downloads: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="fila_like">Fila (LIKE) *</Label>
-                <Input
-                  id="fila_like"
-                  placeholder="Ex: %aguas%, %vuon%"
+                <Label>Fila (nome) *</Label>
+                <Select 
                   value={formData.fila_like}
-                  onChange={(e) => setFormData({...formData, fila_like: e.target.value})}
-                />
+                  onValueChange={(value) => setFormData({...formData, fila_like: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma fila" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {queues.map((q) => (
+                      <SelectItem key={q.name} value={q.name}>
+                        {q.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

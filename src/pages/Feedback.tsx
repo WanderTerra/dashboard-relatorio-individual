@@ -121,11 +121,14 @@ const Feedback: React.FC = () => {
   const pageSize = 50;
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Lógica de permissões
+  // Lógica de permissões - CORRIGIDA para evitar acesso indevido
   const isAdmin = user?.permissions?.includes('admin') || false;
   const agentPermission = user?.permissions?.find((p: string) => p.startsWith('agent_'));
   const currentAgentId = agentPermission ? agentPermission.replace('agent_', '') : null;
-  const isAgentUser = currentAgentId && !isAdmin;
+  
+  // ✅ CORREÇÃO: Se tem permissão de agente, sempre aplicar filtro (mesmo sendo admin)
+  // Isso garante que agentes não vejam feedbacks de outros agentes
+  const isAgentUser = !!currentAgentId;
 
   // Debug: Log das permissões do usuário
   // Debug removido para melhorar performance
@@ -387,7 +390,21 @@ const Feedback: React.FC = () => {
     return [];
   }, [feedbacks, agents, trend, isAgentUser, currentAgentId]);
 
-
+  // Carregar mais páginas se estiver buscando por ID específico
+  const searchId = parseInt(searchTerm);
+  const isSearchingById = !isNaN(searchId) && searchTerm === String(searchId);
+  
+  useEffect(() => {
+    if (!isSearchingById || !hasNextPage || isFetchingNextPage) return;
+    
+    const found = feedbackData.some((item: FeedbackItem) => 
+      String(item.avaliacaoId) === String(searchId) || String(item.callId) === String(searchId)
+    );
+    
+    if (!found) {
+      fetchNextPage();
+    }
+  }, [searchTerm, isSearchingById, hasNextPage, isFetchingNextPage, feedbackData, searchId, fetchNextPage]);
 
   // Filtrar feedback
   const filteredFeedback = useMemo(() => {
@@ -537,31 +554,32 @@ const Feedback: React.FC = () => {
     retry: false, // Não tentar novamente em caso de erro
   });
 
-  // Função para navegar ao feedback específico
+  // Função para navegar ao feedback específico - FILTRA POR ID
   const handleVerFeedback = (contestacao: any) => {
     setShowContestacoesModal(false);
     
-    // Expandir o agente correspondente
-    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
+    // Limpar outros filtros, mas buscar pelo ID da avaliação
+    setStatusFilter('todos');
+    setStartDate('');
+    setEndDate('');
+    setSearchTerm(contestacao.avaliacao_id.toString());
     
-    // Expandir a avaliação correspondente
+    // Expandir agente e avaliação
+    setExpandedAgents(prev => new Set([...prev, contestacao.agent_id]));
     setExpandedCalls(prev => new Set([...prev, contestacao.avaliacao_id.toString()]));
     
-    // Scroll suave para o feedback após um pequeno delay
+    // Aguardar dados carregarem e navegar
     setTimeout(() => {
-      const feedbackElement = document.getElementById(`feedback-${contestacao.feedback_id}`);
-      if (feedbackElement) {
-        feedbackElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-        // Destacar temporariamente o feedback
-        feedbackElement.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
-        setTimeout(() => {
-          feedbackElement.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75');
-        }, 3000);
+      const element = document.querySelector(`[data-avaliacao-id="${contestacao.avaliacao_id}"]`);
+      
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-4', 'ring-orange-400', 'ring-opacity-75');
+        setTimeout(() => element.classList.remove('ring-4', 'ring-orange-400', 'ring-opacity-75'), 3000);
+      } else {
+        alert(`Avaliação #${contestacao.avaliacao_id} não encontrada.`);
       }
-    }, 100);
+    }, 2000);
   };
 
   // Detectar parâmetro de contestação na URL e abrir modal automaticamente
@@ -570,24 +588,23 @@ const Feedback: React.FC = () => {
     if (contestacaoId && Array.isArray(contestacoesPendentesStats) && contestacoesPendentesStats.length > 0) {
       const contestacao = contestacoesPendentesStats.find((c: any) => c.id.toString() === contestacaoId);
       if (contestacao) {
-        console.log('🔍 [DEBUG] Contestação encontrada na URL:', contestacao);
         handleVerFeedback(contestacao);
         // Limpar o parâmetro da URL após usar
-        setSearchParams(prev => {
+        setSearchParams((prev) => {
           const newParams = new URLSearchParams(prev);
           newParams.delete('contestacao');
           return newParams;
         });
       }
     }
-  }, [searchParams, contestacoesPendentesStats, setSearchParams]);
+  }, [searchParams, contestacoesPendentesStats]);
 
   // Estatísticas
   const stats = useMemo(() => {
     const total = feedbackData.length;
     const pendente = feedbackData.filter((f: FeedbackItem) => f.status === 'pendente').length;
     const aceito = feedbackData.filter((f: FeedbackItem) => f.status === 'aceito').length;
-    const revisao = Array.isArray(contestacoesPendentesStats) ? contestacoesPendentesStats.length : 0; // Usar contestações pendentes ao invés de status revisão
+    const revisao = Array.isArray(contestacoesPendentesStats) ? contestacoesPendentesStats.length : 0;
 
     return { total, pendente, aceito, revisao };
   }, [feedbackData, contestacoesPendentesStats]);
@@ -650,11 +667,9 @@ const Feedback: React.FC = () => {
     setShowContestacaoModal(true);
   };
 
-  // Função para expandir ligação com transcrição
   const handleShowTranscriptionSplit = (callId: string, avaliacaoId: string) => {
     setSelectedCallForTranscription({ callId, avaliacaoId });
     setExpandedCallWithTranscription(avaliacaoId);
-    // Garantir que a ligação esteja expandida
     setExpandedCalls(prev => new Set([...prev, callId]));
   };
 
@@ -1374,7 +1389,7 @@ const Feedback: React.FC = () => {
                           {/* Lista de Avaliações */}
                           <div className="space-y-4">
                             {agente.avaliacoes.map((avaliacao) => (
-                              <div key={avaliacao.avaliacaoId} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+                              <div key={avaliacao.avaliacaoId} data-avaliacao-id={avaliacao.avaliacaoId} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
                                 <Collapsible 
                                   open={expandedCalls.has(avaliacao.avaliacaoId)}
                                   onOpenChange={() => toggleCallExpansion(avaliacao.avaliacaoId)}
@@ -1493,7 +1508,7 @@ const Feedback: React.FC = () => {
               ) : (
                 /* Exibição original por Ligação (Agentes) */
                 feedbacksAgrupados.map((ligacao) => (
-                <div key={ligacao.callId} className="p-6">
+                <div key={ligacao.callId} data-avaliacao-id={ligacao.callId} className="p-6">
                   {/* Cabeçalho da Ligação - Agora clicável */}
                   <Collapsible 
                     open={expandedCalls.has(ligacao.callId)}
