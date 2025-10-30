@@ -17,11 +17,27 @@ const Dashboard: React.FC = () => {
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
 
   // Buscar carteiras únicas das tabelas mistas (avaliacoes + avaliacoes_uploads)
-  const { data: carteiras = [] } = useQuery({
+  const { data: carteirasRaw = [] } = useQuery({
     queryKey: ['carteiras-avaliacoes'],
     queryFn: getCarteirasFromAvaliacoes,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
+
+  // Filtrar carteiras para evitar duplicatas e valores undefined
+  type CarteiraRow = { carteira?: string | null };
+  type Option = { value: string; label: string };
+
+  const carteiras: Option[] = (carteirasRaw as CarteiraRow[])
+    .filter((item: CarteiraRow): item is Required<Pick<CarteiraRow, 'carteira'>> & { carteira: string } => {
+      return Boolean(item && item.carteira && typeof item.carteira === 'string' && item.carteira.trim().length > 0);
+    })
+    .map((item: { carteira: string }): Option => ({
+      value: item.carteira,
+      label: item.carteira
+    }))
+    .filter((item: Option, index: number, self: Option[]) => 
+      self.findIndex((t: Option) => t.value === item.value) === index
+    );
 
   // Construir objeto de filtros para a API (incluindo apenas parâmetros com valores)
   const apiFilters = { 

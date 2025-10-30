@@ -23,10 +23,16 @@ const QuartilesSection: React.FC<QuartilesSectionProps> = ({ start, end, carteir
     staleTime: 5 * 60 * 1000,
   });
 
-  const carteiras = carteirasRaw.map((item: { carteira: string }) => ({
-    value: item.carteira,
-    label: item.carteira
-  }));
+  const carteiras = carteirasRaw
+    .map((item: { carteira: string }) => ({
+      value: item.carteira,
+      label: item.carteira
+    }))
+    .filter((item, index, self) => 
+      item.value && 
+      item.label && 
+      self.findIndex(t => t.value === item.value) === index
+    );
 
   const params = { 
     ...(filtroStart ? { start: filtroStart } : {}), 
