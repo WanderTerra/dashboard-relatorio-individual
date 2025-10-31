@@ -1576,13 +1576,13 @@ const Feedback: React.FC = () => {
                                       {feedbacksGerais[avaliacao.avaliacaoId] && !feedbacksGerais[avaliacao.avaliacaoId].error && (
                                         <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
                                           <div className="flex items-start gap-3">
-                                            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg">
-                                              <Bot className="h-4 w-4 text-white" />
+                                            <div className="p-3 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl shadow-sm">
+                                              <Bot className="h-5 w-5 text-white" />
                                             </div>
                                             <div className="flex-1">
                                               <h6 className="text-sm font-bold text-emerald-900 mb-1">Feedback Geral da Ligação</h6>
                                               {feedbacksGerais[avaliacao.avaliacaoId].observacoes_gerais ? (
-                                                <div className="bg-white/90 rounded-lg p-3 border border-emerald-200">
+                                                <div className="bg-white/90 rounded-xl p-3 border border-emerald-200">
                                                   <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
                                                     {feedbacksGerais[avaliacao.avaliacaoId].observacoes_gerais}
                                                   </p>
@@ -1601,7 +1601,7 @@ const Feedback: React.FC = () => {
                                           <div key={feedback.id} id={`feedback-${feedback.id}`} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
                                             <div className="flex items-center justify-between">
                                               <div className="flex items-center gap-3 flex-1">
-                                                <div className="p-2 bg-gray-100 rounded-lg">
+                                                <div className="p-3 bg-gray-100 rounded-xl shadow-sm">
                                                   <span className="text-lg">{getOrigemIcon(feedback.origem)}</span>
                                                 </div>
                                                 <div>
@@ -1619,10 +1619,10 @@ const Feedback: React.FC = () => {
                                               </div>
                                               <button
                                                 onClick={() => handleVerDetalhes(feedback)}
-                                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                                                className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                                                title="Ver Detalhes"
                                               >
-                                                <Eye className="h-3 w-3" />
-                                                Ver
+                                                <Eye className="h-5 w-5 text-white" />
                                               </button>
                                             </div>
                                           </div>
@@ -1840,10 +1840,10 @@ const Feedback: React.FC = () => {
                                  <div className="flex items-center gap-3">
                                    <button
                                      onClick={() => handleVerDetalhes(feedback)}
-                                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                                     className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                                     title="Ver Detalhes"
                                    >
-                                     <Eye className="h-4 w-4" />
-                                     Ver
+                                     <Eye className="h-5 w-5 text-white" />
                                    </button>
                                    
                                    {/* Botões específicos para agentes */}
@@ -2504,10 +2504,10 @@ const Feedback: React.FC = () => {
                         <div className="ml-4 flex flex-col gap-2">
                           <button
                             onClick={() => handleVerFeedback(contestacao)}
-                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl"
+                            className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                            title="Ver Feedback"
                           >
-                            <Eye className="h-4 w-4" />
-                            Ver Feedback
+                            <Eye className="h-5 w-5 text-white" />
                           </button>
                           <div className="flex gap-2">
                             <button
@@ -2757,21 +2757,18 @@ const Feedback: React.FC = () => {
           ></div>
           
           {/* Modal */}
-          <div className="fixed inset-0 flex items-end justify-end z-50 p-4 pointer-events-none">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden pointer-events-auto">
-              {/* Conteúdo da Transcrição */}
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                <TranscriptionModal
-                  isOpen={true}
-                  isInline={true}
-                  onClose={() => {
-                    setExpandedCallWithTranscription(null);
-                    setSelectedCallForTranscription(null);
-                  }}
-                  avaliacaoId={expandedCallWithTranscription}
-                  callId={expandedCallWithTranscription}
-                />
-              </div>
+          <div className="fixed inset-0 flex items-end justify-end z-50 p-6 pointer-events-none">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-hidden flex flex-col pointer-events-auto">
+              <TranscriptionModal
+                isOpen={true}
+                isInline={true}
+                onClose={() => {
+                  setExpandedCallWithTranscription(null);
+                  setSelectedCallForTranscription(null);
+                }}
+                avaliacaoId={expandedCallWithTranscription}
+                callId={expandedCallWithTranscription}
+              />
             </div>
           </div>
         </>
