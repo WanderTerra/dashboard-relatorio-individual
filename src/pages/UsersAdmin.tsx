@@ -49,23 +49,25 @@ function CreateUserModalContent({
   };
 
   return (
-    <ModalBody>
-      <ModalContent>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-blue-100 rounded-xl">
-            <UserPlus className="h-6 w-6 text-blue-600" />
+      <ModalBody>
+        <ModalContent>
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 text-white rounded-t-3xl mb-6 -mx-6 -mt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                <UserPlus className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Novo Usuário</h2>
+                <p className="text-blue-100 text-lg">Crie um novo usuário no sistema</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Novo Usuário</h2>
-            <p className="text-sm text-gray-600">Crie um novo usuário no sistema</p>
-          </div>
-        </div>
         
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Nome de usuário</label>
             <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               placeholder="Digite o nome de usuário"
               value={newUsername}
               onChange={e => setNewUsername(e.target.value)}
@@ -76,7 +78,7 @@ function CreateUserModalContent({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Nome completo</label>
             <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               placeholder="Digite o nome completo"
               value={newFullName}
               onChange={e => setNewFullName(e.target.value)}
@@ -84,7 +86,7 @@ function CreateUserModalContent({
             />
           </div>
           
-          <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
             <input
               type="checkbox"
               checked={isAdmin}
@@ -102,14 +104,14 @@ function CreateUserModalContent({
       </ModalContent>
       <ModalFooter className="gap-3">
         <button
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200"
+          className="px-6 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200"
           onClick={handleCancel}
           disabled={creating}
         >
           Cancelar
         </button>
         <button
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={async () => {
             await handleCreateUser();
             setOpen(false);
@@ -334,8 +336,8 @@ export default function UsersAdmin() {
         subtitle="Gerencie usuários do sistema, permissões e configurações de acesso"
         actions={
           <Modal>
-            <ModalTrigger className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 font-medium">
-              <UserPlus className="h-4 w-4" />
+            <ModalTrigger className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500">
+              <UserPlus className="h-5 w-5" />
               Novo Usuário
             </ModalTrigger>
             <CreateUserModalContent 
@@ -361,8 +363,8 @@ export default function UsersAdmin() {
                 <p className="text-sm font-medium text-gray-600">Total de Usuários</p>
                 <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-xl">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm">
+                <Users className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>
@@ -373,8 +375,8 @@ export default function UsersAdmin() {
                 <p className="text-sm font-medium text-gray-600">Usuários Ativos</p>
                 <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-xl">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-sm">
+                <CheckCircle className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>
@@ -385,8 +387,8 @@ export default function UsersAdmin() {
                 <p className="text-sm font-medium text-gray-600">Administradores</p>
                 <p className="text-2xl font-bold text-blue-600">{adminUsers}</p>
               </div>
-                              <div className="p-3 bg-blue-100 rounded-xl">
-                  <Shield className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm">
+                <Shield className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>
@@ -410,15 +412,15 @@ export default function UsersAdmin() {
                       placeholder="Pesquisar usuários..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+                      className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium transition-all duration-200"
                     />
                   </div>
                   
                   {/* Filtro por papel */}
-                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                  <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-sm">
                     <button
                       onClick={() => setRoleFilter('todos')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 ${
                         roleFilter === 'todos'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -428,7 +430,7 @@ export default function UsersAdmin() {
                     </button>
                     <button
                       onClick={() => setRoleFilter('admin')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1 ${
                         roleFilter === 'admin'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -439,7 +441,7 @@ export default function UsersAdmin() {
                     </button>
                     <button
                       onClick={() => setRoleFilter('agente')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1 ${
                         roleFilter === 'agente'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -451,10 +453,10 @@ export default function UsersAdmin() {
                   </div>
                   
                   {/* Filtro por status */}
-                  <div className="flex items-center bg-gray-100 rounded-full p-1 shadow-sm">
+                  <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-sm">
                     <button
                       onClick={() => setStatusFilter('todos')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 ${
                         statusFilter === 'todos'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -464,7 +466,7 @@ export default function UsersAdmin() {
                     </button>
                     <button
                       onClick={() => setStatusFilter('ativo')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1 ${
                         statusFilter === 'ativo'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -475,7 +477,7 @@ export default function UsersAdmin() {
                     </button>
                     <button
                       onClick={() => setStatusFilter('inativo')}
-                      className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 flex items-center gap-1 ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 flex items-center gap-1 ${
                         statusFilter === 'inativo'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -528,7 +530,7 @@ export default function UsersAdmin() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
                               <span className="text-sm font-bold text-white">
                                 {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
                               </span>
@@ -541,10 +543,10 @@ export default function UsersAdmin() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold ${
                           user.active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
+                            ? 'text-green-600' 
+                            : 'text-red-600'
                         }`}>
                           {user.active ? (
                             <>
@@ -562,13 +564,13 @@ export default function UsersAdmin() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-wrap gap-1">
                           {(userPermissions[user.id] || []).includes('admin') && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-xl text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold text-blue-600">
                               <Shield className="h-3 w-3 mr-1" />
                               Admin
                             </span>
                           )}
-                                                      {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
-                              <span key={perm} className="inline-flex items-center px-2 py-1 rounded-xl text-xs font-medium bg-green-100 text-green-800">
+                          {(userPermissions[user.id] || []).filter((p: string) => p.startsWith('agent_')).map((perm: string) => (
+                            <span key={perm} className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold text-green-600">
                               <Users className="h-3 w-3 mr-1" />
                               Agente
                             </span>
@@ -577,24 +579,24 @@ export default function UsersAdmin() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                                                     <button
-                             onClick={() => openEditModal(user)}
-                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
-                           >
-                             <Edit className="h-3 w-3 mr-1" />
-                             Editar
-                           </button>
-                                                     <button
-                             onClick={() => {
-                               if(window.confirm('Deseja resetar a senha deste usuário?')) {
-                                 resetPasswordMutation.mutate(user.id);
-                               }
-                             }}
-                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
-                           >
-                             <Key className="h-3 w-3 mr-1" />
-                             Resetar Senha
-                           </button>
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="inline-flex items-center gap-2 px-4 py-2 border-2 border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              if(window.confirm('Deseja resetar a senha deste usuário?')) {
+                                resetPasswordMutation.mutate(user.id);
+                              }
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 border-2 border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
+                          >
+                            <Key className="h-4 w-4" />
+                            Resetar Senha
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -617,7 +619,7 @@ export default function UsersAdmin() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="inline-flex items-center px-4 py-2 border-2 border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     Anterior
                   </button>
@@ -627,10 +629,10 @@ export default function UsersAdmin() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                        className={`inline-flex items-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 ${
                           currentPage === page
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
+                            : 'text-gray-700 bg-white border-2 border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         {page}
@@ -641,7 +643,7 @@ export default function UsersAdmin() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="inline-flex items-center px-4 py-2 border-2 border-gray-300 shadow-sm text-sm font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     Próxima
                   </button>
@@ -654,16 +656,16 @@ export default function UsersAdmin() {
 
       {/* Modal de edição */}
       {editModalOpen && editingUser && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full mx-4">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-xl">
-                  <Edit className="h-5 w-5 text-blue-600" />
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 text-white">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Edit className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Editar Usuário</h2>
-                  <p className="text-sm text-gray-600">Atualize as informações do usuário</p>
+                  <h2 className="text-2xl font-bold">Editar Usuário</h2>
+                  <p className="text-blue-100 text-lg">Atualize as informações do usuário</p>
                 </div>
               </div>
             </div>
@@ -672,7 +674,7 @@ export default function UsersAdmin() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nome de usuário</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   value={editUsername}
                   onChange={e => setEditUsername(e.target.value)}
                   disabled={saving}
@@ -682,14 +684,14 @@ export default function UsersAdmin() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nome completo</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   disabled={saving}
                 />
               </div>
               
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <input
                   type="checkbox"
                   checked={editActive}
@@ -703,7 +705,7 @@ export default function UsersAdmin() {
                 </label>
               </div>
               
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
                 <input
                   type="checkbox"
                   checked={editIsAdmin}
@@ -720,18 +722,18 @@ export default function UsersAdmin() {
             </div>
             
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-                             <button
-                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-all duration-200"
-                 onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
-                 disabled={saving}
-               >
-                 Cancelar
-               </button>
-                             <button
-                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                 onClick={handleSave}
-                 disabled={saving || !editName.trim() || !editUsername.trim()}
-               >
+              <button
+                className="px-6 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200"
+                onClick={() => { setEditModalOpen(false); setEditingUser(null); }}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl transition-all duration-300 text-sm font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-transparent hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSave}
+                disabled={saving || !editName.trim() || !editUsername.trim()}
+              >
                 {saving ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

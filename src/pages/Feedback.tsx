@@ -1372,13 +1372,11 @@ const Feedback: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-blue-100 rounded-full">
-                  <span className="text-sm font-semibold text-blue-700">
-                    {isMonitor 
-                      ? `${feedbacksPorAgente.length} Agentes`
-                      : `${feedbacksAgrupados.length} Ligações`
-                    }
-                  </span>
+                <div className="px-4 py-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm text-white text-sm font-semibold">
+                  {isMonitor 
+                    ? `${feedbacksPorAgente.length} Agentes`
+                    : `${feedbacksAgrupados.length} Ligações`
+                  }
                 </div>
               </div>
             </div>
