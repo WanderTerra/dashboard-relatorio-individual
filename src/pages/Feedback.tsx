@@ -208,12 +208,22 @@ const Feedback: React.FC = () => {
     return flattened;
   }, [feedbacksPages]);
 
+  // Ref para hasNextPage para uso em callbacks assíncronos
+  const hasNextPageRef = useRef(hasNextPage);
+  
+  // Atualizar ref sempre que hasNextPage mudar
+  useEffect(() => {
+    hasNextPageRef.current = hasNextPage ?? false;
+  }, [hasNextPage]);
+
   // IntersectionObserver para carregar próximas páginas
   useEffect(() => {
     if (!bottomRef.current) return;
     
-    // Só inicializar se houver próxima página disponível
-    if (!hasNextPage) return;
+    // Se não houver próxima página, não inicializar o observer
+    if (!hasNextPageRef.current) {
+      return;
+    }
     
     const el = bottomRef.current;
     let timeoutId: NodeJS.Timeout | null = null;
@@ -226,7 +236,14 @@ const Feedback: React.FC = () => {
       const now = Date.now();
       
       // Validar condições antes de fazer requisição
-      if (!isVisible || !hasNextPage || isFetchingNextPage || isPending) {
+      // IMPORTANTE: Se não houver próxima página, não fazer nada e desconectar
+      if (!hasNextPageRef.current) {
+        observer.unobserve(el);
+        observer.disconnect();
+        return;
+      }
+      
+      if (!isVisible || isFetchingNextPage || isPending) {
         return;
       }
       
@@ -243,15 +260,28 @@ const Feedback: React.FC = () => {
       // Throttle: aguardar 800ms antes de fazer nova requisição
       timeoutId = setTimeout(() => {
         // Validar novamente antes de executar (pode ter mudado durante o timeout)
-        if (hasNextPage && !isFetchingNextPage && !isPending) {
+        // Se não houver mais páginas durante o timeout, cancelar e desconectar
+        if (!hasNextPageRef.current) {
+          observer.unobserve(el);
+          observer.disconnect();
+          return;
+        }
+        
+        if (!isFetchingNextPage && !isPending) {
           isPending = true;
           lastFetchTime = Date.now();
           
           fetchNextPage().finally(() => {
-            // Resetar flag após 1 segundo para permitir próxima requisição
+            // Verificar se ainda há próxima página após o fetch
+            // Se não houver mais páginas, desconectar o observer
             setTimeout(() => {
               isPending = false;
-            }, 1000);
+              // Se não houver mais páginas, desconectar o observer
+              if (!hasNextPageRef.current) {
+                observer.unobserve(el);
+                observer.disconnect();
+              }
+            }, 500);
           });
         }
       }, 800);
@@ -261,6 +291,7 @@ const Feedback: React.FC = () => {
     
     return () => {
       observer.unobserve(el);
+      observer.disconnect();
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
@@ -552,7 +583,6 @@ const Feedback: React.FC = () => {
         return {
           agenteId,
           agenteNome,
-          carteira: feedbacks[0]?.carteira || 'N/A',
           totalFeedbacks: feedbacks.length,
           totalAvaliacoes: avaliacoes.length,
           feedbacksPendentes: feedbacks.filter(fb => fb.status === 'pendente').length,
@@ -1371,16 +1401,9 @@ const Feedback: React.FC = () => {
                               <User className="h-8 w-8 text-white" />
                             </div>
                             <div className="space-y-3">
-                              <div>
-                                <h4 className="text-3xl font-bold text-gray-900">
-                                  {agente.agenteNome}
-                                </h4>
-                                {agente.carteira && agente.carteira !== 'N/A' && (
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    Carteira: {agente.carteira}
-                                  </p>
-                                )}
-                              </div>
+                              <h4 className="text-3xl font-bold text-gray-900">
+                                {agente.agenteNome}
+                              </h4>
                               <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                                 <p className="text-sm font-medium text-gray-700">
                                   <span className="inline-flex items-center gap-2">
@@ -1475,6 +1498,9 @@ const Feedback: React.FC = () => {
                                           <div className="flex items-center gap-6 mt-1">
                                             <span className="text-sm text-gray-600">{avaliacao.totalFeedbacks} critérios</span>
                                             <span className="text-sm text-gray-600">Performance: {avaliacao.performanceMedia}%</span>
+                                            {avaliacao.feedbacks[0]?.carteira && avaliacao.feedbacks[0].carteira !== 'N/A' && (
+                                              <span className="text-sm text-gray-600">Carteira: {avaliacao.feedbacks[0].carteira}</span>
+                                            )}
                                             <span className="text-sm text-gray-500">{avaliacao.dataLigacao}</span>
                                           </div>
                                         </div>
@@ -1614,6 +1640,13 @@ const Feedback: React.FC = () => {
                                 Performance: {ligacao.performanceMedia}%
                               </span>
                             </p>
+                            {ligacao.feedbacks[0]?.carteira && ligacao.feedbacks[0].carteira !== 'N/A' && (
+                              <p className="text-sm text-gray-600">
+                                <span className="inline-flex items-center gap-2">
+                                  Carteira: {ligacao.feedbacks[0].carteira}
+                                </span>
+                              </p>
+                            )}
                             <p className="text-sm text-gray-500">
                               <span className="inline-flex items-center gap-2">
                                 📅 {ligacao.dataLigacao}
