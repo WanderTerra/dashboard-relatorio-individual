@@ -110,6 +110,7 @@ const Feedback: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aceito' | 'revisao'>('todos');
+  const [activeFilter, setActiveFilter] = useState<'todos' | 'ativo' | 'inativo'>('todos');
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   // Estado para edição
@@ -171,7 +172,9 @@ const Feedback: React.FC = () => {
     ...(filters.end ? { end: filters.end } : {}),
     ...(filters.carteira ? { carteira: filters.carteira } : {}),
     // Adicionar filtro de agente se for um agente comum
-    ...(isAgentUser && currentAgentId ? { agent_id: currentAgentId } : {})
+    ...(isAgentUser && currentAgentId ? { agent_id: currentAgentId } : {}),
+    // Filtro de usuários ativos/inativos
+    ...(activeFilter === 'ativo' ? { active: 1 } : activeFilter === 'inativo' ? { active: 0 } : {})
   };
 
   // Debug: Log dos filtros da API
@@ -197,6 +200,7 @@ const Feedback: React.FC = () => {
       if (apiFilters.end) params.append('end', apiFilters.end);
       if (apiFilters.carteira) params.append('carteira', apiFilters.carteira);
       if (apiFilters.agent_id) params.append('agent_id', apiFilters.agent_id);
+      if (apiFilters.active !== undefined) params.append('active', String(apiFilters.active));
 
       return fetch(`/api/feedbacks/with-scores?${params.toString()}`)
         .then(res => res.json());
@@ -1218,6 +1222,18 @@ const Feedback: React.FC = () => {
                   <option value="pendente">⏳ Pendente</option>
                   <option value="aceito">🎯 Aceito</option>
                   <option value="revisao">🔍 Em Revisão</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Usuário</label>
+                <select
+                  value={activeFilter}
+                  onChange={e => setActiveFilter(e.target.value as 'todos' | 'ativo' | 'inativo')}
+                  className="h-12 border-2 border-gray-200 rounded-xl px-4 text-sm shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300"
+                >
+                  <option value="todos">👥 Todos</option>
+                  <option value="ativo">✅ Ativos</option>
+                  <option value="inativo">❌ Inativos</option>
                 </select>
               </div>
               <div className="flex flex-col">
