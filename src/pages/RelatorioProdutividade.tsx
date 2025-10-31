@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getRelatorioProdutividade, type RelatorioProdutividade, getCarteirasFromAvaliacoes } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
 import { exportRelatorioProdutividade, exportResumoProdutividade } from '../lib/export-utils';
-import { Calendar, Download, TrendingUp, Users, Phone, Clock } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { Download, TrendingUp, Users, Phone, Clock, Filter } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import PageHeader from '../components/PageHeader';
+import PeriodFilter from '../components/PeriodFilter';
+import { Combobox } from '../components/ui/select-simple';
+import { cn } from '../lib/utils';
 
 const RelatorioProdutividadePage: React.FC = () => {
-  const { filters, setFilters } = useFilters();
-  const [isLoading, setIsLoading] = useState(false);
+  const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
 
   const { data: relatorio, error, refetch } = useQuery({
     queryKey: ['relatorio-produtividade', filters],
@@ -16,15 +19,11 @@ const RelatorioProdutividadePage: React.FC = () => {
     enabled: true,
   });
 
-  const { data: carteiras, error: carteirasError } = useQuery({
+  const { data: carteiras = [], error: carteirasError } = useQuery({
     queryKey: ['carteiras-avaliacoes'],
     queryFn: getCarteirasFromAvaliacoes,
     enabled: true,
   });
-
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(newFilters);
-  };
 
   const handleExport = () => {
     if (!relatorio) {
@@ -58,82 +57,89 @@ const RelatorioProdutividadePage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatório de Produtividade</h1>
-          <p className="text-gray-600 mt-1">
+    <div>
+      <PageHeader 
+        title="Relatório de Produtividade" 
+        subtitle={
+          <>
             Análise de produtividade dos agentes por período
             {relatorio?.periodo.inicio && relatorio?.periodo.fim && (
-              <span className="ml-2 text-sm">
+              <span className="ml-2 text-sm text-gray-500">
                 ({formatDate(relatorio.periodo.inicio)} - {formatDate(relatorio.periodo.fim)})
               </span>
             )}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Download size={20} />
-            Exportar CSV
-          </button>
-          <button
-            onClick={handleExportResumo}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Download size={20} />
-            Resumo CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data Início
-            </label>
-            <input
-              type="date"
-              value={filters.start || ''}
-              onChange={(e) => handleFilterChange({ ...filters, start: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Data Fim
-            </label>
-            <input
-              type="date"
-              value={filters.end || ''}
-              onChange={(e) => handleFilterChange({ ...filters, end: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Carteira
-            </label>
-            <select
-              value={filters.carteira || ''}
-              onChange={(e) => handleFilterChange({ ...filters, carteira: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          </>
+        }
+        breadcrumbs={[
+          { label: 'Relatórios', href: '/relatorios' },
+          { label: 'Produtividade', isActive: true }
+        ]}
+        actions={
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={handleExport}
+              disabled={!relatorio}
+              className={cn(
+                "inline-flex items-center gap-3 px-6 py-3",
+                "bg-gradient-to-r from-blue-600 to-indigo-600",
+                "hover:from-blue-700 hover:to-indigo-700",
+                "text-white rounded-xl transition-all duration-300",
+                "shadow-lg hover:shadow-xl",
+                "transform hover:-translate-y-0.5",
+                "font-medium",
+                "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg"
+              )}
             >
-              <option value="">Todas as carteiras</option>
-              {carteiras?.map((carteira: any) => (
-                <option key={carteira.value} value={carteira.value}>
-                  {carteira.label}
-                </option>
-              ))}
-            </select>
+              <Download className="h-5 w-5" />
+              Exportar CSV
+            </button>
+            <button
+              onClick={handleExportResumo}
+              disabled={!relatorio}
+              className={cn(
+                "inline-flex items-center gap-3 px-6 py-3",
+                "bg-gradient-to-r from-green-600 to-emerald-600",
+                "hover:from-green-700 hover:to-emerald-700",
+                "text-white rounded-xl transition-all duration-300",
+                "shadow-lg hover:shadow-xl",
+                "transform hover:-translate-y-0.5",
+                "font-medium",
+                "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg"
+              )}
+            >
+              <Download className="h-5 w-5" />
+              Resumo CSV
+            </button>
+          </div>
+        }
+      />
+
+      <div className="p-6 space-y-6">
+        {/* Filtros */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filtros</span>
+          </div>
+          <div className="flex flex-wrap gap-4 items-end">
+            <PeriodFilter
+              startDate={filters.start || ''}
+              endDate={filters.end || ''}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+            />
+            <div className="min-w-[180px] flex flex-col">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Carteira</label>
+              <Combobox
+                options={carteiras}
+                value={filters.carteira || ''}
+                onChange={(value) => setCarteira(value)}
+                placeholder="Todas as carteiras"
+                emptyMessage="Nenhuma carteira encontrada"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
       {relatorio && (
         <>
@@ -141,8 +147,8 @@ const RelatorioProdutividadePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Phone className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm">
+                  <Phone className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total de Ligações</p>
@@ -153,8 +159,8 @@ const RelatorioProdutividadePage: React.FC = () => {
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Users className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-sm">
+                  <Users className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total de Agentes</p>
@@ -165,8 +171,8 @@ const RelatorioProdutividadePage: React.FC = () => {
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-sm">
+                  <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Média por Agente</p>
@@ -177,8 +183,8 @@ const RelatorioProdutividadePage: React.FC = () => {
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Clock className="h-6 w-6 text-orange-600" />
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-sm">
+                  <Clock className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Período</p>
@@ -289,6 +295,7 @@ const RelatorioProdutividadePage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
