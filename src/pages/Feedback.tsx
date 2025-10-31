@@ -34,7 +34,8 @@ import {
   CheckCheck,
   XCircle,
   Settings,
-  Mic
+  Mic,
+  ScrollText
 } from 'lucide-react';
 import { getMixedAgents, getMixedTrend, aceitarFeedback, aceitarFeedbackPut, getFeedbackGeralLigacao, aceitarTodosFeedbacks, contestarFeedback, getContestacoesPendentes, analisarContestacao, getAvaliacaoFeedbackStatus } from '../lib/api';
 import { useFilters } from '../hooks/use-filters';
@@ -77,6 +78,34 @@ interface FeedbackItem {
 const Feedback: React.FC = () => {
   const { user } = useAuth();
   const { filters, setStartDate, setEndDate, setCarteira } = useFilters();
+
+  // Função para formatar data no formato brasileiro (dd/mm/yyyy)
+  const formatarDataBR = (dataString: string) => {
+    if (!dataString || dataString === 'N/A') return dataString;
+    
+    try {
+      // Se a data vem no formato ISO (2025-10-31T11:07:33), extrair apenas a parte da data
+      const dataParte = dataString.split('T')[0];
+      const [ano, mes, dia] = dataParte.split('-');
+      
+      if (ano && mes && dia) {
+        return `${dia}/${mes}/${ano}`;
+      }
+      
+      // Se já estiver em formato diferente, tentar parsear
+      const data = new Date(dataString);
+      if (!isNaN(data.getTime())) {
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        return `${dia}/${mes}/${ano}`;
+      }
+      
+      return dataString;
+    } catch {
+      return dataString;
+    }
+  };
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
@@ -1494,14 +1523,14 @@ const Feedback: React.FC = () => {
                                           <Phone className="h-5 w-5 text-white" />
                                         </div>
                                         <div>
-                                          <h6 className="text-lg font-bold text-gray-900">Avaliação #{avaliacao.avaliacaoId}</h6>
+                                          <h6 className="text-lg font-bold text-gray-900">Avaliação {avaliacao.avaliacaoId}</h6>
                                           <div className="flex items-center gap-6 mt-1">
                                             <span className="text-sm text-gray-600">{avaliacao.totalFeedbacks} critérios</span>
                                             <span className="text-sm text-gray-600">Performance: {avaliacao.performanceMedia}%</span>
                                             {avaliacao.feedbacks[0]?.carteira && avaliacao.feedbacks[0].carteira !== 'N/A' && (
                                               <span className="text-sm text-gray-600">Carteira: {avaliacao.feedbacks[0].carteira}</span>
                                             )}
-                                            <span className="text-sm text-gray-500">{avaliacao.dataLigacao}</span>
+                                            <span className="text-sm text-gray-500">{formatarDataBR(avaliacao.dataLigacao)}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -1510,17 +1539,10 @@ const Feedback: React.FC = () => {
                                         {/* Botão de Transcrição */}
                                         <button
                                           onClick={() => handleShowTranscriptionSplit(avaliacao.avaliacaoId, avaliacao.avaliacaoId)}
-                                          className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-3 py-2 rounded-lg transition-all duration-300 text-xs font-semibold shadow-md hover:shadow-lg"
+                                          className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
                                         >
-                                          <Mic className="h-3 w-3" />
-                                          Transcrição
+                                          <ScrollText className="h-5 w-5 text-white" />
                                         </button>
-                                        
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-semibold text-amber-600">{avaliacao.feedbacksPendentes}P</span>
-                                          <span className="text-xs font-semibold text-blue-600">{avaliacao.feedbacksAceitos}C</span>
-                                          <span className="text-xs font-semibold text-orange-600">{avaliacao.feedbacksRevisao}R</span>
-                                        </div>
                                         
                                         {expandedCalls.has(avaliacao.avaliacaoId) ? (
                                           <ChevronDown className="h-4 w-4 text-blue-600" />
@@ -1649,7 +1671,7 @@ const Feedback: React.FC = () => {
                             )}
                             <p className="text-sm text-gray-500">
                               <span className="inline-flex items-center gap-2">
-                                📅 {ligacao.dataLigacao}
+                                📅 {formatarDataBR(ligacao.dataLigacao)}
                               </span>
                             </p>
                           </div>
@@ -2708,46 +2730,35 @@ const Feedback: React.FC = () => {
 
       {/* Modal de Transcrição Separado */}
       {expandedCallWithTranscription && (
-        <div className="fixed inset-0 flex items-end justify-end z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            {/* Header do Modal de Transcrição */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-6 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Mic className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold">Transcrição da Ligação</h3>
-                    <p className="text-purple-100 text-lg">Ligação #{expandedCallWithTranscription}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
+        <>
+          {/* Overlay de fundo escuro */}
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+            onClick={() => {
+              setExpandedCallWithTranscription(null);
+              setSelectedCallForTranscription(null);
+            }}
+          ></div>
+          
+          {/* Modal */}
+          <div className="fixed inset-0 flex items-end justify-end z-50 p-4 pointer-events-none">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden pointer-events-auto">
+              {/* Conteúdo da Transcrição */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <TranscriptionModal
+                  isOpen={true}
+                  isInline={true}
+                  onClose={() => {
                     setExpandedCallWithTranscription(null);
                     setSelectedCallForTranscription(null);
                   }}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 group"
-                >
-                  <X className="h-6 w-6 group-hover:scale-110 transition-transform" />
-                </button>
+                  avaliacaoId={expandedCallWithTranscription}
+                  callId={expandedCallWithTranscription}
+                />
               </div>
             </div>
-
-            {/* Conteúdo da Transcrição */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <TranscriptionModal
-                isOpen={true}
-                onClose={() => {
-                  setExpandedCallWithTranscription(null);
-                  setSelectedCallForTranscription(null);
-                }}
-                avaliacaoId={expandedCallWithTranscription}
-                callId={expandedCallWithTranscription}
-              />
-            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
