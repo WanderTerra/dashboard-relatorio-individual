@@ -172,14 +172,30 @@ const Feedback: React.FC = () => {
         .then(res => res.json());
     },
     getNextPageParam: (lastPage, allPages) => {
-      return Array.isArray(lastPage) && lastPage.length === pageSize
-        ? allPages.length * pageSize
-        : undefined;
+      // Limitar a 100 páginas (5000 registros) para evitar requisições infinitas
+      const MAX_PAGES = 100;
+      if (allPages.length >= MAX_PAGES) {
+        return undefined;
+      }
+      
+      // Só carregar próxima página se a última página tiver exatamente pageSize itens
+      // E garantir que não está vazia
+      if (!Array.isArray(lastPage) || lastPage.length === 0) {
+        return undefined;
+      }
+      // Se a última página tem menos itens que o pageSize, não há mais páginas
+      if (lastPage.length < pageSize) {
+        return undefined;
+      }
+      // Se tem exatamente pageSize itens, pode haver mais páginas
+      return allPages.length * pageSize;
     },
     staleTime: 5 * 60 * 1000,
-    retry: 3,
+    retry: 1, // Reduzir retries
     retryDelay: 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // Não refazer fetch ao montar novamente
+    refetchOnReconnect: false // Não refazer fetch ao reconectar
   });
 
   // Array achatado para manter compatibilidade com o restante do componente
@@ -194,17 +210,61 @@ const Feedback: React.FC = () => {
   // IntersectionObserver para carregar próximas páginas
   useEffect(() => {
     if (!bottomRef.current) return;
+    
+    // Só inicializar se houver próxima página disponível
+    if (!hasNextPage) return;
+    
     const el = bottomRef.current;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isPending = false; // Flag para evitar múltiplas requisições simultâneas
+    let lastFetchTime = 0;
+    const MIN_FETCH_INTERVAL = 1500; // Mínimo 1.5 segundos entre requisições
 
     const observer = new IntersectionObserver((entries) => {
       const isVisible = entries.some(e => e.isIntersecting);
-      if (isVisible && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
+      const now = Date.now();
+      
+      // Validar condições antes de fazer requisição
+      if (!isVisible || !hasNextPage || isFetchingNextPage || isPending) {
+        return;
       }
-    }, { root: null, rootMargin: '200px', threshold: 0 });
+      
+      // Verificar se já fez requisição recentemente
+      if (now - lastFetchTime < MIN_FETCH_INTERVAL) {
+        return;
+      }
+      
+      // Limpar timeout anterior se existir
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      // Throttle: aguardar 800ms antes de fazer nova requisição
+      timeoutId = setTimeout(() => {
+        // Validar novamente antes de executar (pode ter mudado durante o timeout)
+        if (hasNextPage && !isFetchingNextPage && !isPending) {
+          isPending = true;
+          lastFetchTime = Date.now();
+          
+          fetchNextPage().finally(() => {
+            // Resetar flag após 1 segundo para permitir próxima requisição
+            setTimeout(() => {
+              isPending = false;
+            }, 1000);
+          });
+        }
+      }, 800);
+    }, { root: null, rootMargin: '150px', threshold: 0.1 });
 
     observer.observe(el);
-    return () => observer.unobserve(el);
+    
+    return () => {
+      observer.unobserve(el);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      isPending = false;
+    };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 
