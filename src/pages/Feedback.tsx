@@ -71,6 +71,7 @@ interface FeedbackItem {
   contestacaoComentario?: string;
   contestacaoStatus?: string;
   contestacaoCriadoEm?: string;
+  carteira?: string;
 }
 
 const Feedback: React.FC = () => {
@@ -338,7 +339,8 @@ const Feedback: React.FC = () => {
           contestacaoId: fb.contestacao_id,
           contestacaoComentario: fb.contestacao_comentario,
           contestacaoStatus: fb.contestacao_status,
-          contestacaoCriadoEm: fb.contestacao_criado_em
+          contestacaoCriadoEm: fb.contestacao_criado_em,
+          carteira: fb.carteira
         };
       });
 
@@ -550,6 +552,7 @@ const Feedback: React.FC = () => {
         return {
           agenteId,
           agenteNome,
+          carteira: feedbacks[0]?.carteira || 'N/A',
           totalFeedbacks: feedbacks.length,
           totalAvaliacoes: avaliacoes.length,
           feedbacksPendentes: feedbacks.filter(fb => fb.status === 'pendente').length,
@@ -1368,9 +1371,16 @@ const Feedback: React.FC = () => {
                               <User className="h-8 w-8 text-white" />
                             </div>
                             <div className="space-y-3">
-                              <h4 className="text-3xl font-bold text-gray-900">
-                                {agente.agenteNome}
-                              </h4>
+                              <div>
+                                <h4 className="text-3xl font-bold text-gray-900">
+                                  {agente.agenteNome}
+                                </h4>
+                                {agente.carteira && agente.carteira !== 'N/A' && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Carteira: {agente.carteira}
+                                  </p>
+                                )}
+                              </div>
                               <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                                 <p className="text-sm font-medium text-gray-700">
                                   <span className="inline-flex items-center gap-2">
